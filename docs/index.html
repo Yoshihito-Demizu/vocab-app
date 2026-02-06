@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>語彙タイムアタック</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.webmanifest">
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 12px;
+      background: #fafafa;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+
+<body>
+
+  <!-- START -->
+  <div id="startPane">
+    <h2>語彙タイムアタック</h2>
+    <button id="startBtn">▶ START</button>
+  </div>
+
+  <!-- BATTLE -->
+  <div id="battlePane" class="hidden">
+    <div>
+      残り <span id="timeLeft">30</span> 秒 /
+      スコア <span id="scoreNow">0</span> /
+      COMBO <span id="comboNow">0</span>
+    </div>
+
+    <div id="q"></div>
+    <div id="choices"></div>
+
+    <div id="effect"></div>
+    <button id="stopBtn">終了</button>
+  </div>
+
+  <!-- RESULT -->
+  <div id="resultPane" class="hidden">
+    <div id="resultSummary"></div>
+    <button id="retryBtn">もう一回</button>
+  </div>
+
+  <!-- JS（順番厳守） -->
+  <script src="./js/config.js"></script>
+  <script src="./js/api.js"></script>
+  <script src="./js/ranking.js"></script>
+  <script src="./js/quiz.js"></script>
+  <script src="./js/main.js"></script>
+
+  <!-- Service Worker -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js");
+    }
+  </script>
+
+</body>
+</html>
