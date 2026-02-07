@@ -1,49 +1,139 @@
-// docs/js/quiz.js
-console.log("[quiz] loaded! (screen flow + 2x2 + big ○×)");
+// js/quiz.js
+console.log("[quiz] loaded! (countdown fixed)");
 
+// ===== 状態 =====
 let timer = null;
 let timeLeft = 30;
 let score = 0;
 let combo = 0;
-let playing = false;
+let streak = 0;
 let currentQuestion = null;
+let playing = false;
 
-function $(id){ return document.getElementById(id); }
-function show(id){ $(id)?.classList.remove("hidden"); }
-function hide(id){ $(id)?.classList.add("hidden"); }
+// ===== 便利 =====
+function $(id) { return document.getElementById(id); }
+function show(id) { $(id)?.classList.remove("hidden"); }
+function hide(id) { $(id)?.classList.add("hidden"); }
 
-function showMark(ok){
-  const m = $("bigMark");
-  if (!m) return;
-  m.textContent = ok ? "○" : "×";
-  m.className = ok ? "show ok" : "show ng";
-  setTimeout(()=>{ m.className = ""; }, 350);
+function setText(id, text, cls = "") {
+  const el = $(id);
+  if (!el) return;
+  if (cls) el.className = cls;
+  el.textContent = text;
 }
 
-async function countdown(){
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ===== 321カウント（これ1本に統一） =====
+async function showCountdown() {
   const q = $("q");
   const choices = $("choices");
-  if (!q || !choices) return;
+  if (!q) return;
 
-  choices.innerHTML = "";
-  q.innerHTML = `<div style="text-align:center;font-size:64px;font-weight:900;">3</div>`;
-  await new Promise(r=>setTimeout(r, 900));
-  q.innerHTML = `<div style="text-align:center;font-size:64px;font-weight:900;">2</div>`;
-  await new Promise(r=>setTimeout(r, 900));
-  q.innerHTML = `<div style="text-align:center;font-size:64px;font-weight:900;">1</div>`;
-  await new Promise(r=>setTimeout(r, 900));
-  q.innerHTML = `<div style="text-align:center;font-size:64px;font-weight:900;color:#00e08a;">GO!!</div>`;
-  await new Promise(r=>setTimeout(r, 650));
+  // 選択肢は一旦消す（押し間違い防止）
+  if (choices) choices.innerHTML = "";
+
+  const render = (txt, color = "#fff") => {
+    q.innerHTML = `
+      <div style="
+        text-align:center;
+        font-size:72px;
+        font-weight:900;
+        letter-spacing:2px;
+        color:${color};
+        text-shadow: 0 8px 18px rgba(0,0,0,0.55);
+        transform: translateY(-6px);
+      ">${txt}</div>
+      <div style="text-align:center;color:#fff;opacity:0.9;margin-top:6px;text-shadow:0 6px 14px rgba(0,0,0,0.45);">
+        READY?
+      </div>
+    `;
+  };
+
+  render("3");
+  await sleep(900);
+  render("2");
+  await sleep(900);
+  render("1");
+  await sleep(900);
+  render("GO!", "#7CFF6B");
+  await sleep(650);
+
+  q.innerHTML = "";
 }
 
-async function loadQuestion(){
+// ===== ゲーム開始 =====
+async function startGame() {
+  if (playing) return;
+  playing = true;
+
+  hide("startPane");
+  hide("resultPane");
+  show("battlePane");
+
+  // リセット
+  clearInterval(timer);
+  timeLeft = 30;
+  score = 0;
+  combo = 0;
+  streak = 0;
+  currentQuestion = null;
+
+  setText("timeLeft", timeLeft, "big");
+  setText("scoreNow", score);
+  setText("comboNow", combo);
+  setText("streak", streak);
+  setText("effect", "");
+  setText("result", "");
+
+  // 321 → 問題表示 → タイマー開始（順番固定）
+  await showCountdown();
+  await loadQuestion();
+
+  timer = setInterval(() => {
+    timeLeft--;
+    setText("timeLeft", timeLeft, timeLeft <= 5 ? "danger big" : "big");
+    if (timeLeft <= 0) endGame();
+  }, 1000);
+}
+
+// ===== 終了 =====
+function endGame() {
+  clearInterval(timer);
+  timer = null;
+  playing = false;
+
+  hide("battlePane");
+  show("resultPane");
+
+  const maxCombo = combo; // 今回の仕様だと「最後のコンボ」なので、必要なら別変数で最大保持も可能
+  const summary = $("resultSummary");
+  if (summary) {
+    summary.innerHTML = `
+      <div style="text-align:center;font-size:28px;font-weight:900;">🎉 終了！</div>
+      <div style="text-align:center;margin-top:8px;font-size:18px;">
+        スコア：<b style="font-size:22px;">${score}</b> 点
+      </div>
+      <div style="text-align:center;margin-top:4px;">
+        最終COMBO：<b>${maxCombo}</b>
+      </div>
+    `;
+  }
+}
+
+// ===== 問題読み込み =====
+async function loadQuestion() {
+  if (!playing) return;
+
   const q = await api.fetchLatestQuestion();
   currentQuestion = q;
 
-  $("q").innerHTML = `<h3>${q.word}</h3><div>${q.prompt}</div>`;
+  const qBox = $("q");
+  const choicesBox = $("choices");
+  if (!qBox || !choicesBox) return;
 
-  const box = $("choices");
-  box.innerHTML = "";
+  qBox.innerHTML = `<h3>${q.word}</h3><div>${q.prompt}</div>`;
+  choicesBox.innerHTML = "";
 
   const list = [
     ["A", q.choice_a],
@@ -52,84 +142,56 @@ async function loadQuestion(){
     ["D", q.choice_d],
   ];
 
-  list.forEach(([k, txt])=>{
+  list.forEach(([k, txt]) => {
     const b = document.createElement("button");
-    b.textContent = txt; // A/Bは見た目で消して押しやすく
-    b.onclick = ()=> answer(k);
-    box.appendChild(b);
+    b.textContent = `${k}: ${txt}`;
+    b.onclick = () => answer(k);
+    choicesBox.appendChild(b);
   });
 }
 
-async function answer(chosen){
-  if (!playing || !currentQuestion) return;
+// ===== 回答 =====
+async function answer(chosen) {
+  if (!currentQuestion || !playing) return;
+
+  // 二重クリック防止
+  const choicesBox = $("choices");
+  if (choicesBox) {
+    Array.from(choicesBox.querySelectorAll("button")).forEach(btn => (btn.disabled = true));
+  }
 
   const rows = await api.submitAttempt(currentQuestion.id, chosen);
   const r = rows?.[0];
   if (!r) return;
 
-  const ok = !!r.is_correct;
+  // コンボで得点増幅（例：1問10点 + コンボ×2点）
+  // ※増幅の形はあとで調整しやすいようにここにまとめてる
+  const base = r.is_correct ? 10 : 0;
+  const bonus = r.is_correct ? Math.min(combo * 2, 40) : 0; // 上限40（暴走防止）
+  const gained = base + bonus;
 
-  if (ok) {
+  if (r.is_correct) {
+    score += gained;
     combo += 1;
-    // コンボで倍率（例：1.0, 1.1, 1.2... 最大2.0）
-    const mult = Math.min(2.0, 1 + combo * 0.1);
-    score += Math.round((r.points || 10) * mult);
+    streak += 1;
+    setText("effect", "⭕ 正解！", "ok");
   } else {
     combo = 0;
+    streak = 0;
+    setText("effect", "✖ 不正解…", "ng");
   }
 
-  $("scoreNow").textContent = String(score);
-  $("comboNow").textContent = String(combo);
+  setText("scoreNow", score);
+  setText("comboNow", combo);
+  setText("streak", streak);
 
-  showMark(ok);
-
-  // ちょい待って次
-  setTimeout(()=>{ loadQuestion(); }, 450);
+  // 0.8秒見せて次へ（残り時間がある時だけ）
+  setTimeout(() => {
+    setText("effect", "");
+    if (playing && timeLeft > 0) loadQuestion();
+  }, 800);
 }
 
-function startGame(){
-  if (playing) return;
-  playing = true;
-
-  hide("startPane");
-  hide("resultPane");
-  show("battlePane");
-
-  timeLeft = 30;
-  score = 0;
-  combo = 0;
-
-  $("timeLeft").textContent = "30";
-  $("scoreNow").textContent = "0";
-  $("comboNow").textContent = "0";
-
-  (async ()=>{
-    await countdown();
-    await loadQuestion();
-
-    timer = setInterval(()=>{
-      timeLeft--;
-      $("timeLeft").textContent = String(timeLeft);
-      if (timeLeft <= 0) endGame();
-    }, 1000);
-  })();
-}
-
-function endGame(){
-  if (!playing) return;
-  playing = false;
-  clearInterval(timer);
-
-  hide("battlePane");
-  hide("startPane");
-  show("resultPane");
-
-  $("resultSummary").innerHTML = `
-    <div style="font-size:28px;font-weight:900;margin-bottom:8px;">🎉 RESULT</div>
-    <div style="font-size:20px;">SCORE：<b>${score}</b></div>
-    <div style="margin-top:6px;opacity:.85;">最大COMBO：<b>${combo}</b></div>
-  `;
-}
-
+// ===== グローバル =====
 window.startGame = startGame;
 window.endGame = endGame;
