@@ -5,138 +5,212 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>語彙タイムアタック</title>
 
-  <!-- PWA 必須 -->
- <link rel="manifest" href="./manifest.webmanifest">
-<meta name="theme-color" content="#0b1020">
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#0b1020">
+  <meta name="mobile-web-app-capable" content="yes">
 
-<!-- iPhone用（iOSは“インストールボタン”が出ないので、これが大事） -->
- <link rel="apple-touch-icon" href="./icons/icon-192.png">
- <meta name="apple-mobile-web-app-capable" content="yes">
- <meta name="apple-mobile-web-app-status-bar-style"  content="black-translucent">
+  <!-- iPhone用 -->
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-<style>
-  body {
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    margin: 0;
-    padding: 8px; /* 余白を少し詰める */
-    background: #fafafa;
-  }
+  <style>
+    :root { --pad: 10px; }
+    body{
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      margin:0; padding:0; background:#000;
+    }
+    .hidden{ display:none !important; }
 
-  .hidden { display: none; }
+    /* START：写真背景 */
+    #startPane{
+      min-height:100vh;
+      background:
+        linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)),
+        url("./icons/start-bg.jpg") center/cover no-repeat;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      color:#fff;
+      text-align:center;
+      padding: 24px 14px;
+    }
+    #startPane h1{
+      margin:0 0 18px;
+      font-size:34px;
+      letter-spacing:.04em;
+      text-shadow: 0 4px 16px rgba(0,0,0,.6);
+    }
+    #startBtn{
+      font-size:22px;
+      padding:16px 30px;
+      border-radius:999px;
+      border:none;
+      background:#ff3b30;
+      color:#fff;
+      font-weight:900;
+      box-shadow:0 10px 24px rgba(0,0,0,.35);
+    }
+    #startBtn:active{ transform:scale(.98); }
 
-  /* ▼ スタート画面をフル背景に */
-  #startPane {
-    min-height: 100vh;
-    background:
-      linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)),
-      url("./icons/start-bg.jpg") center / cover no-repeat;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    color: #fff;
-  }
+    /* BATTLE */
+    #battlePane{
+      min-height:100vh;
+      background:#0b1020;
+      color:#fff;
+      padding: var(--pad);
+    }
+    .hud{
+      display:flex; gap:10px; flex-wrap:wrap;
+      align-items:center;
+      margin-bottom: 10px;
+    }
+    .stat{
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-weight: 800;
+    }
 
-  #startPane h2 {
-    font-size: 32px;
-    margin-bottom: 20px;
-  }
+    #q{
+      margin-top: 10px;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 14px;
+      padding: 12px;
+    }
+    #q h3{ margin:0 0 6px; font-size:24px; }
 
-  #startBtn {
-    font-size: 22px;
-    padding: 16px 28px;
-    border-radius: 999px;
-    border: none;
-    background: #ff3b30;
-    color: #fff;
-    font-weight: 800;
-  }
+    /* 選択肢：2×2 */
+    #choices{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-top: 12px;
+    }
+    #choices button{
+      font-size:18px;
+      padding:18px 10px;
+      border-radius:14px;
+      border:none;
+      background:#fff;
+      color:#111;
+      font-weight:900;
+      min-height:78px;
+      box-shadow:0 8px 20px rgba(0,0,0,.25);
+    }
+    #choices button:active{ transform:scale(.98); }
 
-  /* ▼ 余白を詰める */
-  #battlePane { margin-top: 4px; }
-  #q { margin-top: 12px; }
+    /* ○×演出 */
+    #bigMark{
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      pointer-events:none;
+      font-size:120px;
+      font-weight:900;
+      text-shadow:0 10px 40px rgba(0,0,0,.55);
+      opacity:0;
+      transform: scale(.9);
+      transition: opacity .12s ease, transform .12s ease;
+    }
+    #bigMark.show{
+      opacity:1;
+      transform: scale(1);
+    }
+    #bigMark.ok{ color:#00e08a; }
+    #bigMark.ng{ color:#ff3b30; }
 
-  /* ▼ 選択肢エリアを2×2に */
-  #choices {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-top: 16px;
-  }
-
-  /* ▼ 選択肢ボタンを大きく */
-  #choices button {
-    font-size: 18px;
-    padding: 18px 12px;
-    border-radius: 14px;
-    border: none;
-    background: #ffffff;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
-    font-weight: 700;
-    min-height: 72px;
-  }
-
-  #choices button:active {
-    transform: scale(0.97);
-  }
-</style>
-
-
-
+    /* RESULT */
+    #resultPane{
+      min-height:100vh;
+      background:#0b1020;
+      color:#fff;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      padding: 18px 14px;
+      text-align:center;
+    }
+    #resultSummary{
+      width:min(520px, 100%);
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    #retryBtn{
+      font-size:20px;
+      padding:14px 26px;
+      border-radius:999px;
+      border:none;
+      background:#2f6bff;
+      color:#fff;
+      font-weight:900;
+    }
+  </style>
 </head>
 
 <body>
 
   <!-- START -->
-  <div id="startPane">
-    <h2>語彙タイムアタック</h2>
+  <section id="startPane">
+    <h1>語彙タイムアタック</h1>
     <button id="startBtn">▶ START</button>
-  </div>
+    <div style="margin-top:10px; opacity:.85; font-size:12px;">
+      30秒で何問正解できるか勝負！
+    </div>
+  </section>
 
   <!-- BATTLE -->
-  <div id="battlePane" class="hidden">
-    <div>
-      残り <span id="timeLeft">30</span> 秒 /
-      スコア <span id="scoreNow">0</span> /
-      COMBO <span id="comboNow">0</span>
+  <section id="battlePane" class="hidden">
+    <div class="hud">
+      <div class="stat">残り <span id="timeLeft">30</span>s</div>
+      <div class="stat">SCORE <span id="scoreNow">0</span></div>
+      <div class="stat">COMBO <span id="comboNow">0</span></div>
     </div>
 
     <div id="q"></div>
     <div id="choices"></div>
 
-    <div id="effect"></div>
-    <button id="stopBtn">終了</button>
-  </div>
+    <div style="margin-top:12px;">
+      <button id="stopBtn" style="padding:10px 14px;border-radius:12px;border:none;font-weight:800;">
+        終了
+      </button>
+    </div>
+  </section>
 
   <!-- RESULT -->
-  <div id="resultPane" class="hidden">
+  <section id="resultPane" class="hidden">
     <div id="resultSummary"></div>
-    <button id="retryBtn">もう一回</button>
-  </div>
+    <button id="retryBtn">もう一回！</button>
+  </section>
 
-  <!-- JS（順番厳守） -->
+  <!-- ○× -->
+  <div id="bigMark">○</div>
+
+  <!-- JS -->
   <script src="./js/config.js"></script>
   <script src="./js/api.js"></script>
-  <script src="./js/ranking.js"></script>
   <script src="./js/quiz.js"></script>
   <script src="./js/main.js"></script>
 
-<script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", async () => {
-      const reg = await navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" });
-      // 毎回アップデート確認
-      reg.update();
-    });
-  }
-</script>
-
+  <!-- SW -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", async () => {
+        const reg = await navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" });
+        reg.update();
+      });
+    }
+  </script>
 
 </body>
 </html>
-
-
-
-
-
-
