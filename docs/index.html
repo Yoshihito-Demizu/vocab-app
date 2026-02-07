@@ -121,17 +121,20 @@
   <script src="./js/quiz.js"></script>
   <script src="./js/main.js"></script>
 
-  <!-- Service Worker（超重要） -->
- <!-- Service Worker（いったん無効化） -->
 <script>
-  // if ("serviceWorker" in navigator) {
-  //   navigator.serviceWorker.register("./sw.js");
-  // }
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", async () => {
+      const reg = await navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" });
+      // 毎回アップデート確認
+      reg.update();
+    });
+  }
 </script>
 
 
 </body>
 </html>
+
 
 
 
