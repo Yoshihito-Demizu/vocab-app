@@ -2,7 +2,7 @@
 "use strict";
 
 const VERSION = "v2026-02-07-1"; // ← ここを更新するたびに数字を変える
-const CACHE_NAME = `vocab-app-${VERSION}`;
+const CACHE_NAME = `vocab-ta-v7${VERSION}`;
 
 const ASSETS = [
   "./",
@@ -71,3 +71,4 @@ self.addEventListener("fetch", (event) => {
     return fresh;
   })());
 });
+
