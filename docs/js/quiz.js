@@ -24,43 +24,45 @@ function setText(id, text, cls = "") {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// ===== 321カウント（これ1本に統一） =====
+// ===== 321カウント（視認性強化版） =====
 async function showCountdown() {
   const q = $("q");
   const choices = $("choices");
   if (!q) return;
 
-  // 選択肢は一旦消す（押し間違い防止）
   if (choices) choices.innerHTML = "";
 
-  const render = (txt, color = "#fff") => {
+  const render = (txt, color = "#ffffff") => {
     q.innerHTML = `
       <div style="
         text-align:center;
-        font-size:72px;
+        font-size:84px;
         font-weight:900;
-        letter-spacing:2px;
+        letter-spacing:4px;
         color:${color};
-        text-shadow: 0 8px 18px rgba(0,0,0,0.55);
+        text-shadow:
+          0 0 6px rgba(0,0,0,0.9),
+          0 6px 18px rgba(0,0,0,0.9),
+          0 12px 30px rgba(0,0,0,0.9);
         transform: translateY(-6px);
-      ">${txt}</div>
-      <div style="text-align:center;color:#fff;opacity:0.9;margin-top:6px;text-shadow:0 6px 14px rgba(0,0,0,0.45);">
-        READY?
+      ">
+        ${txt}
       </div>
     `;
   };
 
   render("3");
-  await sleep(900);
+  await sleep(1000);
   render("2");
-  await sleep(900);
+  await sleep(1000);
   render("1");
-  await sleep(900);
+  await sleep(1000);
   render("GO!", "#7CFF6B");
-  await sleep(650);
+  await sleep(700);
 
   q.innerHTML = "";
 }
+
 
 // ===== ゲーム開始 =====
 async function startGame() {
@@ -195,3 +197,4 @@ async function answer(chosen) {
 // ===== グローバル =====
 window.startGame = startGame;
 window.endGame = endGame;
+
