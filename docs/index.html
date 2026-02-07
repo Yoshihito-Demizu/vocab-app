@@ -67,6 +67,36 @@
     margin-top: 12px;
   }
 </style>
+  /* ▼ スタート画面をフル背景に */
+#startPane {
+  min-height: 100vh;
+  background:
+    linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)),
+    url("./icons/start-bg.jpg") center / cover no-repeat;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+}
+
+/* タイトル */
+#startPane h2 {
+  font-size: 32px;
+  margin-bottom: 20px;
+}
+
+/* STARTボタン */
+#startBtn {
+  font-size: 22px;
+  padding: 16px 28px;
+  border-radius: 999px;
+  border: none;
+  background: #ff3b30;
+  color: #fff;
+  font-weight: 800;
+}
+
 
 </head>
 
@@ -115,5 +145,6 @@
 
 </body>
 </html>
+
 
 
