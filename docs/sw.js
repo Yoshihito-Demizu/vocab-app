@@ -1,81 +1,73 @@
-/* sw.js - GitHub Pages向け 安定PWA */
+// docs/sw.js
+"use strict";
 
-const CACHE_VERSION = "v9"; // ←更新したら v10, v11... と上げる
-const CACHE_NAME = `vocab-app-${CACHE_VERSION}`;
+const VERSION = "v2026-02-07-1"; // ← ここを更新するたびに数字を変える
+const CACHE_NAME = `vocab-app-${VERSION}`;
 
-const PRECACHE_URLS = [
+const ASSETS = [
   "./",
   "./index.html",
   "./manifest.webmanifest",
-
-  // アプリ本体
+  "./vocab.csv",
   "./js/config.js",
   "./js/api.js",
   "./js/ranking.js",
   "./js/quiz.js",
   "./js/main.js",
-
-  // データ（使ってるなら）
-  "./vocab.csv",
-
-  // アイコン
   "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon-512.png",
+  "./icons/start-bg.jpg",
 ];
 
-// インストール：事前キャッシュ
 self.addEventListener("install", (event) => {
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    await cache.addAll(PRECACHE_URLS);
-    self.skipWaiting();
-  })());
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)).catch(() => null)
+  );
 });
 
-// 有効化：古いキャッシュ削除
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
     const keys = await caches.keys();
     await Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))));
-    self.clients.claim();
+    await self.clients.claim();
   })());
 });
 
-// 取得：基本はキャッシュ優先（白画面防止）
 self.addEventListener("fetch", (event) => {
   const req = event.request;
-  if (req.method !== "GET") return;
+  const url = new URL(req.url);
 
-  event.respondWith((async () => {
-    const cache = await caches.open(CACHE_NAME);
+  // 同一オリジンだけ処理（外部CDNは触らない）
+  if (url.origin !== location.origin) return;
 
-    // ナビゲーション（ページ遷移）は index.html を返す（PWAで重要）
-    if (req.mode === "navigate") {
-      const cached = await cache.match("./index.html");
-      if (cached) return cached;
+  // ★重要：HTML(画面)は「ネット優先」→ これで“変わらない”が消える
+  const isHTML =
+    req.mode === "navigate" ||
+    (req.headers.get("accept") || "").includes("text/html");
 
+  if (isHTML) {
+    event.respondWith((async () => {
       try {
-        const fresh = await fetch(req);
-        cache.put("./index.html", fresh.clone());
+        const fresh = await fetch(req, { cache: "no-store" });
+        const cache = await caches.open(CACHE_NAME);
+        cache.put(req, fresh.clone()).catch(() => null);
         return fresh;
-      } catch {
-        return new Response("オフラインです", { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+      } catch (e) {
+        const cached = await caches.match(req);
+        return cached || caches.match("./index.html");
       }
-    }
+    })());
+    return;
+  }
 
-    // 通常ファイル：キャッシュ→ネットの順
-    const cached = await cache.match(req, { ignoreSearch: true });
+  // 画像・JS・CSS・CSVは「キャッシュ優先」
+  event.respondWith((async () => {
+    const cached = await caches.match(req);
     if (cached) return cached;
-
-    try {
-      const fresh = await fetch(req);
-      // 同一オリジンのみ保存（安全）
-      if (new URL(req.url).origin === location.origin) {
-        cache.put(req, fresh.clone());
-      }
-      return fresh;
-    } catch (e) {
-      return cached || new Response("", { status: 504 });
-    }
+    const fresh = await fetch(req);
+    const cache = await caches.open(CACHE_NAME);
+    cache.put(req, fresh.clone()).catch(() => null);
+    return fresh;
   })());
 });
