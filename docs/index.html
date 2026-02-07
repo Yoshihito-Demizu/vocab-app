@@ -22,6 +22,31 @@
       background: #fafafa;
     }
     .hidden { display: none; }
+  /* 選択肢エリアを2×2に */
+#choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+/* 選択肢ボタン */
+#choices button {
+  font-size: 18px;
+  padding: 18px 12px;
+  border-radius: 14px;
+  border: none;
+  background: #ffffff;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+  font-weight: 700;
+  min-height: 72px;
+}
+
+/* 押した感 */
+#choices button:active {
+  transform: scale(0.97);
+}
+
   </style>
 </head>
 
@@ -70,3 +95,4 @@
 
 </body>
 </html>
+
