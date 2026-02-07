@@ -14,88 +14,73 @@
  <meta name="apple-mobile-web-app-capable" content="yes">
  <meta name="apple-mobile-web-app-status-bar-style"  content="black-translucent">
 
-  <style>
-    body {
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      margin: 0;
-      padding: 12px;
-      background: #fafafa;
-    }
-    .hidden { display: none; }
-  /* 選択肢エリアを2×2に */
-#choices {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-top: 16px;
-}
-
-/* 選択肢ボタン */
-#choices button {
-  font-size: 18px;
-  padding: 18px 12px;
-  border-radius: 14px;
-  border: none;
-  background: #ffffff;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.12);
-  font-weight: 700;
-  min-height: 72px;
-}
-
-/* 押した感 */
-#choices button:active {
-  transform: scale(0.97);
-}
-
-  </style>
-  <style>
+<style>
   body {
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
     margin: 0;
-    padding: 8px;   /* ← 12px → 8px に */
+    padding: 8px; /* 余白を少し詰める */
     background: #fafafa;
   }
 
   .hidden { display: none; }
 
-  /* ▼ 余白を詰める追加CSS */
-  #battlePane {
-    margin-top: 4px;
+  /* ▼ スタート画面をフル背景に */
+  #startPane {
+    min-height: 100vh;
+    background:
+      linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)),
+      url("./icons/start-bg.jpg") center / cover no-repeat;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
   }
 
-  #q {
-    margin-top: 12px;
+  #startPane h2 {
+    font-size: 32px;
+    margin-bottom: 20px;
+  }
+
+  #startBtn {
+    font-size: 22px;
+    padding: 16px 28px;
+    border-radius: 999px;
+    border: none;
+    background: #ff3b30;
+    color: #fff;
+    font-weight: 800;
+  }
+
+  /* ▼ 余白を詰める */
+  #battlePane { margin-top: 4px; }
+  #q { margin-top: 12px; }
+
+  /* ▼ 選択肢エリアを2×2に */
+  #choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 16px;
+  }
+
+  /* ▼ 選択肢ボタンを大きく */
+  #choices button {
+    font-size: 18px;
+    padding: 18px 12px;
+    border-radius: 14px;
+    border: none;
+    background: #ffffff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    font-weight: 700;
+    min-height: 72px;
+  }
+
+  #choices button:active {
+    transform: scale(0.97);
   }
 </style>
-  /* ▼ スタート画面をフル背景に */
-#startPane {
-  min-height: 100vh;
-  background:
-    linear-gradient(rgba(0,0,0,0.45), rgba(0,0,0,0.45)),
-    url("./icons/start-bg.jpg") center / cover no-repeat;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  color: #fff;
-}
 
-/* タイトル */
-#startPane h2 {
-  font-size: 32px;
-  margin-bottom: 20px;
-}
-
-/* STARTボタン */
-#startBtn {
-  font-size: 22px;
-  padding: 16px 28px;
-  border-radius: 999px;
-  border: none;
-  background: #ff3b30;
-  color: #fff;
-  font-weight: 800;
-}
 
 
 </head>
@@ -145,6 +130,7 @@
 
 </body>
 </html>
+
 
 
 
