@@ -158,6 +158,35 @@
       color:#fff;
       font-weight:900;
     }
+    /* ✅ ○×をスマホでも確実に見せる：画面中央の重ね表示 */
+#effect {
+  position: fixed;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  pointer-events: none;
+
+  font-size: 96px;
+  font-weight: 900;
+  text-shadow: 0 10px 30px rgba(0,0,0,0.55);
+  display: none; /* ←普段は消す */
+}
+
+#effect.show {
+  display: block;
+  animation: popfx 0.45s ease-out;
+}
+
+#effect.ok { color: #00c853; }   /* 緑 */
+#effect.ng { color: #ff1744; }   /* 赤 */
+
+@keyframes popfx {
+  0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+  70%  { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+}
+
   </style>
 </head>
 
@@ -232,6 +261,7 @@
 
 </body>
 </html>
+
 
 
 
