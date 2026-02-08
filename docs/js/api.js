@@ -185,76 +185,94 @@ const api = {
   },
 
   // ---- Question ----
-  async fetchLatestQuestion() {
-    if (USE_MOCK) {
-      const list = mock.vocab;
+  // ---- Question ----
+async fetchLatestQuestion() {
+  if (USE_MOCK) {
+    // ✅ levelSelect が無くても落ちない
+    const level = document.getElementById("levelSelect")?.value || "all";
 
-      if (!list || list.length < 4) {
-        throw new Error("語彙が少なすぎます（最低4件必要）");
-      }
+    // ✅ pool を正しく作る（※「let pool = pool;」みたいな事故を防ぐ）
+    let pool = (mock.vocab || []).slice();
 
-      // レベル絞り込み（UIが無くても落ちない）
-      const levelSel = document.getElementById("levelSelect");
-      const level = levelSel ? (levelSel.value || "all") : "all";
-
-      const pool =
-        level === "all"
-          ? list
-          : list.filter(v => String(v.level || 1) === String(level));
-
-      const finalPool = pool.length >= 4 ? pool : list; // 絞り込みで少なすぎたら全体に戻す
-
-      const i = Math.floor(Math.random() * finalPool.length);
-      const v = finalPool[i];
-
-      const { map, correctLabel } = makeChoices(finalPool, v);
-      window.__LAST_MOCK_CORRECT = correctLabel;
-
-      return {
-        id: "mock-" + i,
-        word: v.word,
-        prompt: "意味として正しいものは？",
-        choice_a: map.A,
-        choice_b: map.B,
-        choice_c: map.C,
-        choice_d: map.D,
-        correct_choice: correctLabel,
-      };
+    // level指定があるなら絞る（level未設定は1扱い）
+    if (level !== "all") {
+      pool = pool.filter(v => String(v.level || 1) === String(level));
     }
 
-    assertClient();
-    const { data, error } = await client
-      .from("questions")
-      .select("id, word, prompt, choice_a, choice_b, choice_c, choice_d")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (error) throw error;
-    return data?.[0] ?? null;
-  },
-
-  async submitAttempt(questionId, chosen) {
-    if (USE_MOCK) {
-      const ok = chosen === window.__LAST_MOCK_CORRECT;
-      return [{
-        is_correct: ok,
-        points: ok ? 10 : 0,
-        out_week_id: mock.weekIds[0],
-      }];
+    // 4択作るには最低4件必要
+    if (pool.length < 4) pool = (mock.vocab || []).slice();
+    if (!pool || pool.length < 4) {
+      throw new Error("mock.vocab が少なすぎます（最低4件必要）");
     }
 
-    assertClient();
-    const { data, error } = await client.rpc("submit_attempt", {
-      p_question_id: questionId,
-      p_chosen_choice: chosen,
-      p_client_ms: null,
-      p_quiz_session_id: null,
-    });
+    // ✅ 出題語を選ぶ
+    const i = Math.floor(Math.random() * pool.length);
+    const v = pool[i];
 
-    if (error) throw error;
-    return data ?? [];
-  },
+    // ✅ 選択肢は「全体」から外れを取る（絞り込みプールだと重複しやすいので）
+    const base = (mock.vocab || []).slice();
+    const { map, correctLabel } = makeChoices(base, v);
+
+    // ✅ ここが答え合わせの生命線（これが無いと全部0点になりうる）
+    window.__LAST_MOCK_CORRECT = correctLabel;
+
+    // デバッグログ（点が0の時の原因特定に便利）
+    console.log("[mockQ]", v.word, "correct=", correctLabel, map);
+
+    return {
+      id: "mock-" + Date.now() + "-" + i,
+      word: v.word,
+      prompt: "意味として正しいものは？",
+      choice_a: map.A,
+      choice_b: map.B,
+      choice_c: map.C,
+      choice_d: map.D,
+      correct_choice: correctLabel, // デバッグ用（UIでは使わなくてOK）
+    };
+  }
+
+  // ===== 本番（Supabase）=====
+  assertClient();
+  const { data, error } = await client
+    .from("questions")
+    .select("id, word, prompt, choice_a, choice_b, choice_c, choice_d")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (error) throw error;
+  return data?.[0] ?? null;
+},
+
+async submitAttempt(questionId, chosen) {
+  if (USE_MOCK) {
+    const correct = window.__LAST_MOCK_CORRECT;
+    const ok = chosen === correct;
+
+    // ✅ ここで「正解なら10点」を保証
+    const pts = ok ? 10 : 0;
+
+    console.log("[mockA]", "chosen=", chosen, "correct=", correct, "ok=", ok, "pts=", pts);
+
+    return [{
+      is_correct: ok,
+      points: pts,
+      out_week_id: mock.weekIds?.[0] || "mock-week",
+    }];
+  }
+
+  // ===== 本番（Supabase）=====
+  assertClient();
+  const { data, error } = await client.rpc("submit_attempt", {
+    p_question_id: questionId,
+    p_chosen_choice: chosen,
+    p_client_ms: null,
+    p_quiz_session_id: null,
+  });
+
+  if (error) throw error;
+  return data ?? [];
+},
 
   // ---- Week options ----
   async fetchWeekOptions() {
@@ -361,3 +379,4 @@ const api = {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", USE_MOCK, "fallback vocab size =", mock.vocab.length);
+
