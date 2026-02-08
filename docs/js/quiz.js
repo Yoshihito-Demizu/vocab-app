@@ -272,27 +272,60 @@ async function answer(chosen) {
 
   const eff = $("effect");
 
-  if (r.is_correct) {
-    // ✅ コンボで増幅（上限つき）
-    score += r.points + Math.min(combo, 20);
-    combo += 1;
-    streak += 1;
+ if (r.is_correct) {
+  // ✅ コンボで増幅（上限つき）
+  score += r.points + Math.min(combo, 20);
+  combo += 1;
+  streak += 1;
 
-    if (eff) {
-      eff.innerHTML = `<div style="font-size:64px;font-weight:900;">⭕</div>`;
-      eff.className = "effect ok";
-    }
-    sfxCorrect();
-  } else {
-    combo = 0;
-    streak = 0;
+  if (eff) {
+    // 画面中央にドーン（⭕ + 光 + ぷるん）
+    eff.innerHTML = `⭕`;
+    eff.className = "fx fx-ok fx-pop";
 
-    if (eff) {
-      eff.innerHTML = `<div style="font-size:64px;font-weight:900;">❌</div>`;
-      eff.className = "effect ng";
-    }
-    sfxWrong();
+    // ちょい遅れてもう1回ポップ（気持ちよさ）
+    setTimeout(() => {
+      if (!playing) return;
+      eff.classList.remove("fx-pop");
+      void eff.offsetWidth; // reflow
+      eff.classList.add("fx-pop2");
+    }, 140);
   }
+
+  // 背景フラッシュ
+  document.body.classList.add("bg-flash-ok");
+  setTimeout(() => document.body.classList.remove("bg-flash-ok"), 120);
+
+  sfxCorrect();
+} else {
+  combo = 0;
+  streak = 0;
+
+  if (eff) {
+    // 画面中央にドーン（❌ + 揺れ + 影）
+    eff.innerHTML = `❌`;
+    eff.className = "fx fx-ng fx-shake";
+  }
+
+  // 背景フラッシュ
+  document.body.classList.add("bg-flash-ng");
+  setTimeout(() => document.body.classList.remove("bg-flash-ng"), 140);
+
+  sfxWrong();
+}
+
+setText("scoreNow", score);
+setText("comboNow", combo);
+setText("streak", streak);
+
+updateBgmByScore();
+
+// ✅ しばらく見せてから次へ
+setTimeout(() => {
+  if (eff) { eff.className = "fx"; eff.innerHTML = ""; }
+  loadQuestion();
+}, 720);
+
 
   setText("scoreNow", score);
   setText("comboNow", combo);
@@ -309,3 +342,4 @@ async function answer(chosen) {
 // ===== グローバル =====
 window.startGame = startGame;
 window.endGame = endGame;
+
