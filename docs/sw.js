@@ -1,8 +1,9 @@
 // docs/sw.js
 "use strict";
 
-const VERSION = "v2026-02-07-1"; // ← ここを更新するたびに数字を変える
-const CACHE_NAME = `vocab-ta-v7${VERSION}`;
+const VERSION = "v2026-02-08-1"; // ★更新のたびに必ず変える
+const CACHE_PREFIX = "vocab-ta-cache-";
+const CACHE_NAME = `${CACHE_PREFIX}${VERSION}`;
 
 const ASSETS = [
   "./",
@@ -28,8 +29,11 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
+    // ★自分のアプリのキャッシュだけ消す（他は消さない）
     const keys = await caches.keys();
-    await Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))));
+    await Promise.all(
+      keys.map((k) => (k.startsWith(CACHE_PREFIX) && k !== CACHE_NAME) ? caches.delete(k) : null)
+    );
     await self.clients.claim();
   })());
 });
@@ -38,10 +42,10 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // 同一オリジンだけ処理（外部CDNは触らない）
+  // 同一オリジンだけ（外部CDNは触らない）
   if (url.origin !== location.origin) return;
 
-  // ★重要：HTML(画面)は「ネット優先」→ これで“変わらない”が消える
+  // ★重要：HTMLはネット優先（“変わらない”対策）
   const isHTML =
     req.mode === "navigate" ||
     (req.headers.get("accept") || "").includes("text/html");
@@ -49,26 +53,23 @@ self.addEventListener("fetch", (event) => {
   if (isHTML) {
     event.respondWith((async () => {
       try {
-        const fresh = await fetch(req, { cache: "no-store" });
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(req, fresh.clone()).catch(() => null);
-        return fresh;
-      } catch (e) {
-        const cached = await caches.match(req);
-        return cached || caches.match("./index.html");
+        return await fetch(req, { cache: "no-store" });
+      } catch {
+        return (await caches.match("./index.html")) || Response.error();
       }
     })());
     return;
   }
 
-  // 画像・JS・CSS・CSVは「キャッシュ優先」
+  // ★JS/CSS/CSV/画像：ネット優先 + 失敗時キャッシュ（更新反映が早い）
   event.respondWith((async () => {
-    const cached = await caches.match(req);
-    if (cached) return cached;
-    const fresh = await fetch(req);
     const cache = await caches.open(CACHE_NAME);
-    cache.put(req, fresh.clone()).catch(() => null);
-    return fresh;
+    try {
+      const fresh = await fetch(req);
+      if (fresh && fresh.ok) cache.put(req, fresh.clone()).catch(() => null);
+      return fresh;
+    } catch {
+      return (await cache.match(req)) || Response.error();
+    }
   })());
 });
-
