@@ -1,7 +1,7 @@
 // docs/sw.js
 "use strict";
 
-// ★更新するたびに数字を変える（スマホ更新されない最強対策）
+// ★ 変更したら必ず増やす（これが“全員更新”のスイッチ）
 const VERSION = "v2026-02-08-1";
 const CACHE_NAME = `vocab-ta-${VERSION}`;
 
@@ -39,14 +39,13 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // 同一オリジンのみ
+  // 同一オリジンだけ
   if (url.origin !== location.origin) return;
 
-  // ★HTMLは「ネット優先」：これで“見た目が変わらない”が激減
-  const isHTML =
-    req.mode === "navigate" ||
-    (req.headers.get("accept") || "").includes("text/html");
+  const accept = (req.headers.get("accept") || "");
+  const isHTML = req.mode === "navigate" || accept.includes("text/html");
 
+  // ★ HTMLはネット優先（常に最新の画面）
   if (isHTML) {
     event.respondWith((async () => {
       try {
@@ -62,11 +61,34 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // JS/CSS/画像/CSVは「キャッシュ優先」
+  // ★ JS/CSS/CSVは「stale-while-revalidate」
+  // （今すぐはキャッシュで速く、裏で更新して次回から最新になる）
+  const isAsset =
+    url.pathname.includes("/js/") ||
+    url.pathname.endsWith(".css") ||
+    url.pathname.endsWith(".csv") ||
+    url.pathname.endsWith(".webmanifest") ||
+    url.pathname.includes("/icons/");
+
+  if (isAsset) {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(req);
+
+      const fetchPromise = fetch(req).then((fresh) => {
+        cache.put(req, fresh.clone()).catch(() => null);
+        return fresh;
+      }).catch(() => null);
+
+      return cached || (await fetchPromise) || cached;
+    })());
+    return;
+  }
+
+  // その他はキャッシュ優先
   event.respondWith((async () => {
     const cached = await caches.match(req);
     if (cached) return cached;
-
     const fresh = await fetch(req);
     const cache = await caches.open(CACHE_NAME);
     cache.put(req, fresh.clone()).catch(() => null);
