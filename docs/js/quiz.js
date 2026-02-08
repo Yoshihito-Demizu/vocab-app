@@ -1,5 +1,5 @@
 // js/quiz.js
-console.log("[quiz] loaded! (audio fix)");
+console.log("[quiz] loaded! (audio fixed)");
 
 // ===== 状態 =====
 let timer = null;
@@ -9,6 +9,25 @@ let combo = 0;
 let streak = 0;
 let currentQuestion = null;
 let playing = false;
+
+// ===== HTML Audio（mp3用：リザルト曲など）=====
+let htmlAudio = null;
+
+function playHtmlLoop(src, volume = 0.5) {
+  stopHtmlAudio();
+  htmlAudio = new Audio(src);
+  htmlAudio.loop = true;
+  htmlAudio.volume = volume;
+  htmlAudio.play().catch(() => {});
+}
+
+function stopHtmlAudio() {
+  if (htmlAudio) {
+    htmlAudio.pause();
+    htmlAudio.currentTime = 0;
+    htmlAudio = null;
+  }
+}
 
 // ===== DOM =====
 function $(id) { return document.getElementById(id); }
@@ -22,19 +41,20 @@ function setText(id, text, cls = "") {
 }
 
 // =====================
-// 🔊 Audio（スマホ対応）
+// 🔊 WebAudio（スマホ対応：効果音 + チップBGM）
 // =====================
-let AC = null;              // AudioContext
-let master = null;          // master gain
-let bgmTimer = null;        // setInterval for BGM loop (chiptune)
-let currentBgmTier = null;  // "low"|"mid"|"high"|"result"
+let AC = null;
+let master = null;
+
+let chipTimer = null;        // setInterval for chiptune
+let currentChipTier = null;  // "low"|"mid"|"high"|"result"
 
 function ensureAudio() {
   if (AC) return;
   const Ctx = window.AudioContext || window.webkitAudioContext;
   AC = new Ctx();
   master = AC.createGain();
-  master.gain.value = 0.25;  // 全体音量
+  master.gain.value = 0.25;
   master.connect(AC.destination);
   console.log("[audio] created");
 }
@@ -52,10 +72,11 @@ function beep({ freq = 440, dur = 0.12, type = "sine", gain = 0.2 }) {
   if (!AC || !master) return;
   const o = AC.createOscillator();
   const g = AC.createGain();
+
   o.type = type;
   o.frequency.value = freq;
 
-  g.gain.value = 0;
+  g.gain.value = 0.0001;
   g.gain.linearRampToValueAtTime(gain, AC.currentTime + 0.01);
   g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
 
@@ -68,16 +89,13 @@ function beep({ freq = 440, dur = 0.12, type = "sine", gain = 0.2 }) {
 
 // ---- SFX ----
 function sfxCorrect() {
-  // ピンポンっぽく（2音）
   beep({ freq: 880, dur: 0.08, type: "square", gain: 0.20 });
   setTimeout(() => beep({ freq: 1175, dur: 0.10, type: "square", gain: 0.18 }), 90);
 }
 function sfxWrong() {
-  // ブーっぽく（低いノコギリ + ちょい長め）
   beep({ freq: 160, dur: 0.22, type: "sawtooth", gain: 0.25 });
 }
 function sfxCount(n) {
-  // 3,2,1用
   const f = n === 3 ? 440 : n === 2 ? 523 : 659;
   beep({ freq: f, dur: 0.12, type: "square", gain: 0.18 });
 }
@@ -86,48 +104,46 @@ function sfxGo() {
   setTimeout(() => beep({ freq: 1319, dur: 0.12, type: "square", gain: 0.20 }), 80);
 }
 
-// ---- BGM（簡易チップチューン：tierで変える）----
-function stopBGM() {
-  if (bgmTimer) {
-    clearInterval(bgmTimer);
-    bgmTimer = null;
+// ---- Chiptune BGM ----
+function stopChipBGM() {
+  if (chipTimer) {
+    clearInterval(chipTimer);
+    chipTimer = null;
   }
-  currentBgmTier = null;
+  currentChipTier = null;
 }
 
-function startBGM(tier) {
+function startChipBGM(tier) {
   ensureAudio();
-  if (currentBgmTier === tier) return; // 同じなら何もしない
-  stopBGM();
-  currentBgmTier = tier;
+  if (currentChipTier === tier) return;
 
-  // tierごとにテンポ/フレーズを変える（テトリス“風”のノリ）
+  stopChipBGM();
+  currentChipTier = tier;
+
   const patterns = {
-    low:  { bpm: 140, seq: [659, 523, 587, 523, 494, 440, 494, 523] },
-    mid:  { bpm: 160, seq: [784, 659, 698, 659, 587, 523, 587, 659] },
-    high: { bpm: 180, seq: [988, 784, 880, 784, 698, 659, 698, 784] },
-    result:{ bpm: 120, seq: [523, 659, 784, 659, 523, 494, 523, 659] }
+    low:    { bpm: 140, seq: [659, 523, 587, 523, 494, 440, 494, 523] },
+    mid:    { bpm: 160, seq: [784, 659, 698, 659, 587, 523, 587, 659] },
+    high:   { bpm: 180, seq: [988, 784, 880, 784, 698, 659, 698, 784] },
+    result: { bpm: 120, seq: [523, 659, 784, 659, 523, 494, 523, 659] },
   };
 
   const p = patterns[tier] || patterns.low;
-  const stepMs = Math.floor(60000 / p.bpm / 2); // 8分
+  const stepMs = Math.floor(60000 / p.bpm / 2);
   let i = 0;
 
-  bgmTimer = setInterval(() => {
-    // 軽めに
+  chipTimer = setInterval(() => {
     beep({ freq: p.seq[i % p.seq.length], dur: 0.07, type: "square", gain: 0.08 });
     i++;
   }, stepMs);
 
-  console.log("[bgm] start:", tier);
+  console.log("[chipBGM] start:", tier);
 }
 
 function updateBgmByScore() {
-  // ざっくり：スコアで段階変更（好きに調整可）
   if (!playing) return;
-  if (score >= 120) startBGM("high");
-  else if (score >= 60) startBGM("mid");
-  else startBGM("low");
+  if (score >= 120) startChipBGM("high");
+  else if (score >= 60) startChipBGM("mid");
+  else startChipBGM("low");
 }
 
 // =====================
@@ -139,33 +155,20 @@ async function showCountdownThenStart() {
   if (!q || !choices) return;
 
   choices.innerHTML = "";
+
   const showBig = (txt, color = "#fff") => {
     q.innerHTML = `
       <div style="
         font-size:72px;font-weight:900;text-align:center;
         color:${color};
         text-shadow:0 8px 30px rgba(0,0,0,.6);
-        transform:scale(1.0);
-        ">
-        ${txt}
-      </div>`;
+      ">${txt}</div>`;
   };
 
-  showBig("3");
-  sfxCount(3);
-  await new Promise(r => setTimeout(r, 900));
-
-  showBig("2");
-  sfxCount(2);
-  await new Promise(r => setTimeout(r, 900));
-
-  showBig("1");
-  sfxCount(1);
-  await new Promise(r => setTimeout(r, 900));
-
-  showBig("GO!!", "#0a7");
-  sfxGo();
-  await new Promise(r => setTimeout(r, 700));
+  showBig("3"); sfxCount(3); await new Promise(r => setTimeout(r, 900));
+  showBig("2"); sfxCount(2); await new Promise(r => setTimeout(r, 900));
+  showBig("1"); sfxCount(1); await new Promise(r => setTimeout(r, 900));
+  showBig("GO!!", "#0a7"); sfxGo(); await new Promise(r => setTimeout(r, 700));
 
   q.innerHTML = "";
 }
@@ -174,8 +177,12 @@ async function showCountdownThenStart() {
 // ゲーム開始/終了
 // =====================
 async function startGame() {
-  // ✅ スマホはここで音を必ず解放する（最重要）
-  await unlockAudio();
+  // ★再スタート時に残骸を全部止める（これが超大事）
+  if (timer) { clearInterval(timer); timer = null; }
+  stopHtmlAudio();   // ← result.mp3 を止める
+  stopChipBGM();     // ← チップBGMを止める
+
+  await unlockAudio(); // スマホ解錠
 
   if (playing) return;
   playing = true;
@@ -196,7 +203,7 @@ async function startGame() {
   setText("effect", "");
   setText("result", "");
 
-  startBGM("low");
+  startChipBGM("low");
 
   await showCountdownThenStart();
   await loadQuestion();
@@ -209,12 +216,12 @@ async function startGame() {
 }
 
 function endGame() {
-  clearInterval(timer);
-  timer = null;
+  if (timer) { clearInterval(timer); timer = null; }
   playing = false;
 
-  stopBGM();
-  startBGM("result");
+  // BGM切り替え
+  stopChipBGM();
+  playHtmlLoop("./sounds/result.mp3", 0.5);
 
   hide("battlePane");
   show("resultPane");
@@ -263,12 +270,14 @@ async function answer(chosen) {
   const r = rows?.[0];
   if (!r) return;
 
-  // ○×表示（でかく）
   const eff = $("effect");
+
   if (r.is_correct) {
-    score += r.points + Math.min(combo, 20); // ✅ コンボで増幅（上限つき）
+    // ✅ コンボで増幅（上限つき）
+    score += r.points + Math.min(combo, 20);
     combo += 1;
     streak += 1;
+
     if (eff) {
       eff.innerHTML = `<div style="font-size:64px;font-weight:900;">⭕</div>`;
       eff.className = "effect ok";
@@ -277,6 +286,7 @@ async function answer(chosen) {
   } else {
     combo = 0;
     streak = 0;
+
     if (eff) {
       eff.innerHTML = `<div style="font-size:64px;font-weight:900;">❌</div>`;
       eff.className = "effect ng";
@@ -288,7 +298,6 @@ async function answer(chosen) {
   setText("comboNow", combo);
   setText("streak", streak);
 
-  // ✅ スコア帯でBGM変化（PC/スマホ共通）
   updateBgmByScore();
 
   setTimeout(() => {
