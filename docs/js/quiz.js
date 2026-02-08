@@ -31,6 +31,72 @@ function stopHtmlAudio() {
 
 // ===== DOM =====
 function $(id) { return document.getElementById(id); }
+// ===== FX overlay（どこにいても必ず見える）=====
+function ensureFxLayer() {
+  let el = document.getElementById("fxLayer");
+  if (el) return el;
+
+  el = document.createElement("div");
+  el.id = "fxLayer";
+  el.style.position = "fixed";
+  el.style.left = "0";
+  el.style.top = "0";
+  el.style.width = "100vw";
+  el.style.height = "100vh";
+  el.style.zIndex = "999999";
+  el.style.pointerEvents = "none";
+  el.style.display = "flex";
+  el.style.alignItems = "center";
+  el.style.justifyContent = "center";
+
+  // iOS/Androidで崩れにくい
+  el.style.webkitUserSelect = "none";
+  el.style.userSelect = "none";
+
+  document.body.appendChild(el);
+  return el;
+}
+
+function showBigMark(symbol, ok) {
+  const layer = ensureFxLayer();
+  layer.innerHTML = "";
+
+  const mark = document.createElement("div");
+  mark.textContent = symbol;
+
+  mark.style.fontSize = "140px";
+  mark.style.fontWeight = "900";
+  mark.style.lineHeight = "1";
+  mark.style.color = ok ? "#00e676" : "#ff1744";
+  mark.style.textShadow = "0 14px 40px rgba(0,0,0,0.55)";
+  mark.style.filter = "drop-shadow(0 10px 18px rgba(0,0,0,0.35))";
+
+  layer.appendChild(mark);
+
+  // 派手アニメ（ブラウザ標準）
+  mark.animate(
+    ok
+      ? [
+          { transform: "scale(0.15) rotate(-10deg)", opacity: 0 },
+          { transform: "scale(1.35) rotate(8deg)", opacity: 1 },
+          { transform: "scale(1.0) rotate(0deg)", opacity: 1 },
+        ]
+      : [
+          { transform: "scale(0.6)", opacity: 0.2 },
+          { transform: "translateX(-10px) scale(1.15) rotate(-12deg)", opacity: 1 },
+          { transform: "translateX(10px) scale(1.15) rotate(12deg)", opacity: 1 },
+          { transform: "translateX(-6px) scale(1.08) rotate(-8deg)", opacity: 1 },
+          { transform: "translateX(0px) scale(1.0) rotate(0deg)", opacity: 1 },
+        ],
+    { duration: ok ? 420 : 520, easing: "cubic-bezier(.2,.9,.2,1)" }
+  );
+}
+
+function clearBigMark() {
+  const layer = document.getElementById("fxLayer");
+  if (layer) layer.innerHTML = "";
+}
+
 function show(id) { $(id)?.classList.remove("hidden"); }
 function hide(id) { $(id)?.classList.add("hidden"); }
 function setText(id, text, cls = "") {
@@ -272,47 +338,33 @@ async function answer(chosen) {
 
   const eff = $("effect");
 
- if (r.is_correct) {
+if (r.is_correct) {
   // ✅ コンボで増幅（上限つき）
   score += r.points + Math.min(combo, 20);
   combo += 1;
   streak += 1;
 
-  if (eff) {
-    // 画面中央にドーン（⭕ + 光 + ぷるん）
-    eff.innerHTML = `⭕`;
-    eff.className = "fx fx-ok fx-pop";
-
-    // ちょい遅れてもう1回ポップ（気持ちよさ）
-    setTimeout(() => {
-      if (!playing) return;
-      eff.classList.remove("fx-pop");
-      void eff.offsetWidth; // reflow
-      eff.classList.add("fx-pop2");
-    }, 140);
-  }
-
-  // 背景フラッシュ
-  document.body.classList.add("bg-flash-ok");
-  setTimeout(() => document.body.classList.remove("bg-flash-ok"), 120);
-
+  showBigMark("⭕", true);
   sfxCorrect();
 } else {
   combo = 0;
   streak = 0;
 
-  if (eff) {
-    // 画面中央にドーン（❌ + 揺れ + 影）
-    eff.innerHTML = `❌`;
-    eff.className = "fx fx-ng fx-shake";
-  }
-
-  // 背景フラッシュ
-  document.body.classList.add("bg-flash-ng");
-  setTimeout(() => document.body.classList.remove("bg-flash-ng"), 140);
-
+  showBigMark("❌", false);
   sfxWrong();
 }
+
+setText("scoreNow", score);
+setText("comboNow", combo);
+setText("streak", streak);
+
+updateBgmByScore();
+
+setTimeout(() => {
+  clearBigMark();
+  loadQuestion();
+}, 720);
+
 
 setText("scoreNow", score);
 setText("comboNow", combo);
@@ -342,4 +394,5 @@ setTimeout(() => {
 // ===== グローバル =====
 window.startGame = startGame;
 window.endGame = endGame;
+
 
