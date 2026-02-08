@@ -207,15 +207,31 @@
 
   <!-- SW -->
   <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", async () => {
-        const reg = await navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" });
-        reg.update();
+  // ★更新が来たら「更新しますか？」を出してリロード
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").then((reg) => {
+      reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if (!nw) return;
+
+        nw.addEventListener("statechange", () => {
+          // 新SWが入った＆今のページが古いSW配下なら「更新あります」
+          if (nw.state === "installed" && navigator.serviceWorker.controller) {
+            const ok = confirm("新しいバージョンがあります。更新しますか？");
+            if (ok) {
+              // キャッシュの残りを掴みやすいので、強めにリロード
+              location.reload(true);
+            }
+          }
+        });
       });
-    }
-  </script>
+    });
+  }
+</script>
+
 
 </body>
 </html>
+
 
 
