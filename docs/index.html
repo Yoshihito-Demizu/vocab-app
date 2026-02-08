@@ -186,6 +186,66 @@
   70%  { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
   100% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
 }
+/* ==== 派手演出：○×を画面中央に固定 ==== */
+.fx {
+  position: fixed;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  z-index: 9999;
+  pointer-events: none;
+
+  font-size: 120px;
+  font-weight: 900;
+  text-shadow: 0 14px 40px rgba(0,0,0,0.55);
+  filter: drop-shadow(0 10px 18px rgba(0,0,0,0.35));
+}
+
+/* 色 */
+.fx-ok { color: #00e676; }
+.fx-ng { color: #ff1744; }
+
+/* ポップ */
+.fx-pop { animation: fxPop 0.46s cubic-bezier(.2,.9,.2,1); }
+.fx-pop2 { animation: fxPop2 0.35s cubic-bezier(.2,.9,.2,1); }
+
+/* シェイク */
+.fx-shake { animation: fxShake 0.45s ease-in-out; }
+
+@keyframes fxPop {
+  0%   { transform: translate(-50%, -50%) scale(0.25) rotate(-10deg); opacity: 0; }
+  70%  { transform: translate(-50%, -50%) scale(1.22) rotate(6deg); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.0) rotate(0deg); opacity: 1; }
+}
+
+@keyframes fxPop2 {
+  0%   { transform: translate(-50%, -50%) scale(0.98); }
+  60%  { transform: translate(-50%, -50%) scale(1.12); }
+  100% { transform: translate(-50%, -50%) scale(1.0); }
+}
+
+@keyframes fxShake {
+  0%   { transform: translate(-50%, -50%) scale(0.9) rotate(0deg); opacity: 0.2; }
+  25%  { transform: translate(-52%, -50%) scale(1.05) rotate(-10deg); opacity: 1; }
+  50%  { transform: translate(-48%, -50%) scale(1.05) rotate(10deg); }
+  75%  { transform: translate(-51%, -50%) scale(1.02) rotate(-6deg); }
+  100% { transform: translate(-50%, -50%) scale(1.0) rotate(0deg); }
+}
+
+/* ==== 背景フラッシュ ==== */
+.bg-flash-ok { animation: bgFlashOk 0.14s ease-out; }
+.bg-flash-ng { animation: bgFlashNg 0.16s ease-out; }
+
+@keyframes bgFlashOk {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(1.15) saturate(1.2); }
+  100% { filter: brightness(1); }
+}
+@keyframes bgFlashNg {
+  0% { filter: brightness(1); }
+  40% { filter: brightness(0.9) saturate(1.25); }
+  100% { filter: brightness(1); }
+}
 
   </style>
 </head>
@@ -261,6 +321,7 @@
 
 </body>
 </html>
+
 
 
 
