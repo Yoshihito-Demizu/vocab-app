@@ -1,119 +1,33 @@
-// js/quiz.js
-console.log("[quiz] loaded! (audio fixed)");
+// docs/js/quiz.js
+console.log("[quiz] loaded! (flow+overlay)");
+
+/* global api */
 
 // ===== 状態 =====
 let timer = null;
 let timeLeft = 30;
 let score = 0;
 let combo = 0;
-let streak = 0;
+let maxCombo = 0;
 let currentQuestion = null;
 let playing = false;
 
-// ===== HTML Audio（mp3用：リザルト曲など）=====
-let htmlAudio = null;
-
-function playHtmlLoop(src, volume = 0.5) {
-  stopHtmlAudio();
-  htmlAudio = new Audio(src);
-  htmlAudio.loop = true;
-  htmlAudio.volume = volume;
-  htmlAudio.play().catch(() => {});
-}
-
-function stopHtmlAudio() {
-  if (htmlAudio) {
-    htmlAudio.pause();
-    htmlAudio.currentTime = 0;
-    htmlAudio = null;
-  }
-}
-
 // ===== DOM =====
 function $(id) { return document.getElementById(id); }
-// ===== FX overlay（どこにいても必ず見える）=====
-function ensureFxLayer() {
-  let el = document.getElementById("fxLayer");
-  if (el) return el;
-
-  el = document.createElement("div");
-  el.id = "fxLayer";
-  el.style.position = "fixed";
-  el.style.left = "0";
-  el.style.top = "0";
-  el.style.width = "100vw";
-  el.style.height = "100vh";
-  el.style.zIndex = "999999";
-  el.style.pointerEvents = "none";
-  el.style.display = "flex";
-  el.style.alignItems = "center";
-  el.style.justifyContent = "center";
-
-  // iOS/Androidで崩れにくい
-  el.style.webkitUserSelect = "none";
-  el.style.userSelect = "none";
-
-  document.body.appendChild(el);
-  return el;
-}
-
-function showBigMark(symbol, ok) {
-  const layer = ensureFxLayer();
-  layer.innerHTML = "";
-
-  const mark = document.createElement("div");
-  mark.textContent = symbol;
-
-  mark.style.fontSize = "140px";
-  mark.style.fontWeight = "900";
-  mark.style.lineHeight = "1";
-  mark.style.color = ok ? "#00e676" : "#ff1744";
-  mark.style.textShadow = "0 14px 40px rgba(0,0,0,0.55)";
-  mark.style.filter = "drop-shadow(0 10px 18px rgba(0,0,0,0.35))";
-
-  layer.appendChild(mark);
-
-  // 派手アニメ（ブラウザ標準）
-  mark.animate(
-    ok
-      ? [
-          { transform: "scale(0.15) rotate(-10deg)", opacity: 0 },
-          { transform: "scale(1.35) rotate(8deg)", opacity: 1 },
-          { transform: "scale(1.0) rotate(0deg)", opacity: 1 },
-        ]
-      : [
-          { transform: "scale(0.6)", opacity: 0.2 },
-          { transform: "translateX(-10px) scale(1.15) rotate(-12deg)", opacity: 1 },
-          { transform: "translateX(10px) scale(1.15) rotate(12deg)", opacity: 1 },
-          { transform: "translateX(-6px) scale(1.08) rotate(-8deg)", opacity: 1 },
-          { transform: "translateX(0px) scale(1.0) rotate(0deg)", opacity: 1 },
-        ],
-    { duration: ok ? 420 : 520, easing: "cubic-bezier(.2,.9,.2,1)" }
-  );
-}
-
-function clearBigMark() {
-  const layer = document.getElementById("fxLayer");
-  if (layer) layer.innerHTML = "";
-}
-
 function show(id) { $(id)?.classList.remove("hidden"); }
 function hide(id) { $(id)?.classList.add("hidden"); }
-function setText(id, text, cls = "") {
+function setText(id, v, cls) {
   const el = $(id);
   if (!el) return;
   if (cls) el.className = cls;
-  el.textContent = text;
+  el.textContent = String(v);
 }
 
-// =====================
-// 🔊 WebAudio（スマホ対応：効果音 + チップBGM）
-// =====================
+// ===== Audio（スマホ対応：ユーザー操作で解放）=====
 let AC = null;
 let master = null;
-
-let chipTimer = null;        // setInterval for chiptune
-let currentChipTier = null;  // "low"|"mid"|"high"|"result"
+let bgmTimer = null;
+let bgmTier = null;
 
 function ensureAudio() {
   if (AC) return;
@@ -122,23 +36,15 @@ function ensureAudio() {
   master = AC.createGain();
   master.gain.value = 0.25;
   master.connect(AC.destination);
-  console.log("[audio] created");
 }
-
 async function unlockAudio() {
   ensureAudio();
-  if (AC.state !== "running") {
-    await AC.resume();
-    console.log("[audio] resumed:", AC.state);
-  }
+  if (AC.state !== "running") await AC.resume();
 }
-
-// ---- beep helper ----
-function beep({ freq = 440, dur = 0.12, type = "sine", gain = 0.2 }) {
+function beep({ freq=440, dur=0.12, type="square", gain=0.12 }) {
   if (!AC || !master) return;
   const o = AC.createOscillator();
   const g = AC.createGain();
-
   o.type = type;
   o.frequency.value = freq;
 
@@ -146,109 +52,167 @@ function beep({ freq = 440, dur = 0.12, type = "sine", gain = 0.2 }) {
   g.gain.linearRampToValueAtTime(gain, AC.currentTime + 0.01);
   g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
 
-  o.connect(g);
-  g.connect(master);
-
+  o.connect(g); g.connect(master);
   o.start();
   o.stop(AC.currentTime + dur + 0.02);
 }
 
-// ---- SFX ----
-function sfxCorrect() {
-  beep({ freq: 880, dur: 0.08, type: "square", gain: 0.20 });
-  setTimeout(() => beep({ freq: 1175, dur: 0.10, type: "square", gain: 0.18 }), 90);
+// SFX
+function sfxCount(n){
+  const f = n===3?440:n===2?523:659;
+  beep({ freq:f, dur:0.12, type:"square", gain:0.16 });
 }
-function sfxWrong() {
-  beep({ freq: 160, dur: 0.22, type: "sawtooth", gain: 0.25 });
+function sfxGo(){
+  beep({ freq:988, dur:0.10, type:"square", gain:0.18 });
+  setTimeout(()=>beep({ freq:1319, dur:0.12, type:"square", gain:0.16 }), 90);
 }
-function sfxCount(n) {
-  const f = n === 3 ? 440 : n === 2 ? 523 : 659;
-  beep({ freq: f, dur: 0.12, type: "square", gain: 0.18 });
+function sfxCorrect(){
+  beep({ freq:880, dur:0.08, type:"square", gain:0.18 });
+  setTimeout(()=>beep({ freq:1175, dur:0.10, type:"square", gain:0.16 }), 90);
 }
-function sfxGo() {
-  beep({ freq: 988, dur: 0.10, type: "square", gain: 0.22 });
-  setTimeout(() => beep({ freq: 1319, dur: 0.12, type: "square", gain: 0.20 }), 80);
-}
-
-// ---- Chiptune BGM ----
-function stopChipBGM() {
-  if (chipTimer) {
-    clearInterval(chipTimer);
-    chipTimer = null;
-  }
-  currentChipTier = null;
+function sfxWrong(){
+  beep({ freq:160, dur:0.22, type:"sawtooth", gain:0.22 });
 }
 
-function startChipBGM(tier) {
+// BGM（簡易チップチューン）
+function stopBGM(){
+  if (bgmTimer){ clearInterval(bgmTimer); bgmTimer=null; }
+  bgmTier = null;
+}
+function startBGM(tier){
   ensureAudio();
-  if (currentChipTier === tier) return;
-
-  stopChipBGM();
-  currentChipTier = tier;
+  if (bgmTier === tier) return;
+  stopBGM();
+  bgmTier = tier;
 
   const patterns = {
-    low:    { bpm: 140, seq: [659, 523, 587, 523, 494, 440, 494, 523] },
-    mid:    { bpm: 160, seq: [784, 659, 698, 659, 587, 523, 587, 659] },
-    high:   { bpm: 180, seq: [988, 784, 880, 784, 698, 659, 698, 784] },
-    result: { bpm: 120, seq: [523, 659, 784, 659, 523, 494, 523, 659] },
+    low:  { bpm: 140, seq: [659, 523, 587, 523, 494, 440, 494, 523] },
+    mid:  { bpm: 160, seq: [784, 659, 698, 659, 587, 523, 587, 659] },
+    high: { bpm: 180, seq: [988, 784, 880, 784, 698, 659, 698, 784] },
+    result:{ bpm: 120, seq: [523, 659, 784, 659, 523, 494, 523, 659] }
   };
-
   const p = patterns[tier] || patterns.low;
   const stepMs = Math.floor(60000 / p.bpm / 2);
   let i = 0;
-
-  chipTimer = setInterval(() => {
-    beep({ freq: p.seq[i % p.seq.length], dur: 0.07, type: "square", gain: 0.08 });
+  bgmTimer = setInterval(() => {
+    beep({ freq: p.seq[i % p.seq.length], dur: 0.07, type: "square", gain: 0.07 });
     i++;
   }, stepMs);
-
-  console.log("[chipBGM] start:", tier);
 }
-
-function updateBgmByScore() {
+function updateBgmByScore(){
   if (!playing) return;
-  if (score >= 120) startChipBGM("high");
-  else if (score >= 60) startChipBGM("mid");
-  else startChipBGM("low");
+  if (score >= 120) startBGM("high");
+  else if (score >= 60) startBGM("mid");
+  else startBGM("low");
 }
 
-// =====================
-// 321カウント（派手＆ゆっくり）
-// =====================
-async function showCountdownThenStart() {
-  const q = $("q");
-  const choices = $("choices");
-  if (!q || !choices) return;
+// ===== Overlay（321 / ○×）=====
+function overlayShow(html, mode="") {
+  const ov = $("overlay");
+  if (!ov) return;
+  ov.className = ""; // reset
+  ov.classList.add(mode ? mode : "");
+  ov.classList.remove("hidden");
+  const panel = ov.querySelector(".panel");
+  if (panel) panel.innerHTML = html;
+}
+function overlayHide(){
+  const ov = $("overlay");
+  if (!ov) return;
+  ov.classList.add("hidden");
+  const panel = ov.querySelector(".panel");
+  if (panel) panel.innerHTML = "";
+  ov.className = "hidden";
+}
+async function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
-  choices.innerHTML = "";
+async function flashyCountdown(){
+  // 3,2,1はゆっくり＆派手
+  overlayShow("3");
+  sfxCount(3);
+  await sleep(950);
 
-  const showBig = (txt, color = "#fff") => {
-    q.innerHTML = `
-      <div style="
-        font-size:72px;font-weight:900;text-align:center;
-        color:${color};
-        text-shadow:0 8px 30px rgba(0,0,0,.6);
-      ">${txt}</div>`;
-  };
+  overlayShow("2");
+  sfxCount(2);
+  await sleep(950);
 
-  showBig("3"); sfxCount(3); await new Promise(r => setTimeout(r, 900));
-  showBig("2"); sfxCount(2); await new Promise(r => setTimeout(r, 900));
-  showBig("1"); sfxCount(1); await new Promise(r => setTimeout(r, 900));
-  showBig("GO!!", "#0a7"); sfxGo(); await new Promise(r => setTimeout(r, 700));
+  overlayShow("1");
+  sfxCount(1);
+  await sleep(950);
 
-  q.innerHTML = "";
+  overlayShow("GO!!<div class='sub'>いけ！</div>", "ok");
+  sfxGo();
+  await sleep(750);
+
+  overlayHide();
 }
 
-// =====================
-// ゲーム開始/終了
-// =====================
-async function startGame() {
-  // ★再スタート時に残骸を全部止める（これが超大事）
-  if (timer) { clearInterval(timer); timer = null; }
-  stopHtmlAudio();   // ← result.mp3 を止める
-  stopChipBGM();     // ← チップBGMを止める
+// ===== 出題 =====
+async function loadQuestion(){
+  const q = await api.fetchLatestQuestion();
+  currentQuestion = q;
 
-  await unlockAudio(); // スマホ解錠
+  const qBox = $("q");
+  const cBox = $("choices");
+  if (!qBox || !cBox) return;
+
+  qBox.innerHTML = `<h3>${q.word}</h3><div class="prompt">${q.prompt}</div>`;
+  cBox.innerHTML = "";
+
+  const list = [
+    ["A", q.choice_a],
+    ["B", q.choice_b],
+    ["C", q.choice_c],
+    ["D", q.choice_d],
+  ];
+  list.forEach(([k, txt]) => {
+    const b = document.createElement("button");
+    b.textContent = `${k}: ${txt}`;
+    b.onclick = () => answer(k);
+    cBox.appendChild(b);
+  });
+}
+
+// ===== 回答 =====
+let lock = false;
+async function answer(chosen){
+  if (!playing || !currentQuestion || lock) return;
+  lock = true;
+
+  const rows = await api.submitAttempt(currentQuestion.id, chosen);
+  const r = rows?.[0];
+  if (!r){ lock=false; return; }
+
+  if (r.is_correct){
+    // コンボ増幅：+ base + min(combo, 20)
+    score += r.points + Math.min(combo, 20);
+    combo += 1;
+    maxCombo = Math.max(maxCombo, combo);
+
+    overlayShow("⭕", "ok");
+    sfxCorrect();
+  } else {
+    combo = 0;
+    overlayShow("❌", "ng");
+    sfxWrong();
+  }
+
+  setText("scoreNow", score);
+  setText("comboNow", combo);
+
+  updateBgmByScore();
+
+  await sleep(520);
+  overlayHide();
+
+  await loadQuestion();
+  lock = false;
+}
+
+// ===== 進行（start→battle→result）=====
+async function startGame(){
+  // ここが「スマホで音が鳴る」ための最重要
+  await unlockAudio();
 
   if (playing) return;
   playing = true;
@@ -260,139 +224,41 @@ async function startGame() {
   timeLeft = 30;
   score = 0;
   combo = 0;
-  streak = 0;
+  maxCombo = 0;
 
   setText("timeLeft", timeLeft);
   setText("scoreNow", score);
   setText("comboNow", combo);
-  setText("streak", streak);
-  setText("effect", "");
-  setText("result", "");
 
-  startChipBGM("low");
+  startBGM("low");
 
-  await showCountdownThenStart();
+  await flashyCountdown();
   await loadQuestion();
 
+  clearInterval(timer);
   timer = setInterval(() => {
     timeLeft--;
-    setText("timeLeft", timeLeft, timeLeft <= 5 ? "danger big" : "big");
+    setText("timeLeft", timeLeft);
+
     if (timeLeft <= 0) endGame();
   }, 1000);
 }
 
-function endGame() {
-  if (timer) { clearInterval(timer); timer = null; }
+function endGame(){
+  if (!playing) return;
   playing = false;
 
-  // BGM切り替え
-  stopChipBGM();
-  playHtmlLoop("./sounds/result.mp3", 0.5);
+  clearInterval(timer);
+  stopBGM();
+  startBGM("result");
 
   hide("battlePane");
   show("resultPane");
 
-  const rs = $("resultSummary");
-  if (rs) {
-    rs.innerHTML = `
-      <div style="text-align:center;font-size:28px;font-weight:900;">🎉 終了！</div>
-      <div style="text-align:center;margin-top:6px;">スコア：<b style="font-size:22px;">${score}</b> 点</div>
-      <div style="text-align:center;margin-top:6px;">最大COMBO：<b style="font-size:22px;">${combo}</b></div>
-    `;
-  }
+  setText("finalScore", score);
+  setText("finalCombo", maxCombo);
 }
 
-// =====================
-// 問題読み込み / 回答
-// =====================
-async function loadQuestion() {
-  const q = await api.fetchLatestQuestion();
-  currentQuestion = q;
-
-  $("q").innerHTML = `<h3>${q.word}</h3><div>${q.prompt}</div>`;
-
-  const box = $("choices");
-  box.innerHTML = "";
-
-  const list = [
-    ["A", q.choice_a],
-    ["B", q.choice_b],
-    ["C", q.choice_c],
-    ["D", q.choice_d],
-  ];
-
-  list.forEach(([k, txt]) => {
-    const b = document.createElement("button");
-    b.textContent = `${k}: ${txt}`;
-    b.onclick = () => answer(k);
-    box.appendChild(b);
-  });
-}
-
-async function answer(chosen) {
-  if (!currentQuestion || !playing) return;
-
-  const rows = await api.submitAttempt(currentQuestion.id, chosen);
-  const r = rows?.[0];
-  if (!r) return;
-
-  const eff = $("effect");
-
-if (r.is_correct) {
-  // ✅ コンボで増幅（上限つき）
-  score += r.points + Math.min(combo, 20);
-  combo += 1;
-  streak += 1;
-
-  showBigMark("⭕", true);
-  sfxCorrect();
-} else {
-  combo = 0;
-  streak = 0;
-
-  showBigMark("❌", false);
-  sfxWrong();
-}
-
-setText("scoreNow", score);
-setText("comboNow", combo);
-setText("streak", streak);
-
-updateBgmByScore();
-
-setTimeout(() => {
-  clearBigMark();
-  loadQuestion();
-}, 720);
-
-
-setText("scoreNow", score);
-setText("comboNow", combo);
-setText("streak", streak);
-
-updateBgmByScore();
-
-// ✅ しばらく見せてから次へ
-setTimeout(() => {
-  if (eff) { eff.className = "fx"; eff.innerHTML = ""; }
-  loadQuestion();
-}, 720);
-
-
-  setText("scoreNow", score);
-  setText("comboNow", combo);
-  setText("streak", streak);
-
-  updateBgmByScore();
-
-  setTimeout(() => {
-    if (eff) { eff.textContent = ""; eff.className = "effect"; }
-    loadQuestion();
-  }, 650);
-}
-
-// ===== グローバル =====
+// ===== グローバル公開（main.js から呼ぶ）=====
 window.startGame = startGame;
 window.endGame = endGame;
-
-
