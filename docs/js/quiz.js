@@ -107,23 +107,30 @@ function updateBgmByScore(){
 }
 
 // ===== Overlay（321 / ○×）=====
-function overlayShow(html, mode="") {
-  const ov = $("overlay");
-  if (!ov) return;
-  ov.className = ""; // reset
-  ov.classList.add(mode ? mode : "");
+// ===== overlay（安全版）=====
+function overlayShow(text, cls) {
+  const ov = document.getElementById("overlay");
+  const ovText = document.getElementById("overlayText");
+  if (!ov || !ovText) return;
+
+  ovText.textContent = text ?? "";
+
+  // ✅ ここが重要：空文字や未定義は add しない
+  ov.classList.remove("ok", "ng", "count", "go", "big");
+  if (typeof cls === "string" && cls.trim().length > 0) {
+    ov.classList.add(cls.trim());
+  }
+
   ov.classList.remove("hidden");
-  const panel = ov.querySelector(".panel");
-  if (panel) panel.innerHTML = html;
 }
-function overlayHide(){
-  const ov = $("overlay");
+
+function overlayHide() {
+  const ov = document.getElementById("overlay");
   if (!ov) return;
   ov.classList.add("hidden");
-  const panel = ov.querySelector(".panel");
-  if (panel) panel.innerHTML = "";
-  ov.className = "hidden";
+  ov.classList.remove("ok", "ng", "count", "go", "big");
 }
+
 async function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
 async function flashyCountdown(){
@@ -262,3 +269,4 @@ function endGame(){
 // ===== グローバル公開（main.js から呼ぶ）=====
 window.startGame = startGame;
 window.endGame = endGame;
+
