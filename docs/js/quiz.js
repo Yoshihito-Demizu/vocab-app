@@ -12,6 +12,9 @@ let maxCombo = 0;
 let currentQuestion = null;
 let playing = false;
 let lock = false;
+let correctCount = 0;
+let wrongCount = 0;
+
 
 // ===== DOM =====
 const $ = (id) => document.getElementById(id);
@@ -133,9 +136,13 @@ async function answer(chosen){
   if (r.is_correct){
     score += r.points + Math.min(combo,20);
     combo++; maxCombo = Math.max(maxCombo, combo);
+    correctCount += 1;
+
     overlayShow("⭕","ok"); sfxCorrect();
   } else {
     combo = 0;
+    wrongCount += 1;
+
     overlayShow("❌","ng"); sfxWrong();
   }
   setText("scoreNow", score);
@@ -150,6 +157,9 @@ async function answer(chosen){
 
 // ===== 進行 =====
 async function startGame(){
+  correctCount = 0;
+　wrongCount = 0;
+
   await unlockAudio(); // スマホ音の鍵
   if (playing) return;
   playing = true;
@@ -179,8 +189,17 @@ function endGame(){
   hide("battlePane"); show("resultPane");
   setText("finalScore", score);
   setText("finalCombo", maxCombo);
+// 30秒の結果を保存（端末内）
+api.submitRun({
+  score,
+  correct: correctCount,
+  wrong: wrongCount,
+  maxCombo
+}).catch(() => {});
+
 }
 
 // ===== 公開 =====
 window.startGame = startGame;
 window.endGame = endGame;
+
