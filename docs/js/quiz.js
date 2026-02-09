@@ -107,51 +107,45 @@ function updateBgmByScore(){
 }
 
 // ===== Overlay（321 / ○×）=====
-// ===== overlay（安全版）=====
-function overlayShow(text, cls) {
+function overlayShow(text, kind = "") {
   const ov = document.getElementById("overlay");
-  const ovText = document.getElementById("overlayText");
-  if (!ov || !ovText) return;
+  const panel = ov?.querySelector(".panel");
+  if (!ov || !panel) return;
 
-  ovText.textContent = text ?? "";
+  // ✅ HTMLを解釈させない（タグが見える問題を潰す）
+  panel.textContent = String(text ?? "");
 
-  // ✅ ここが重要：空文字や未定義は add しない
-  ov.classList.remove("ok", "ng", "count", "go", "big");
-  if (typeof cls === "string" && cls.trim().length > 0) {
-    ov.classList.add(cls.trim());
-  }
+  // ✅ classは「panel + 種類」だけ（空はOK）
+  panel.className = "panel" + (kind ? " " + kind : "");
 
   ov.classList.remove("hidden");
 }
 
 function overlayHide() {
   const ov = document.getElementById("overlay");
-  if (!ov) return;
-  ov.classList.add("hidden");
-  ov.classList.remove("ok", "ng", "count", "go", "big");
+  ov?.classList.add("hidden");
 }
 
 async function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
 async function flashyCountdown(){
   // 3,2,1はゆっくり＆派手
-  overlayShow("3");
-  sfxCount(3);
-  await sleep(950);
+  const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
-  overlayShow("2");
-  sfxCount(2);
-  await sleep(950);
+ overlayShow("3", "count");
+await wait(900);
 
-  overlayShow("1");
-  sfxCount(1);
-  await sleep(950);
+overlayShow("2", "count");
+await wait(900);
 
-  overlayShow("GO!!<div class='sub'>いけ！</div>", "ok");
-  sfxGo();
-  await sleep(750);
+overlayShow("1", "count");
+await wait(900);
 
-  overlayHide();
+overlayShow("GO!", "go");
+await wait(700);
+
+overlayHide();
+
 }
 
 // ===== 出題 =====
@@ -269,4 +263,5 @@ function endGame(){
 // ===== グローバル公開（main.js から呼ぶ）=====
 window.startGame = startGame;
 window.endGame = endGame;
+
 
