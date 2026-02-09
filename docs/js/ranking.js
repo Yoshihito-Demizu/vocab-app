@@ -1,122 +1,90 @@
-// js/ranking.js
+// docs/js/ranking.js
+console.log("[ranking] loaded!");
+
 /* global api */
 
-(function () {
-  "use strict";
+function $(id) { return document.getElementById(id); }
 
-  function $(id) { return document.getElementById(id); }
+function setMsg(text, cls="muted") {
+  const el = $("rankMsg");
+  if (!el) return;
+  el.className = cls;
+  el.textContent = text;
+}
 
-  function setText(id, text, cls = "") {
-    const el = $(id);
-    if (!el) return;
-    el.className = cls || "";
-    el.textContent = text;
-  }
+function li(text) {
+  const el = document.createElement("li");
+  el.textContent = text;
+  return el;
+}
 
-  function clearList(id) {
-    const el = $(id);
-    if (el) el.innerHTML = "";
-  }
+// 週選択を作る
+async function loadWeekOptions() {
+  try {
+    setMsg("週を取得中…");
+    const weeks = await api.fetchWeekOptions();
 
-  function appendLi(id, text) {
-    const ol = $(id);
-    if (!ol) return;
-    const li = document.createElement("li");
-    li.textContent = text;
-    ol.appendChild(li);
-  }
-
-  async function loadWeekOptions() {
     const sel = $("weekSelect");
     if (!sel) return;
 
     sel.innerHTML = "";
-    const weeks = await api.fetchWeekOptions();
-
-    if (!weeks || weeks.length === 0) {
+    for (const w of weeks) {
       const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "（週がまだありません）";
+      opt.value = w;
+      opt.textContent = w;
       sel.appendChild(opt);
-      return;
     }
-
-    weeks.forEach((wid, i) => {
-      const opt = document.createElement("option");
-      opt.value = wid;
-      opt.textContent = wid;
-      if (i === 0) opt.selected = true;
-      sel.appendChild(opt);
-    });
+    setMsg("OK", "ok");
+  } catch (e) {
+    console.error(e);
+    setMsg("週の取得に失敗: " + (e?.message || e), "ng");
   }
+}
 
-  async function loadRanking() {
-    setText("rankMsg", "");
+// Top表示（端末内は自分だけでもOK）
+async function loadRanking() {
+  try {
+    setMsg("ランキング取得中…");
 
-    const weekId = $("weekSelect")?.value || "";
+    const weekId = $("weekSelect")?.value;
     if (!weekId) {
-      setText("rankMsg", "週がありません（まず1問解いてね）", "muted");
+      setMsg("weekSelectが空です（loadWeekOptionsが先）", "ng");
       return;
     }
 
-    const w = await api.fetchPersonalWeeklyTop(weekId);
-    const t = await api.fetchPersonalTotalTop();
+    const weekly = await api.fetchPersonalWeeklyTop(weekId);
+    const total = await api.fetchPersonalTotalTop();
 
-    const userIds = Array.from(new Set([...(w ?? []).map(x => x.user_id), ...(t ?? []).map(x => x.user_id)]));
-    const u = await api.fetchPublicUsers(userIds);
+    // 表示名
+    const ids = Array.from(new Set([...weekly, ...total].map(x => x.user_id)));
+    const users = await api.fetchPublicUsers(ids);
+    const nameById = new Map(users.map(u => [u.id, u.nickname]));
 
-    const userMap = new Map();
-    (u ?? []).forEach(x => userMap.set(x.id, x.nickname || `G${x.grade}-C${String(x.class_no).padStart(2, "0")}`));
-    const nameOf = (id) => userMap.get(id) || id.slice(0, 8);
+    const weeklyTop = $("weeklyTop");
+    const totalTop = $("totalTop");
+    if (weeklyTop) weeklyTop.innerHTML = "";
+    if (totalTop) totalTop.innerHTML = "";
 
-    clearList("weeklyTop");
-    (w ?? []).forEach(row => appendLi("weeklyTop", `${nameOf(row.user_id)}：${row.points}点（○${row.correct}/×${row.wrong}）`));
+    weekly.forEach((r, i) => {
+      const nm = nameById.get(r.user_id) || r.user_id;
+      weeklyTop?.appendChild(li(`${i+1}. ${nm}：${r.points}点（○${r.correct}/×${r.wrong}）`));
+    });
 
-    clearList("totalTop");
-    (t ?? []).forEach(row => appendLi("totalTop", `${nameOf(row.user_id)}：${row.points}点（○${row.correct}/×${row.wrong}）`));
+    total.forEach((r, i) => {
+      const nm = nameById.get(r.user_id) || r.user_id;
+      totalTop?.appendChild(li(`${i+1}. ${nm}：${r.points}点（○${r.correct}/×${r.wrong}）`));
+    });
 
-    setText("rankMsg", `表示中の週: ${weekId}`, "muted");
+    // 自分の順位（端末内は1位表示でOK）
+    const myRank = $("myRank");
+    if (myRank) myRank.textContent = `今は「端末内保存」なので、この端末の記録が出ます。`;
 
-    // 自分の順位（MOCKは配列内から簡易に算出）
-    const myId = await api.getMyUserId();
-    if (!myId) {
-      setText("myRank", "ログインしてね", "muted");
-    } else {
-      const myWeeklyPoints = (w ?? []).find(x => x.user_id === myId)?.points ?? 0;
-      const myTotalPoints = (t ?? []).find(x => x.user_id === myId)?.points ?? 0;
-
-      const weeklyRank = (w ?? []).slice().sort((a, b) => b.points - a.points).findIndex(x => x.user_id === myId) + 1;
-      const totalRank = (t ?? []).slice().sort((a, b) => b.points - a.points).findIndex(x => x.user_id === myId) + 1;
-
-      const weeklyRankSafe = weeklyRank > 0 ? weeklyRank : "?";
-      const totalRankSafe = totalRank > 0 ? totalRank : "?";
-
-      setText(
-        "myRank",
-        `週：${nameOf(myId)} は ${weeklyRankSafe}位（今週${myWeeklyPoints}点） / 累計：${totalRankSafe}位（累計${myTotalPoints}点）`,
-        "muted"
-      );
-    }
-
-    // クラス対抗
-    const { cw, ct, cwa, cta } = await api.fetchClassRankings(weekId);
-
-    clearList("classWeeklyTop");
-    (cw ?? []).forEach(row => appendLi("classWeeklyTop", `${row.grade}年${row.class_no}組：${row.class_points}点（参加${row.players}人）`));
-
-    clearList("classTotalTop");
-    (ct ?? []).forEach(row => appendLi("classTotalTop", `${row.grade}年${row.class_no}組：${row.class_points}点（参加${row.players}人）`));
-
-    clearList("classWeeklyAvgTop");
-    (cwa ?? []).forEach(row => appendLi("classWeeklyAvgTop", `${row.grade}年${row.class_no}組：平均${row.avg_points}点（参加${row.players}人）`));
-
-    clearList("classTotalAvgTop");
-    (cta ?? []).forEach(row => appendLi("classTotalAvgTop", `${row.grade}年${row.class_no}組：平均${row.avg_points}点（参加${row.players}人）`));
+    setMsg("OK", "ok");
+  } catch (e) {
+    console.error(e);
+    setMsg("ランキング取得に失敗: " + (e?.message || e), "ng");
   }
+}
 
-  // グローバルに出す（quiz/main が呼ぶ）
-  window.loadWeekOptions = loadWeekOptions;
-  window.loadRanking = loadRanking;
-
-  console.log("[ranking] loaded!");
-})();
+window.loadWeekOptions = loadWeekOptions;
+window.loadRanking = loadRanking;
