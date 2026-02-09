@@ -5,259 +5,162 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>語彙タイムアタック</title>
 
-  <!-- PWA 必須 -->
+  <!-- PWA -->
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="theme-color" content="#0b1020">
 
-  <!-- iOS向け -->
+  <!-- iOS（ホーム画面追加用） -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
   <style>
-    :root{
-      --bg:#0b1020;
-      --card:#ffffff;
-      --shadow:0 10px 30px rgba(0,0,0,.18);
-    }
     body{
       font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      margin:0;
-      background:#fafafa;
+      margin:0; padding:8px; background:#0b1020; color:#fff;
     }
     .hidden{ display:none !important; }
-    .center{ text-align:center; }
 
-    /* ===== START ===== */
+    /* START */
     #startPane{
       min-height:100vh;
       background:
-        linear-gradient(rgba(0,0,0,.45), rgba(0,0,0,.45)),
+        linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,.45)),
         url("./icons/start-bg.jpg") center/cover no-repeat;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
-      color:#fff;
-      padding:18px;
+      display:flex; flex-direction:column; justify-content:center; align-items:center;
+      text-align:center;
     }
-    #startPane h1{
-      font-size:34px; margin:0 0 10px;
-      text-shadow:0 10px 30px rgba(0,0,0,.5);
-    }
-    #startPane .sub{
-      opacity:.9; margin-bottom:18px;
-    }
+    #startPane h2{ font-size:34px; margin:0 0 18px; text-shadow:0 8px 30px rgba(0,0,0,.5); }
     #startBtn{
-      font-size:22px;
-      padding:16px 28px;
-      border-radius:999px;
-      border:none;
-      background:#ff3b30;
-      color:#fff;
-      font-weight:900;
-      box-shadow:0 10px 30px rgba(255,59,48,.35);
-      cursor:pointer;
+      font-size:22px; padding:16px 28px; border-radius:999px;
+      border:none; background:#ff3b30; color:#fff; font-weight:900;
     }
     #startBtn:active{ transform:scale(.98); }
 
-    /* ===== BATTLE ===== */
-    #battlePane{
-      padding:10px;
-      max-width:900px;
-      margin:0 auto;
-    }
-    .hud{
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:10px;
-      margin-top:8px;
-    }
-    .stat{
-      background:var(--card);
-      border-radius:14px;
-      box-shadow:var(--shadow);
-      padding:10px 12px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      font-weight:800;
-    }
-    .big{ font-size:20px; }
-    .danger{ color:#c33; }
-    #q{
-      margin-top:12px;
-      background:var(--card);
-      border-radius:14px;
-      box-shadow:var(--shadow);
-      padding:12px 14px;
-    }
-    #q h3{ margin:0 0 6px; font-size:22px; }
-    #q .prompt{ color:#333; opacity:.9; }
+    /* BATTLE */
+    #battlePane{ max-width:900px; margin:0 auto; }
+    .hud{ display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 10px; }
+    .stat{ background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:8px 10px; }
+    .big{ font-size:18px; font-weight:900; }
+    #q h3{ margin:10px 0 6px; font-size:26px; }
+    .prompt{ opacity:.9; }
 
-    /* 選択肢 2×2 */
+    /* choices 2x2 */
     #choices{
       display:grid;
       grid-template-columns:1fr 1fr;
       gap:12px;
-      margin-top:12px;
+      margin-top:14px;
     }
     #choices button{
       font-size:18px;
-      padding:16px 12px;
-      border-radius:16px;
+      padding:18px 12px;
+      border-radius:14px;
       border:none;
-      background:#fff;
-      box-shadow:0 10px 25px rgba(0,0,0,.12);
-      font-weight:900;
+      background:#ffffff;
+      color:#111;
+      font-weight:800;
       min-height:78px;
-      cursor:pointer;
-      text-align:left;
-      line-height:1.2;
-      white-space:normal;
-      word-break:break-word;
+      box-shadow:0 8px 24px rgba(0,0,0,.25);
     }
     #choices button:active{ transform:scale(.98); }
 
     #stopBtn{
-      margin-top:12px;
-      width:100%;
-      font-size:16px;
-      padding:12px;
-      border-radius:14px;
-      border:1px solid #ddd;
-      background:#fff;
-      cursor:pointer;
-    }
-
-    /* ===== RESULT ===== */
-    #resultPane{
-      min-height:100vh;
-      background: radial-gradient(1200px 600px at 50% -10%, rgba(255,255,255,.35), transparent),
-                  linear-gradient(135deg, #0b1020, #1b2a6b);
-      color:#fff;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:18px;
-    }
-    .resultCard{
-      width:min(520px, 100%);
-      background:rgba(255,255,255,.10);
-      border:1px solid rgba(255,255,255,.18);
-      border-radius:22px;
-      padding:18px 16px;
-      box-shadow:0 20px 60px rgba(0,0,0,.35);
-      backdrop-filter: blur(10px);
-    }
-    .resultTitle{
-      font-size:30px;
-      font-weight:1000;
-      text-align:center;
-      margin:0 0 8px;
-    }
-    .resultLine{
-      text-align:center;
-      font-size:18px;
-      margin:8px 0;
-    }
-    .resultBig{
-      font-size:44px;
-      font-weight:1000;
-    }
-    .resultBtns{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:10px;
       margin-top:14px;
-    }
-    #retryBtn, #goRankBtn{
-      font-size:18px;
-      padding:12px 10px;
-      border-radius:14px;
+      padding:12px 14px;
+      border-radius:12px;
       border:none;
-      font-weight:900;
-      cursor:pointer;
-    }
-    #retryBtn{ background:#ff3b30; color:#fff; }
-    #goRankBtn{ background:#fff; color:#0b1020; }
-
-    /* ===== OVERLAY（321 / ○×）===== */
-    #overlay{
-      position:fixed;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      z-index:9999;
-      pointer-events:none;
-    }
-    #overlay .panel{
-      text-align:center;
-      font-weight:1000;
-      font-size:84px;
+      background:rgba(255,255,255,.12);
       color:#fff;
-      text-shadow:0 12px 40px rgba(0,0,0,.65);
+      font-weight:800;
+    }
+
+    /* RESULT */
+    #resultPane{ max-width:900px; margin:0 auto; text-align:center; padding-top:22px; }
+    #resultSummary{
+      background:rgba(255,255,255,.08);
+      border:1px dashed rgba(255,255,255,.35);
+      border-radius:16px;
+      padding:18px;
+      margin:10px 0 14px;
+    }
+    #retryBtn{
+      font-size:18px;
+      padding:14px 18px;
+      border-radius:999px;
+      border:none;
+      background:#00c853;
+      color:#001;
+      font-weight:900;
+    }
+
+    /* OVERLAY（321 / ○×） */
+    #overlay{
+      position:fixed; inset:0;
+      display:flex; align-items:center; justify-content:center;
+      background:rgba(0,0,0,.35);
+      z-index:9999;
+    }
+    #overlay.hidden{ display:none !important; }
+    #overlay .panel{
+      min-width:240px;
+      padding:18px 22px;
+      border-radius:22px;
+      text-align:center;
+      font-size:76px;
+      font-weight:1000;
+      color:#fff;
+      text-shadow:0 10px 40px rgba(0,0,0,.75);
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.18);
       transform:scale(1);
-      animation: pop .28s ease-out;
     }
-    #overlay .sub{
-      font-size:22px; margin-top:10px; opacity:.95;
-    }
-    #overlay.ok .panel{ color:#7CFFB2; }
-    #overlay.ng .panel{ color:#FF7C7C; }
-    @keyframes pop{
-      from{ transform:scale(.85); opacity:.2; }
-      to{ transform:scale(1); opacity:1; }
-    }
+    #overlay .panel.count{ font-size:86px; }
+    #overlay .panel.go{ color:#00e676; }
+    #overlay .panel.ok{ color:#00e676; }
+    #overlay .panel.ng{ color:#ff5252; }
   </style>
 </head>
 
 <body>
 
- <!-- OVERLAY（修正版） -->
-<div id="overlay" class="hidden">
-  <div id="overlayText" class="panel"></div>
-</div>
-
   <!-- START -->
   <div id="startPane">
-    <h1>語彙タイムアタック</h1>
-    <div class="sub">30秒で何問正解できるか勝負！</div>
+    <h2>語彙タイムアタック</h2>
     <button id="startBtn">▶ START</button>
   </div>
 
   <!-- BATTLE -->
   <div id="battlePane" class="hidden">
     <div class="hud">
-      <div class="stat"><span>残り</span><span id="timeLeft" class="big">30</span></div>
-      <div class="stat"><span>スコア</span><span id="scoreNow" class="big">0</span></div>
-      <div class="stat"><span>COMBO</span><span id="comboNow" class="big">0</span></div>
+      <div class="stat">残り <span id="timeLeft" class="big">30</span> 秒</div>
+      <div class="stat">スコア <span id="scoreNow" class="big">0</span></div>
+      <div class="stat">COMBO <span id="comboNow" class="big">0</span></div>
     </div>
 
     <div id="q"></div>
     <div id="choices"></div>
 
-    <button id="stopBtn">終了（途中でも）</button>
+    <button id="stopBtn">終了</button>
   </div>
 
   <!-- RESULT -->
   <div id="resultPane" class="hidden">
-    <div class="resultCard">
-      <div class="resultTitle">RESULT</div>
-
-      <div class="resultLine">スコア</div>
-      <div class="resultLine resultBig"><span id="finalScore">0</span></div>
-
-      <div class="resultLine">最大COMBO：<b id="finalCombo">0</b></div>
-
-      <div class="resultBtns">
-        <button id="retryBtn">もう一回！</button>
-        <button id="goRankBtn">（予備）</button>
+    <div id="resultSummary">
+      <div style="font-size:28px;font-weight:1000;">🎉 終了！</div>
+      <div style="margin-top:10px;font-size:18px;">
+        スコア：<span id="finalScore" class="big">0</span>
+      </div>
+      <div style="margin-top:6px;font-size:18px;">
+        最大COMBO：<span id="finalCombo" class="big">0</span>
       </div>
     </div>
+    <button id="retryBtn">もう一回！</button>
   </div>
+
+  <!-- OVERLAY（超重要） -->
+  <div id="overlay" class="hidden"><div class="panel"></div></div>
 
   <!-- JS（順番厳守） -->
   <script src="./js/config.js"></script>
@@ -267,13 +170,11 @@
   <script src="./js/main.js"></script>
 
   <!-- Service Worker -->
- <script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=2026-02-08-1");
-  }
-</script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js");
+    }
+  </script>
 
 </body>
 </html>
-
-
