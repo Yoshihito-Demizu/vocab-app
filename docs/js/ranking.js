@@ -5,86 +5,76 @@ console.log("[ranking] loaded!");
 
 function $(id) { return document.getElementById(id); }
 
-function setMsg(text, cls="muted") {
-  const el = $("rankMsg");
+function setText(id, text) {
+  const el = $(id);
   if (!el) return;
-  el.className = cls;
-  el.textContent = text;
+  el.textContent = String(text ?? "");
 }
 
-function li(text) {
-  const el = document.createElement("li");
-  el.textContent = text;
-  return el;
+function clearList(id) {
+  const ol = $(id);
+  if (!ol) return;
+  ol.innerHTML = "";
 }
 
-// 週選択を作る
+function addItem(id, text) {
+  const ol = $(id);
+  if (!ol) return;
+  const li = document.createElement("li");
+  li.textContent = text;
+  ol.appendChild(li);
+}
+
+// 週セレクトを作る
 async function loadWeekOptions() {
-  try {
-    setMsg("週を取得中…");
-    const weeks = await api.fetchWeekOptions();
+  const sel = $("weekSelect");
+  if (!sel) return;
 
-    const sel = $("weekSelect");
-    if (!sel) return;
-
-    sel.innerHTML = "";
-    for (const w of weeks) {
-      const opt = document.createElement("option");
-      opt.value = w;
-      opt.textContent = w;
-      sel.appendChild(opt);
-    }
-    setMsg("OK", "ok");
-  } catch (e) {
-    console.error(e);
-    setMsg("週の取得に失敗: " + (e?.message || e), "ng");
-  }
+  const weeks = await api.fetchWeekOptions();
+  sel.innerHTML = "";
+  weeks.forEach(w => {
+    const opt = document.createElement("option");
+    opt.value = w;
+    opt.textContent = w;
+    sel.appendChild(opt);
+  });
 }
 
-// Top表示（端末内は自分だけでもOK）
+// ランキング描画（今週Top10 + 自分の順位）
 async function loadRanking() {
-  try {
-    setMsg("ランキング取得中…");
+  const sel = $("weekSelect");
+  if (!sel) return;
 
-    const weekId = $("weekSelect")?.value;
-    if (!weekId) {
-      setMsg("weekSelectが空です（loadWeekOptionsが先）", "ng");
-      return;
+  const weekId = sel.value || api.getWeekIdNow();
+
+  setText("rankMsg", "読み込み中…");
+
+  // Top10
+  const top = await api.fetchPersonalWeeklyTop(weekId);
+  clearList("weeklyTop");
+
+  // 名前解決
+  const ids = top.map(r => r.user_id);
+  const users = await api.fetchPublicUsers(ids);
+  const nameOf = (uid) => users.find(u => u.id === uid)?.nickname || uid;
+
+  top.forEach((r, i) => {
+    addItem("weeklyTop", `${i+1}. ${nameOf(r.user_id)}  ${r.points}点（○${r.correct}/×${r.wrong}）`);
+  });
+
+  // 自分の順位
+  const my = await api.fetchMyRank(weekId);
+  if ($("myRank")) {
+    if (my.rank == null) {
+      $("myRank").textContent = `（${weekId}：まだ記録なし）`;
+    } else {
+      $("myRank").textContent = `（${weekId}：あなたは ${my.total}人中 ${my.rank}位）`;
     }
-
-    const weekly = await api.fetchPersonalWeeklyTop(weekId);
-    const total = await api.fetchPersonalTotalTop();
-
-    // 表示名
-    const ids = Array.from(new Set([...weekly, ...total].map(x => x.user_id)));
-    const users = await api.fetchPublicUsers(ids);
-    const nameById = new Map(users.map(u => [u.id, u.nickname]));
-
-    const weeklyTop = $("weeklyTop");
-    const totalTop = $("totalTop");
-    if (weeklyTop) weeklyTop.innerHTML = "";
-    if (totalTop) totalTop.innerHTML = "";
-
-    weekly.forEach((r, i) => {
-      const nm = nameById.get(r.user_id) || r.user_id;
-      weeklyTop?.appendChild(li(`${i+1}. ${nm}：${r.points}点（○${r.correct}/×${r.wrong}）`));
-    });
-
-    total.forEach((r, i) => {
-      const nm = nameById.get(r.user_id) || r.user_id;
-      totalTop?.appendChild(li(`${i+1}. ${nm}：${r.points}点（○${r.correct}/×${r.wrong}）`));
-    });
-
-    // 自分の順位（端末内は1位表示でOK）
-    const myRank = $("myRank");
-    if (myRank) myRank.textContent = `今は「端末内保存」なので、この端末の記録が出ます。`;
-
-    setMsg("OK", "ok");
-  } catch (e) {
-    console.error(e);
-    setMsg("ランキング取得に失敗: " + (e?.message || e), "ng");
   }
+
+  setText("rankMsg", "OK");
 }
 
+// グローバル公開（main.js から呼ぶ）
 window.loadWeekOptions = loadWeekOptions;
 window.loadRanking = loadRanking;
