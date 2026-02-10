@@ -1,11 +1,13 @@
 // docs/js/api.js
 /* global USE_MOCK, client, toEmail */
-
 "use strict";
 
 /**
- * この版は「まず端末内にスコア保存→ランキング表示」を完成させる版
- * （後でSupabaseに差し替えるのが楽な形にしてある）
+ * ✅ このapi.jsの目的（先生テスト配布で壊れない）
+ * - week_id固定（2026-W06形式）
+ * - user_id必ず取得（MOCKは u1 / 本番は auth user.id）
+ * - 回答結果を必ず {is_correct, points, out_week_id} で返す
+ * - MOCK時は localStorage に「週スコア」を保存してランキングに反映
  */
 
 // =====================
@@ -18,7 +20,7 @@ const mock = {
     { id: "u2", nickname: "テスト生徒B", grade: 2, class_no: 4 },
     { id: "u3", nickname: "テスト生徒C", grade: 2, class_no: 3 },
   ],
-  // 保険（CSVが読めない時）
+  // CSVが読めないときの保険（最低4件）
   vocab: [
     { word: "憂慮", meaning: "心配して気にかけること", level: 1 },
     { word: "端緒", meaning: "物事のはじまり・きっかけ", level: 1 },
@@ -27,15 +29,60 @@ const mock = {
   ],
 };
 
-// Mockで「今出してる問題の正解ラベル」を覚えておく
+// Mockで「今出してる問題の正解ラベル」を覚えておく（答え合わせの生命線）
 window.__LAST_MOCK_CORRECT = null;
 
-function assertClient() {
-  if (!client) throw new Error("Supabase client が無い（config.js の読み込み順/ネット確認）");
+// =====================
+// localStorage（ランキング用）
+// =====================
+const LS_KEY = "vocab_ta_scores_v1";
+
+// { week_id: { user_id: {points, correct, wrong} } }
+function loadScores() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+function saveScores(data) {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+  } catch {
+    // storage使えない環境もあるので落とさない
+  }
+}
+function ensureUserWeek(scores, weekId, userId) {
+  scores[weekId] = scores[weekId] || {};
+  scores[weekId][userId] = scores[weekId][userId] || { points: 0, correct: 0, wrong: 0 };
+  return scores[weekId][userId];
 }
 
 // =====================
-// CSV読み込み（vocab.csv）
+// Supabase
+// =====================
+function assertClient() {
+  if (!client) throw new Error("Supabase client が無い（config.jsの読み込み/ネット確認）");
+}
+
+// =====================
+// 週ID固定（2026-W06形式）
+// =====================
+function getISOWeekId(d = new Date()) {
+  // ISO week number
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = date.getUTCDay() || 7;
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+  const yyyy = date.getUTCFullYear();
+  const ww = String(weekNo).padStart(2, "0");
+  return `${yyyy}-W${ww}`;
+}
+
+// =====================
+// CSV読み込み
 // =====================
 function parseCSV(text) {
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
@@ -73,7 +120,7 @@ async function loadVocabCSV() {
       mock.vocab = list;
       console.log("[api] vocab loaded from CSV:", list.length);
     } else {
-      console.warn("[api] vocab.csv is too small (need >=4). keep fallback:", list.length);
+      console.warn("[api] vocab.csv too small (need >=4). keep fallback:", list.length);
     }
   } catch (e) {
     console.warn("[api] vocab.csv load skipped:", e?.message || e);
@@ -82,7 +129,7 @@ async function loadVocabCSV() {
 loadVocabCSV();
 
 // =====================
-// 4択生成（意味をシャッフル）
+// 4択生成
 // =====================
 function makeChoices(vocabList, correctItem) {
   const others = vocabList
@@ -102,87 +149,10 @@ function makeChoices(vocabList, correctItem) {
 }
 
 // =====================
-// 端末内スコア保存（localStorage）
-// =====================
-const LS_KEY = "vocabapp_runs_v1";
-
-function yyyymmdd(d = new Date()) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-// ISO週番号（YYYY-Www）
-function isoWeekId(date = new Date()) {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-  const ww = String(weekNo).padStart(2, "0");
-  return `${d.getUTCFullYear()}-W${ww}`;
-}
-
-function readRuns() {
-  try {
-    const raw = localStorage.getItem(LS_KEY);
-    const arr = raw ? JSON.parse(raw) : [];
-    return Array.isArray(arr) ? arr : [];
-  } catch {
-    return [];
-  }
-}
-function writeRuns(arr) {
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify(arr));
-  } catch (e) {
-    console.warn("[api] localStorage save failed:", e);
-  }
-}
-
-function addRunLocal(run) {
-  const arr = readRuns();
-  arr.push(run);
-  // サイズ肥大防止：直近200件だけ残す
-  while (arr.length > 200) arr.shift();
-  writeRuns(arr);
-}
-
-// 集計（端末内用）
-// - 週: weekIdごとに合算
-// - 総合: 全部合算
-function aggregateLocal() {
-  const runs = readRuns();
-  const byWeek = new Map();
-  let total = { points: 0, correct: 0, wrong: 0, plays: 0 };
-
-  for (const r of runs) {
-    const w = r.weekId || "unknown";
-    if (!byWeek.has(w)) byWeek.set(w, { points: 0, correct: 0, wrong: 0, plays: 0 });
-
-    const wk = byWeek.get(w);
-    wk.points += r.score || 0;
-    wk.correct += r.correct || 0;
-    wk.wrong += r.wrong || 0;
-    wk.plays += 1;
-
-    total.points += r.score || 0;
-    total.correct += r.correct || 0;
-    total.wrong += r.wrong || 0;
-    total.plays += 1;
-  }
-
-  return { byWeek, total };
-}
-
-// =====================
 // API本体
 // =====================
 const api = {
-  isMock() {
-    return !!USE_MOCK;
-  },
+  isMock() { return !!USE_MOCK; },
 
   // ---- Auth ----
   async signIn(loginId, password) {
@@ -201,10 +171,15 @@ const api = {
   },
 
   async getMyUserId() {
-    if (USE_MOCK) return "local-me";
+    if (USE_MOCK) return "u1"; // ← 後で本番に差し替えしやすい
     assertClient();
     const { data } = await client.auth.getSession();
     return data?.session?.user?.id ?? null;
+  },
+
+  getWeekIdNow() {
+    // week_id固定
+    return getISOWeekId(new Date());
   },
 
   // ---- Question ----
@@ -217,13 +192,15 @@ const api = {
         pool = pool.filter(v => String(v.level || 1) === String(level));
       }
       if (pool.length < 4) pool = (mock.vocab || []).slice();
-      if (!pool || pool.length < 4) throw new Error("mock.vocab が少なすぎます（最低4件必要）");
+      if (pool.length < 4) throw new Error("mock.vocab が少なすぎます（最低4件必要）");
 
       const i = Math.floor(Math.random() * pool.length);
       const v = pool[i];
 
+      // 外れ選択肢は全体から取る
       const base = (mock.vocab || []).slice();
       const { map, correctLabel } = makeChoices(base, v);
+
       window.__LAST_MOCK_CORRECT = correctLabel;
 
       return {
@@ -237,6 +214,7 @@ const api = {
       };
     }
 
+    // 本番（Supabase）
     assertClient();
     const { data, error } = await client
       .from("questions")
@@ -244,21 +222,37 @@ const api = {
       .eq("is_active", true)
       .order("created_at", { ascending: false })
       .limit(1);
+
     if (error) throw error;
     return data?.[0] ?? null;
   },
 
+  // ---- Attempt（必ず同じ形を返す）----
   async submitAttempt(questionId, chosen) {
     if (USE_MOCK) {
+      const userId = await this.getMyUserId();
+      const weekId = this.getWeekIdNow();
+
       const correct = window.__LAST_MOCK_CORRECT;
       const ok = chosen === correct;
+      const pts = ok ? 10 : 0;
+
+      // ✅ localStorageに週スコア保存（ランキング反映）
+      const scores = loadScores();
+      const row = ensureUserWeek(scores, weekId, userId);
+      row.points += pts;
+      if (ok) row.correct += 1;
+      else row.wrong += 1;
+      saveScores(scores);
+
       return [{
         is_correct: ok,
-        points: ok ? 10 : 0,
-        out_week_id: isoWeekId(new Date()),
+        points: pts,
+        out_week_id: weekId,
       }];
     }
 
+    // 本番（Supabase RPC）
     assertClient();
     const { data, error } = await client.rpc("submit_attempt", {
       p_question_id: questionId,
@@ -270,31 +264,14 @@ const api = {
     return data ?? [];
   },
 
-  // ✅ ここが今回追加：1ゲーム(30秒)の結果を保存
-  async submitRun({ score, correct, wrong, maxCombo }) {
-    if (USE_MOCK) {
-      addRunLocal({
-        ts: Date.now(),
-        day: yyyymmdd(new Date()),
-        weekId: isoWeekId(new Date()),
-        score: Number(score || 0),
-        correct: Number(correct || 0),
-        wrong: Number(wrong || 0),
-        maxCombo: Number(maxCombo || 0),
-      });
-      return { ok: true };
-    }
-
-    // 本番(Supabase)は後でここにRPC/insertを入れる
-    return { ok: false, message: "本番保存は未実装" };
-  },
-
   // ---- Week options ----
   async fetchWeekOptions() {
     if (USE_MOCK) {
-      const { byWeek } = aggregateLocal();
-      const weeks = Array.from(byWeek.keys()).sort().reverse();
-      return weeks.length ? weeks : mock.weekIds.slice();
+      // localStorageにある週 + 今週 を混ぜる
+      const scores = loadScores();
+      const weeks = new Set(Object.keys(scores || {}));
+      weeks.add(this.getWeekIdNow());
+      return Array.from(weeks).sort().reverse();
     }
 
     assertClient();
@@ -307,18 +284,19 @@ const api = {
     return Array.from(new Set((data ?? []).map(x => x.week_id)));
   },
 
-  // ---- Rankings: personal ----
+  // ---- Rankings: personal weekly top ----
   async fetchPersonalWeeklyTop(weekId) {
     if (USE_MOCK) {
-      // 端末内は「自分だけ」ランキングにする（まず動かす）
-      const { byWeek } = aggregateLocal();
-      const wk = byWeek.get(weekId) || { points: 0, correct: 0, wrong: 0 };
-      return [{
-        user_id: "local-me",
-        points: wk.points,
-        correct: wk.correct,
-        wrong: wk.wrong,
-      }];
+      const scores = loadScores();
+      const week = scores?.[weekId] || {};
+      const rows = Object.entries(week).map(([user_id, s]) => ({
+        user_id,
+        points: s.points || 0,
+        correct: s.correct || 0,
+        wrong: s.wrong || 0,
+      }));
+      rows.sort((a,b) => (b.points-a.points) || (b.correct-a.correct));
+      return rows.slice(0, 10);
     }
 
     assertClient();
@@ -333,33 +311,29 @@ const api = {
     return data ?? [];
   },
 
-  async fetchPersonalTotalTop() {
+  // ---- My rank ----
+  async fetchMyRank(weekId) {
     if (USE_MOCK) {
-      const { total } = aggregateLocal();
-      return [{
-        user_id: "local-me",
-        points: total.points,
-        correct: total.correct,
-        wrong: total.wrong,
-      }];
+      const userId = await this.getMyUserId();
+      const scores = loadScores();
+      const week = scores?.[weekId] || {};
+      const rows = Object.entries(week).map(([user_id, s]) => ({
+        user_id,
+        points: s.points || 0,
+        correct: s.correct || 0,
+        wrong: s.wrong || 0,
+      }));
+      rows.sort((a,b) => (b.points-a.points) || (b.correct-a.correct));
+      const idx = rows.findIndex(r => r.user_id === userId);
+      return { user_id: userId, rank: idx >= 0 ? (idx + 1) : null, total: rows.length };
     }
 
-    assertClient();
-    const { data, error } = await client
-      .from("score_total")
-      .select("user_id, points, correct, wrong")
-      .order("points", { ascending: false })
-      .order("correct", { ascending: false })
-      .limit(10);
-    if (error) throw error;
-    return data ?? [];
+    // 本番は後で（SQL/RPCで出す）
+    return { user_id: null, rank: null, total: null };
   },
 
   async fetchPublicUsers(userIds) {
-    if (USE_MOCK) {
-      // local-me の表示名
-      return [{ id: "local-me", nickname: "あなた", grade: 0, class_no: 0 }];
-    }
+    if (USE_MOCK) return mock.users.filter(u => userIds.includes(u.id));
 
     assertClient();
     const { data, error } = await client
@@ -368,21 +342,6 @@ const api = {
       .in("id", userIds);
     if (error) throw error;
     return data ?? [];
-  },
-
-  // ---- Rankings: class（今はダミーのまま）----
-  async fetchClassRankings(weekId) {
-    if (USE_MOCK) {
-      return {
-        cw: [],
-        ct: [],
-        cwa: [],
-        cta: [],
-      };
-    }
-
-    // 本番は今までの通り（必要なら後で復活させる）
-    return { cw: [], ct: [], cwa: [], cta: [] };
   },
 };
 
