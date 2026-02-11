@@ -289,29 +289,29 @@
         <button id="goRankBtn" class="btn2">ランキングを見る</button>
       </div>
 
-      <!-- RANKING -->
-      <div id="rankBox" class="card">
-        <div class="sectionTitle">ランキング（先生テスト用：端末内）</div>
+     <!-- ランキング -->
+<section id="rankingPane" style="margin-top:14px;">
+  <h3>ランキング（先生テスト用：端末内）</h3>
 
-        <div class="row">
-          <label class="muted">週：</label>
-          <select id="weekSelect"></select>
-          <button id="rankBtn" class="btn2">更新</button>
-          <span id="rankMsg" class="muted"></span>
-        </div>
-
-        <div class="card" style="margin-top:10px;">
-          <div class="sectionTitle" style="margin:0 0 6px;">週Top10（個人）</div>
-          <ol id="weeklyTop"></ol>
-        </div>
-
-        <div class="card" style="margin-top:10px;">
-          <div class="sectionTitle" style="margin:0 0 6px;">あなたの順位</div>
-          <div id="myRank" class="muted">（未表示）</div>
-        </div>
-      </div>
-    </div>
+  <div style="display:flex; gap:10px; align-items:center; margin:10px 0;">
+    <label for="weekSelect">週：</label>
+    <select id="weekSelect" style="flex:1; min-width:160px;"></select>
+    <button id="rankRefreshBtn">更新</button>
   </div>
+
+  <div class="card">
+    <h4>週Top10（個人）</h4>
+    <div id="weeklyTop"></div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <h4>あなたの順位</h4>
+    <div id="myRank"></div>
+  </div>
+
+  <div id="rankMsg" style="margin-top:10px; opacity:.8;"></div>
+</section>
+
 
   <!-- OVERLAY（321 / ○×） -->
   <div id="overlay" class="hidden"><div class="panel"></div></div>
@@ -332,3 +332,4 @@
 
 </body>
 </html>
+
