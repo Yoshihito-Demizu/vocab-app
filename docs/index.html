@@ -8,118 +8,240 @@
   <!-- PWA -->
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="theme-color" content="#0b1020">
-
-  <!-- iOS（ホーム画面追加用） -->
   <meta name="mobile-web-app-capable" content="yes">
+
+  <!-- iOS（Safariは“インストールボタン”が出ない：ホーム画面に追加） -->
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
   <style>
+    :root{
+      --bg:#0b1020;
+      --card:#121a33;
+      --ink:#eaf0ff;
+      --muted:#b8c3e6;
+      --accent:#ff3b30;
+      --ok:#00d38a;
+      --ng:#ff4d7d;
+    }
+    *{ box-sizing:border-box; }
     body{
+      margin:0;
       font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      margin:0; padding:8px; background:#0b1020; color:#fff;
+      background: #0b1020;
+      color: var(--ink);
     }
     .hidden{ display:none !important; }
+    .wrap{ max-width:900px; margin:0 auto; padding:10px; }
 
-    /* START */
+    /* ===== START ===== */
     #startPane{
       min-height:100vh;
       background:
-        linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,.45)),
+        linear-gradient(rgba(0,0,0,.40), rgba(0,0,0,.55)),
         url("./icons/start-bg.jpg") center/cover no-repeat;
-      display:flex; flex-direction:column; justify-content:center; align-items:center;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+    }
+    .startCard{
+      width:min(520px, 100%);
+      background: rgba(11,16,32,.72);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:18px;
+      padding:18px;
+      backdrop-filter: blur(8px);
+      box-shadow: 0 18px 50px rgba(0,0,0,.35);
       text-align:center;
     }
-    #startPane h2{ font-size:34px; margin:0 0 18px; text-shadow:0 8px 30px rgba(0,0,0,.5); }
-    #startBtn{
-      font-size:22px; padding:16px 28px; border-radius:999px;
-      border:none; background:#ff3b30; color:#fff; font-weight:900;
+    .title{
+      font-size:28px;
+      font-weight:900;
+      letter-spacing:.03em;
+      margin:6px 0 8px;
+      text-shadow: 0 8px 30px rgba(0,0,0,.55);
     }
-    #startBtn:active{ transform:scale(.98); }
+    .sub{
+      color: var(--muted);
+      font-size:13px;
+      line-height:1.45;
+      margin:0 0 12px;
+    }
+    .btn{
+      border:none;
+      border-radius:999px;
+      padding:14px 22px;
+      font-weight:900;
+      font-size:18px;
+      cursor:pointer;
+      color:#fff;
+      background: var(--accent);
+      box-shadow: 0 12px 30px rgba(255,59,48,.25);
+    }
+    .btn:active{ transform: scale(.98); }
+    .btn2{
+      border:none;
+      border-radius:12px;
+      padding:10px 14px;
+      font-weight:800;
+      cursor:pointer;
+      background: rgba(255,255,255,.10);
+      color: var(--ink);
+    }
+    .btn2:active{ transform: scale(.99); }
 
-    /* BATTLE */
-    #battlePane{ max-width:900px; margin:0 auto; }
-    .hud{ display:flex; gap:10px; flex-wrap:wrap; margin:8px 0 10px; }
-    .stat{ background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:8px 10px; }
-    .big{ font-size:18px; font-weight:900; }
-    #q h3{ margin:10px 0 6px; font-size:26px; }
-    .prompt{ opacity:.9; }
+    /* ===== BATTLE ===== */
+    #battlePane{ background: var(--bg); }
+    .hud{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin:10px 0 8px;
+    }
+    .stat{
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:14px;
+      padding:10px 12px;
+      font-weight:800;
+    }
+    .stat b{ font-size:18px; }
+    #q{
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:16px;
+      padding:14px;
+      margin-top:8px;
+    }
+    #q h3{ margin:0 0 6px; font-size:22px; }
+    .prompt{ color: var(--muted); font-size:13px; }
 
-    /* choices 2x2 */
+    /* 選択肢 2×2 */
     #choices{
       display:grid;
-      grid-template-columns:1fr 1fr;
+      grid-template-columns: 1fr 1fr;
       gap:12px;
-      margin-top:14px;
+      margin-top:12px;
     }
     #choices button{
-      font-size:18px;
-      padding:18px 12px;
-      border-radius:14px;
       border:none;
-      background:#ffffff;
-      color:#111;
-      font-weight:800;
-      min-height:78px;
-      box-shadow:0 8px 24px rgba(0,0,0,.25);
-    }
-    #choices button:active{ transform:scale(.98); }
-
-    #stopBtn{
-      margin-top:14px;
-      padding:12px 14px;
-      border-radius:12px;
-      border:none;
-      background:rgba(255,255,255,.12);
-      color:#fff;
-      font-weight:800;
-    }
-
-    /* RESULT */
-    #resultPane{ max-width:900px; margin:0 auto; text-align:center; padding-top:22px; }
-    #resultSummary{
-      background:rgba(255,255,255,.08);
-      border:1px dashed rgba(255,255,255,.35);
       border-radius:16px;
-      padding:18px;
-      margin:10px 0 14px;
-    }
-    #retryBtn{
-      font-size:18px;
-      padding:14px 18px;
-      border-radius:999px;
-      border:none;
-      background:#00c853;
-      color:#001;
+      padding:16px 12px;
+      min-height:78px;
+      font-size:16px;
       font-weight:900;
+      color: var(--ink);
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow: 0 10px 24px rgba(0,0,0,.22);
+      cursor:pointer;
+      text-align:left;
+      line-height:1.2;
+    }
+    #choices button:active{ transform: scale(.98); }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top:10px;
     }
 
-    /* OVERLAY（321 / ○×） */
+    /* ===== RESULT ===== */
+    #resultPane{
+      padding:12px 10px 22px;
+    }
+    .resultCard{
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:18px;
+      padding:14px;
+      box-shadow: 0 18px 50px rgba(0,0,0,.25);
+    }
+    .resultBig{
+      text-align:center;
+      font-size:28px;
+      font-weight:900;
+      margin:6px 0 8px;
+    }
+    .resultLine{
+      text-align:center;
+      color: var(--muted);
+      margin:6px 0;
+      font-weight:800;
+    }
+    .resultLine b{ color: var(--ink); font-size:22px; }
+
+    /* ===== RANKING ===== */
+    #rankBox{ padding:10px; }
+    .sectionTitle{
+      font-size:18px;
+      font-weight:900;
+      margin:10px 0 8px;
+    }
+    .card{
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:18px;
+      padding:12px;
+      margin-top:10px;
+    }
+    .muted{ color: var(--muted); font-size:12px; }
+    select{
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.08);
+      color: var(--ink);
+      font-weight:800;
+      min-width: 160px;
+      outline:none;
+    }
+    ol{ margin:8px 0 0 18px; padding:0; }
+    ol li{ margin:6px 0; }
+
+    /* ===== OVERLAY（321 / ○×）===== */
     #overlay{
-      position:fixed; inset:0;
-      display:flex; align-items:center; justify-content:center;
-      background:rgba(0,0,0,.35);
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: rgba(0,0,0,.35);
       z-index:9999;
     }
-    #overlay.hidden{ display:none !important; }
     #overlay .panel{
-      min-width:240px;
-      padding:18px 22px;
-      border-radius:22px;
+      width:min(520px, 92vw);
       text-align:center;
-      font-size:76px;
       font-weight:1000;
-      color:#fff;
-      text-shadow:0 10px 40px rgba(0,0,0,.75);
-      background:rgba(255,255,255,.06);
+      letter-spacing:.02em;
+      border-radius:22px;
+      padding:24px 18px;
+      background: rgba(10, 16, 36, .82);
       border:1px solid rgba(255,255,255,.18);
-      transform:scale(1);
+      box-shadow: 0 28px 80px rgba(0,0,0,.45);
+      text-shadow: 0 14px 40px rgba(0,0,0,.55);
+      font-size:78px;
+      line-height:1;
+      transform: translateY(-6px);
     }
-    #overlay .panel.count{ font-size:86px; }
-    #overlay .panel.go{ color:#00e676; }
-    #overlay .panel.ok{ color:#00e676; }
-    #overlay .panel.ng{ color:#ff5252; }
+    #overlay .panel.count{ animation: pop .18s ease-out; }
+    #overlay .panel.go{ color: var(--ok); animation: pop .18s ease-out; }
+    #overlay .panel.ok{ color: var(--ok); font-size:90px; animation: pop .14s ease-out; }
+    #overlay .panel.ng{ color: var(--ng); font-size:90px; animation: shake .28s ease-in-out; }
+    @keyframes pop{
+      from{ transform: translateY(-6px) scale(.92); opacity:.3; }
+      to{ transform: translateY(-6px) scale(1); opacity:1; }
+    }
+    @keyframes shake{
+      0%,100%{ transform: translateY(-6px) translateX(0); }
+      25%{ transform: translateY(-6px) translateX(-10px); }
+      50%{ transform: translateY(-6px) translateX(10px); }
+      75%{ transform: translateY(-6px) translateX(-6px); }
+    }
   </style>
 </head>
 
@@ -127,61 +249,86 @@
 
   <!-- START -->
   <div id="startPane">
-    <h2>語彙タイムアタック</h2>
-    <button id="startBtn">▶ START</button>
+    <div class="startCard">
+      <div class="title">語彙タイムアタック</div>
+      <p class="sub">30秒で何問正解できるか勝負！<br>（先生テスト配布モード：今はログイン無しでも遊べます）</p>
+      <button id="startBtn" class="btn">▶ START</button>
+      <div class="muted" style="margin-top:10px;">※iPhoneは共有→「ホーム画面に追加」</div>
+    </div>
   </div>
 
   <!-- BATTLE -->
   <div id="battlePane" class="hidden">
-    <div class="hud">
-      <div class="stat">残り <span id="timeLeft" class="big">30</span> 秒</div>
-      <div class="stat">スコア <span id="scoreNow" class="big">0</span></div>
-      <div class="stat">COMBO <span id="comboNow" class="big">0</span></div>
+    <div class="wrap">
+      <div class="hud">
+        <div class="stat">残り <b id="timeLeft">30</b> 秒</div>
+        <div class="stat">スコア <b id="scoreNow">0</b></div>
+        <div class="stat">COMBO <b id="comboNow">0</b></div>
+      </div>
+
+      <div id="q"></div>
+      <div id="choices"></div>
+
+      <div class="row">
+        <button id="stopBtn" class="btn2">終了</button>
+      </div>
     </div>
-
-    <div id="q"></div>
-    <div id="choices"></div>
-
-    <button id="stopBtn">終了</button>
   </div>
 
   <!-- RESULT -->
   <div id="resultPane" class="hidden">
-    <div id="resultSummary">
-      <div style="font-size:28px;font-weight:1000;">🎉 終了！</div>
-      <div style="margin-top:10px;font-size:18px;">
-        スコア：<span id="finalScore" class="big">0</span>
+    <div class="wrap">
+      <div class="resultCard">
+        <div class="resultBig">🎉 結果</div>
+        <div class="resultLine">スコア：<b id="finalScore">0</b> 点</div>
+        <div class="resultLine">最大COMBO：<b id="finalCombo">0</b></div>
       </div>
-      <div style="margin-top:6px;font-size:18px;">
-        最大COMBO：<span id="finalCombo" class="big">0</span>
+
+      <div class="row">
+        <button id="retryBtn" class="btn">もう一回！</button>
+        <button id="goRankBtn" class="btn2">ランキングを見る</button>
+      </div>
+
+      <!-- RANKING -->
+      <div id="rankBox" class="card">
+        <div class="sectionTitle">ランキング（先生テスト用：端末内）</div>
+
+        <div class="row">
+          <label class="muted">週：</label>
+          <select id="weekSelect"></select>
+          <button id="rankBtn" class="btn2">更新</button>
+          <span id="rankMsg" class="muted"></span>
+        </div>
+
+        <div class="card" style="margin-top:10px;">
+          <div class="sectionTitle" style="margin:0 0 6px;">週Top10（個人）</div>
+          <ol id="weeklyTop"></ol>
+        </div>
+
+        <div class="card" style="margin-top:10px;">
+          <div class="sectionTitle" style="margin:0 0 6px;">あなたの順位</div>
+          <div id="myRank" class="muted">（未表示）</div>
+        </div>
       </div>
     </div>
-    <button id="retryBtn">もう一回！</button>
   </div>
 
-  <!-- OVERLAY（超重要） -->
+  <!-- OVERLAY（321 / ○×） -->
   <div id="overlay" class="hidden"><div class="panel"></div></div>
 
- <!-- JS（順番厳守） ※ v= を更新のたびに変える -->
-<script>
-  // ✅ デプロイするたびにここだけ変える（例: 20260209-1 → 20260209-2）
-  const APP_VER = "20260209-1";
-</script>
+  <!-- JS（順番厳守） -->
+  <script src="./js/config.js"></script>
+  <script src="./js/api.js"></script>
+  <script src="./js/ranking.js"></script>
+  <script src="./js/quiz.js"></script>
+  <script src="./js/main.js"></script>
 
-<script src="./js/config.js?v=20260209-1"></script>
-<script src="./js/api.js?v=20260209-1"></script>
-<script src="./js/ranking.js?v=20260209-1"></script>
-<script src="./js/quiz.js?v=20260209-1"></script>
-<script src="./js/main.js?v=20260209-1"></script>
-
-<!-- Service Worker（超重要） -->
-<script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js?v=20260209-1");
-  }
-</script>
-
+  <!-- SW登録 -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js");
+    }
+  </script>
 
 </body>
 </html>
-
