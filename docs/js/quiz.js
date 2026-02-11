@@ -1,5 +1,7 @@
 // docs/js/quiz.js
-console.log("[quiz] loaded! (flow+overlay)");
+console.log("[quiz] loaded! (flow+overlay+B-record)");
+
+/* global api */
 
 // ===== 状態 =====
 let timer = null;
@@ -39,7 +41,7 @@ async function unlockAudio() {
   ensureAudio();
   if (AC.state !== "running") await AC.resume();
 }
-function beep({ freq=440, dur=0.12, type="square", gain=0.12 }) {
+function beep({ freq = 440, dur = 0.12, type = "square", gain = 0.12 }) {
   if (!AC || !master) return;
   const o = AC.createOscillator();
   const g = AC.createGain();
@@ -50,54 +52,57 @@ function beep({ freq=440, dur=0.12, type="square", gain=0.12 }) {
   g.gain.linearRampToValueAtTime(gain, AC.currentTime + 0.01);
   g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
 
-  o.connect(g); g.connect(master);
+  o.connect(g);
+  g.connect(master);
   o.start();
   o.stop(AC.currentTime + dur + 0.02);
 }
 
 // SFX
-function sfxCount(n){
-  const f = n===3?440:n===2?523:659;
-  beep({ freq:f, dur:0.12, type:"square", gain:0.16 });
+function sfxCount(n) {
+  const f = n === 3 ? 440 : n === 2 ? 523 : 659;
+  beep({ freq: f, dur: 0.12, type: "square", gain: 0.16 });
 }
-function sfxGo(){
-  beep({ freq:988, dur:0.10, type:"square", gain:0.18 });
-  setTimeout(()=>beep({ freq:1319, dur:0.12, type:"square", gain:0.16 }), 90);
+function sfxGo() {
+  beep({ freq: 988, dur: 0.10, type: "square", gain: 0.18 });
+  setTimeout(() => beep({ freq: 1319, dur: 0.12, type: "square", gain: 0.16 }), 90);
 }
-function sfxCorrect(){
-  beep({ freq:880, dur:0.08, type:"square", gain:0.18 });
-  setTimeout(()=>beep({ freq:1175, dur:0.10, type:"square", gain:0.16 }), 90);
+function sfxCorrect() {
+  beep({ freq: 880, dur: 0.08, type: "square", gain: 0.18 });
+  setTimeout(() => beep({ freq: 1175, dur: 0.10, type: "square", gain: 0.16 }), 90);
 }
-function sfxWrong(){
-  beep({ freq:160, dur:0.22, type:"sawtooth", gain:0.22 });
+function sfxWrong() {
+  beep({ freq: 160, dur: 0.22, type: "sawtooth", gain: 0.22 });
 }
 
 // BGM（簡易チップチューン）
-function stopBGM(){
-  if (bgmTimer){ clearInterval(bgmTimer); bgmTimer=null; }
+function stopBGM() {
+  if (bgmTimer) { clearInterval(bgmTimer); bgmTimer = null; }
   bgmTier = null;
 }
-function startBGM(tier){
+function startBGM(tier) {
   ensureAudio();
   if (bgmTier === tier) return;
   stopBGM();
   bgmTier = tier;
 
   const patterns = {
-    low:  { bpm: 140, seq: [659, 523, 587, 523, 494, 440, 494, 523] },
-    mid:  { bpm: 160, seq: [784, 659, 698, 659, 587, 523, 587, 659] },
-    high: { bpm: 180, seq: [988, 784, 880, 784, 698, 659, 698, 784] },
+    low:   { bpm: 140, seq: [659, 523, 587, 523, 494, 440, 494, 523] },
+    mid:   { bpm: 160, seq: [784, 659, 698, 659, 587, 523, 587, 659] },
+    high:  { bpm: 180, seq: [988, 784, 880, 784, 698, 659, 698, 784] },
     result:{ bpm: 120, seq: [523, 659, 784, 659, 523, 494, 523, 659] }
   };
+
   const p = patterns[tier] || patterns.low;
-  const stepMs = Math.floor(60000 / p.bpm / 2);
+  const stepMs = Math.floor(60000 / p.bpm / 2); // 8分
   let i = 0;
+
   bgmTimer = setInterval(() => {
     beep({ freq: p.seq[i % p.seq.length], dur: 0.07, type: "square", gain: 0.07 });
     i++;
   }, stepMs);
 }
-function updateBgmByScore(){
+function updateBgmByScore() {
   if (!playing) return;
   if (score >= 120) startBGM("high");
   else if (score >= 60) startBGM("mid");
@@ -106,20 +111,23 @@ function updateBgmByScore(){
 
 // ===== Overlay（321 / ○×）=====
 function overlayShow(text, kind = "") {
-  const ov = document.getElementById("overlay");
+  const ov = q$("overlay");
   const panel = ov?.querySelector(".panel");
   if (!ov || !panel) return;
 
+  // HTML解釈させない（変な文字/タグ化防止）
   panel.textContent = String(text ?? "");
+  // 空kindでもOK
   panel.className = "panel" + (kind ? " " + kind : "");
+
   ov.classList.remove("hidden");
 }
 function overlayHide() {
-  document.getElementById("overlay")?.classList.add("hidden");
+  q$("overlay")?.classList.add("hidden");
 }
-async function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-async function flashyCountdown(){
+async function flashyCountdown() {
   overlayShow("3", "count"); sfxCount(3); await sleep(900);
   overlayShow("2", "count"); sfxCount(2); await sleep(900);
   overlayShow("1", "count"); sfxCount(1); await sleep(900);
@@ -128,8 +136,8 @@ async function flashyCountdown(){
 }
 
 // ===== 出題 =====
-async function loadQuestion(){
-  const q = await window.api.fetchLatestQuestion();
+async function loadQuestion() {
+  const q = await api.fetchLatestQuestion();
   currentQuestion = q;
 
   const qBox = q$("q");
@@ -145,41 +153,48 @@ async function loadQuestion(){
     ["C", q.choice_c],
     ["D", q.choice_d],
   ];
+
   list.forEach(([k, txt]) => {
     const b = document.createElement("button");
     b.textContent = `${k}: ${txt}`;
-    b.onclick = () => answer(k);
+    b.addEventListener("click", () => answer(k), { passive: true });
     cBox.appendChild(b);
   });
 }
 
-// ===== 回答 =====
+// ===== 回答（B：ランキング記録）=====
 let lock = false;
-async function answer(chosen){
+async function answer(chosen) {
   if (!playing || !currentQuestion || lock) return;
   lock = true;
 
-  const rows = await window.api.submitAttempt(currentQuestion.id, chosen);
+  const rows = await api.submitAttempt(currentQuestion.id, chosen);
   const r = rows?.[0];
-  // ✅ 端末内ランキングに記録
-try {
-  const userId = await api.getMyUserId();
-  window.__recordAttempt?.({
-    userId,
-    weekId: r.out_week_id,
-    is_correct: r.is_correct,
-    points: r.points
-  });
-} catch (e) {
-  console.warn("[rank] record skipped:", e);
-}
+  if (!r) { lock = false; return; }
 
-  if (!r){ lock=false; return; }
+  // ✅ B：ランキング保存（存在すれば必ず記録）
+  // ここで「週ID」「ユーザーID」「正誤」「点数」を localStorage に積む
+  if (window.__recordAttempt) {
+    try {
+      const userId = await api.getMyUserId();
+      const weekId = r.out_week_id;
+      await window.__recordAttempt({
+        userId,
+        weekId,
+        is_correct: r.is_correct,
+        points: r.points,
+      });
+    } catch (e) {
+      console.warn("[rank] recordAttempt failed:", e);
+    }
+  }
 
-  if (r.is_correct){
-    score += r.points + Math.min(combo, 20);
+  // 演出＆スコア
+  if (r.is_correct) {
+    score += Number(r.points || 0) + Math.min(combo, 20);
     combo += 1;
     maxCombo = Math.max(maxCombo, combo);
+
     overlayShow("⭕", "ok");
     sfxCorrect();
   } else {
@@ -195,12 +210,14 @@ try {
 
   await sleep(520);
   overlayHide();
+
   await loadQuestion();
   lock = false;
 }
 
 // ===== 進行（start→battle→result）=====
-async function startGame(){
+async function startGame() {
+  // スマホで音を鳴らす最重要
   await unlockAudio();
 
   if (playing) return;
@@ -232,7 +249,7 @@ async function startGame(){
   }, 1000);
 }
 
-function endGame(){
+function endGame() {
   if (!playing) return;
   playing = false;
 
@@ -250,4 +267,3 @@ function endGame(){
 // ===== グローバル公開 =====
 window.startGame = startGame;
 window.endGame = endGame;
-
