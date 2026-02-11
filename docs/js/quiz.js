@@ -94,7 +94,7 @@ function startBGM(tier) {
   };
 
   const p = patterns[tier] || patterns.low;
-  const stepMs = Math.floor(60000 / p.bpm / 2); // 8分
+  const stepMs = Math.floor(60000 / p.bpm / 2);
   let i = 0;
 
   bgmTimer = setInterval(() => {
@@ -113,18 +113,15 @@ function updateBgmByScore() {
 function overlayShow(text, kind = "") {
   const ov = q$("overlay");
   const panel = ov?.querySelector(".panel");
-  if (!ov || !panel) return;
-
-  // HTML解釈させない（変な文字/タグ化防止）
+  if (!ov || !panel) {
+    console.warn("[overlay] missing overlay/panel");
+    return;
+  }
   panel.textContent = String(text ?? "");
-  // 空kindでもOK
   panel.className = "panel" + (kind ? " " + kind : "");
-
   ov.classList.remove("hidden");
 }
-function overlayHide() {
-  q$("overlay")?.classList.add("hidden");
-}
+function overlayHide() { q$("overlay")?.classList.add("hidden"); }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function flashyCountdown() {
@@ -157,7 +154,7 @@ async function loadQuestion() {
   list.forEach(([k, txt]) => {
     const b = document.createElement("button");
     b.textContent = `${k}: ${txt}`;
-    b.addEventListener("click", () => answer(k), { passive: true });
+    b.addEventListener("click", () => answer(k));
     cBox.appendChild(b);
   });
 }
@@ -172,18 +169,12 @@ async function answer(chosen) {
   const r = rows?.[0];
   if (!r) { lock = false; return; }
 
-  // ✅ B：ランキング保存（存在すれば必ず記録）
-  // ここで「週ID」「ユーザーID」「正誤」「点数」を localStorage に積む
+  // ランキング保存（あれば）
   if (window.__recordAttempt) {
     try {
       const userId = await api.getMyUserId();
       const weekId = r.out_week_id;
-      await window.__recordAttempt({
-        userId,
-        weekId,
-        is_correct: r.is_correct,
-        points: r.points,
-      });
+      await window.__recordAttempt({ userId, weekId, is_correct: r.is_correct, points: r.points });
     } catch (e) {
       console.warn("[rank] recordAttempt failed:", e);
     }
@@ -194,7 +185,6 @@ async function answer(chosen) {
     score += Number(r.points || 0) + Math.min(combo, 20);
     combo += 1;
     maxCombo = Math.max(maxCombo, combo);
-
     overlayShow("⭕", "ok");
     sfxCorrect();
   } else {
@@ -205,19 +195,17 @@ async function answer(chosen) {
 
   setText("scoreNow", score);
   setText("comboNow", combo);
-
   updateBgmByScore();
 
   await sleep(520);
   overlayHide();
-
   await loadQuestion();
+
   lock = false;
 }
 
-// ===== 進行（start→battle→result）=====
+// ===== start→battle→result =====
 async function startGame() {
-  // スマホで音を鳴らす最重要
   await unlockAudio();
 
   if (playing) return;
@@ -262,8 +250,12 @@ function endGame() {
 
   setText("finalScore", score);
   setText("finalCombo", maxCombo);
+
+  // ✅ 結果画面でランキングも即更新
+  if (typeof window.loadRankings === "function") {
+    window.loadRankings().catch(() => {});
+  }
 }
 
-// ===== グローバル公開 =====
 window.startGame = startGame;
 window.endGame = endGame;
