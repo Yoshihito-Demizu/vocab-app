@@ -229,28 +229,32 @@ const api = {
 
   // ---- Attempt（必ず同じ形を返す）----
   async submitAttempt(questionId, chosen) {
-    if (USE_MOCK) {
-      const userId = await this.getMyUserId();
-      const weekId = this.getWeekIdNow();
+   // USE_MOCK の submitAttempt 内だけ置換
+if (USE_MOCK) {
+  const correct = window.__LAST_MOCK_CORRECT;
+  const ok = chosen === correct;
+  const pts = ok ? 10 : 0;
 
-      const correct = window.__LAST_MOCK_CORRECT;
-      const ok = chosen === correct;
-      const pts = ok ? 10 : 0;
+  // ✅ 今週ID（ranking.jsと同じ形式）
+  const out_week_id = (() => {
+    const d = new Date();
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    const yyyy = date.getUTCFullYear();
+    const ww = String(weekNo).padStart(2, "0");
+    return `${yyyy}-W${ww}`;
+  })();
 
-      // ✅ localStorageに週スコア保存（ランキング反映）
-      const scores = loadScores();
-      const row = ensureUserWeek(scores, weekId, userId);
-      row.points += pts;
-      if (ok) row.correct += 1;
-      else row.wrong += 1;
-      saveScores(scores);
+  return [{
+    is_correct: ok,
+    points: pts,
+    out_week_id
+  }];
+}
 
-      return [{
-        is_correct: ok,
-        points: pts,
-        out_week_id: weekId,
-      }];
-    }
 
     // 本番（Supabase RPC）
     assertClient();
@@ -347,3 +351,4 @@ const api = {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", USE_MOCK, "fallback vocab size =", mock.vocab.length);
+
