@@ -15,7 +15,7 @@ console.log("[ranking] loaded! (local ranking v1)");
     el.textContent = String(text ?? "");
   }
 
-  // ===== week_id（2026-W06形式）=====
+  // ===== week_id（YYYY-Www 形式）=====
   function getISOWeekId(d = new Date()) {
     const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     const dayNum = date.getUTCDay() || 7;
@@ -37,31 +37,20 @@ console.log("[ranking] loaded! (local ranking v1)");
     localStorage.setItem(KEY, JSON.stringify(db));
   }
 
-  // db format:
-  // {
-  //   users: { [userId]: { nickname, grade, class_no } },
-  //   weekly: { [weekId]: { [userId]: { points, correct, wrong } } },
-  //   total: { [userId]: { points, correct, wrong } }
-  // }
-
   function ensureUser(db, userId) {
     db.users = db.users || {};
-    if (!db.users[userId]) {
-      db.users[userId] = { nickname: `user-${userId}`, grade: 0, class_no: 0 };
-    }
+    if (!db.users[userId]) db.users[userId] = { nickname: `user-${userId}`, grade: 0, class_no: 0 };
   }
-
   function ensureWeekly(db, weekId) {
     db.weekly = db.weekly || {};
     db.weekly[weekId] = db.weekly[weekId] || {};
   }
-
   function ensureTotal(db, userId) {
     db.total = db.total || {};
     db.total[userId] = db.total[userId] || { points: 0, correct: 0, wrong: 0 };
   }
 
-  // ===== API：ゲームから呼ぶ（重要）=====
+  // ===== ゲームから呼ばれる：記録 =====
   async function recordAttempt({ userId, weekId, is_correct, points }) {
     const db = loadDB();
     ensureUser(db, userId);
@@ -87,7 +76,7 @@ console.log("[ranking] loaded! (local ranking v1)");
     saveDB(db);
   }
 
-  // ===== weekSelect =====
+  // ===== 週プルダウン =====
   async function loadWeekOptions() {
     const sel = $("weekSelect");
     if (!sel) return;
@@ -96,7 +85,6 @@ console.log("[ranking] loaded! (local ranking v1)");
     try {
       weeks = await api.fetchWeekOptions();
     } catch {
-      // fallback: localの週を使う
       const db = loadDB();
       weeks = Object.keys(db.weekly || {});
     }
@@ -104,7 +92,6 @@ console.log("[ranking] loaded! (local ranking v1)");
     const now = getISOWeekId();
     if (!weeks.includes(now)) weeks.unshift(now);
 
-    // 重複除去 & 降順
     weeks = Array.from(new Set(weeks)).sort().reverse();
 
     sel.innerHTML = "";
@@ -120,15 +107,11 @@ console.log("[ranking] loaded! (local ranking v1)");
     const m = (db.weekly && db.weekly[weekId]) ? db.weekly[weekId] : {};
     return Object.entries(m).map(([user_id, v]) => ({ user_id, ...v }));
   }
-  function toArrayTotal(db) {
-    const m = db.total || {};
-    return Object.entries(m).map(([user_id, v]) => ({ user_id, ...v }));
-  }
 
-  function renderTop10(list, usersMap, olId) {
-    const ol = $(olId);
-    if (!ol) return;
-    ol.innerHTML = "";
+  function renderTop10(list, usersMap) {
+    const box = $("weeklyTop");
+    if (!box) return;
+    box.innerHTML = "";
 
     const top = list
       .slice()
@@ -136,22 +119,22 @@ console.log("[ranking] loaded! (local ranking v1)");
       .slice(0, 10);
 
     if (top.length === 0) {
-      const li = document.createElement("li");
-      li.textContent = "（まだデータなし）";
-      ol.appendChild(li);
+      box.textContent = "（まだデータなし）";
       return;
     }
 
+    const ol = document.createElement("ol");
     top.forEach((r, i) => {
       const u = usersMap[r.user_id] || { nickname: r.user_id };
       const li = document.createElement("li");
       li.textContent = `${i + 1}. ${u.nickname} — ${r.points}点（○${r.correct} / ×${r.wrong}）`;
       ol.appendChild(li);
     });
+    box.appendChild(ol);
   }
 
-  function renderMyRank(list, usersMap, userId, boxId) {
-    const box = $(boxId);
+  function renderMyRank(list, usersMap, userId) {
+    const box = $("myRank");
     if (!box) return;
 
     const sorted = list
@@ -163,35 +146,36 @@ console.log("[ranking] loaded! (local ranking v1)");
       box.textContent = "（まだデータなし）";
       return;
     }
+
     const me = sorted[idx];
     const u = usersMap[userId] || { nickname: userId };
-    box.innerHTML = `あなた：<b>${u.nickname}</b>　順位：<b>${idx + 1}</b>位　スコア：<b>${me.points}</b>点（○${me.correct} / ×${me.wrong}）`;
+    box.innerHTML =
+      `あなた：<b>${u.nickname}</b>　順位：<b>${idx + 1}</b>位　` +
+      `スコア：<b>${me.points}</b>点（○${me.correct} / ×${me.wrong}）`;
   }
 
-  async function loadRanking() {
+  // ✅ ここが本体（複数形で統一）
+  async function loadRankings() {
     setText("rankMsg", "読み込み中…", "muted");
 
     const sel = $("weekSelect");
     const weekId = sel?.value || getISOWeekId();
+
     const db = loadDB();
-
-    // usersMap（localを優先）
     const usersMap = db.users || {};
-
     const weeklyList = toArrayWeekly(db, weekId);
-    renderTop10(weeklyList, usersMap, "weeklyTop");
 
-    // 自分
+    renderTop10(weeklyList, usersMap);
+
     const myId = await api.getMyUserId();
-    renderMyRank(weeklyList, usersMap, myId, "myRank");
+    renderMyRank(weeklyList, usersMap, myId);
 
     setText("rankMsg", `OK（${weekId}）`, "muted");
   }
 
-  // ===== グローバル公開（main.js / quiz.jsから呼ぶ）=====
+  // ===== グローバル公開 =====
   window.loadWeekOptions = loadWeekOptions;
   window.loadRankings = loadRankings;
   window.__recordAttempt = recordAttempt;
 
 })();
-
