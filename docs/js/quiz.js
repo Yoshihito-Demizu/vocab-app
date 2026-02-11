@@ -161,6 +161,19 @@ async function answer(chosen){
 
   const rows = await window.api.submitAttempt(currentQuestion.id, chosen);
   const r = rows?.[0];
+  // ✅ 端末内ランキングに記録
+try {
+  const userId = await api.getMyUserId();
+  window.__recordAttempt?.({
+    userId,
+    weekId: r.out_week_id,
+    is_correct: r.is_correct,
+    points: r.points
+  });
+} catch (e) {
+  console.warn("[rank] record skipped:", e);
+}
+
   if (!r){ lock=false; return; }
 
   if (r.is_correct){
@@ -237,3 +250,4 @@ function endGame(){
 // ===== グローバル公開 =====
 window.startGame = startGame;
 window.endGame = endGame;
+
