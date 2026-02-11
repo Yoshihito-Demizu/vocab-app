@@ -190,7 +190,8 @@ console.log("[ranking] loaded! (local ranking v1)");
 
   // ===== グローバル公開（main.js / quiz.jsから呼ぶ）=====
   window.loadWeekOptions = loadWeekOptions;
-  window.loadRanking = loadRanking;
+  window.loadRankings = loadRankings;
   window.__recordAttempt = recordAttempt;
 
 })();
+
