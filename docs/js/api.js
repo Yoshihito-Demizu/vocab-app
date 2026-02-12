@@ -289,32 +289,52 @@ if (USE_MOCK) {
   },
 
   // ---- Rankings: personal weekly top ----
-  async fetchPersonalWeeklyTop(weekId) {
-    if (USE_MOCK) {
-      const scores = loadScores();
-      const week = scores?.[weekId] || {};
-      const rows = Object.entries(week).map(([user_id, s]) => ({
-        user_id,
-        points: s.points || 0,
-        correct: s.correct || 0,
-        wrong: s.wrong || 0,
-      }));
-      rows.sort((a,b) => (b.points-a.points) || (b.correct-a.correct));
-      return rows.slice(0, 10);
-    }
+async fetchPersonalWeeklyTop(weekId) {
+  if (USE_MOCK) return (mock.personalWeekly[weekId] ?? []).slice();
 
-    assertClient();
-    const { data, error } = await client
-      .from("score_weekly")
-      .select("user_id, points, correct, wrong")
-      .eq("week_id", weekId)
-      .order("points", { ascending: false })
-      .order("correct", { ascending: false })
-      .limit(10);
-    if (error) throw error;
-    return data ?? [];
-  },
+  assertClient();
+  const { data, error } = await client.rpc("fetch_personal_weekly_top", { p_week_id: weekId });
+  if (error) throw error;
+  return data ?? [];
+},
 
+async fetchPersonalTotalTop() {
+  if (USE_MOCK) return mock.personalTotal.slice();
+
+  assertClient();
+  const { data, error } = await client.rpc("fetch_personal_total_top");
+  if (error) throw error;
+  return data ?? [];
+},
+
+// ---- Rankings: my rank ----
+async fetchMyWeeklyRank(weekId) {
+  if (USE_MOCK) {
+    // モック：weeklyTopと同じデータから自分の順位を計算（u1固定）
+    const myId = "u1";
+    const list = (mock.personalWeekly[weekId] ?? []).slice()
+      .sort((a,b)=> (b.points-a.points) || (b.correct-a.correct));
+    const idx = list.findIndex(x => x.user_id === myId);
+    if (idx < 0) return null;
+    return { user_id: myId, rank: idx + 1, ...list[idx] };
+  }
+
+  assertClient();
+  const { data, error } = await client.rpc("fetch_my_weekly_rank", { p_week_id: weekId });
+  if (error) throw error;
+  return (data && data[0]) ? data[0] : null;
+},
+
+async fetchMyTotalRank() {
+  if (USE_MOCK) return null;
+
+  assertClient();
+  const { data, error } = await client.rpc("fetch_my_total_rank");
+  if (error) throw error;
+  return (data && data[0]) ? data[0] : null;
+},
+
+  
   // ---- My rank ----
   async fetchMyRank(weekId) {
     if (USE_MOCK) {
@@ -351,4 +371,5 @@ if (USE_MOCK) {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", USE_MOCK, "fallback vocab size =", mock.vocab.length);
+
 
