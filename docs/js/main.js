@@ -1,33 +1,29 @@
 // docs/js/main.js
-console.log("[main] loaded!");
+console.log("[main] loaded! (buttons+ranking)");
 
 function $(id) { return document.getElementById(id); }
 
-function safeCall(fnName) {
-  const fn = window[fnName];
-  if (typeof fn === "function") return fn();
-  console.warn("[main] missing fn:", fnName);
+function safe(fn) {
+  try { fn && fn(); } catch (e) { console.warn(e); }
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-  $("startBtn")?.addEventListener("click", () => window.startGame?.());
-  $("retryBtn")?.addEventListener("click", () => window.startGame?.());
-  $("stopBtn")?.addEventListener("click", () => window.endGame?.());
+window.addEventListener("DOMContentLoaded", async () => {
+  // START / RETRY / STOP
+  $("startBtn")?.addEventListener("click", () => safe(window.startGame));
+  $("retryBtn")?.addEventListener("click", () => safe(window.startGame));
+  $("stopBtn")?.addEventListener("click", () => safe(window.endGame));
 
+  // 週プルダウン作る
+  if (window.loadWeekOptions) {
+    await window.loadWeekOptions();
+  }
+
+  // ランキング更新ボタン
+  $("rankRefreshBtn")?.addEventListener("click", () => safe(window.loadRankings));
+
+  // 「ランキングを見る」→ ランキング欄へスクロールして更新
   $("goRankBtn")?.addEventListener("click", async () => {
-    $("rankingPane")?.scrollIntoView({ behavior: "smooth" });
-    await safeCall("loadRankings"); // ★複数形
+    $("rankingPane")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    await safe(window.loadRankings);
   });
-
-  $("rankRefreshBtn")?.addEventListener("click", async () => {
-    await safeCall("loadRankings");
-  });
-
-  $("weekSelect")?.addEventListener("change", async () => {
-    await safeCall("loadRankings");
-  });
-
-  // 初期に週リストを作っておく
-  await safeCall("loadWeekOptions");
-  await safeCall("loadRankings");
 });
