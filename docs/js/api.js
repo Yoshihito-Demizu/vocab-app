@@ -307,6 +307,7 @@ async fetchPersonalTotalTop() {
   return data ?? [];
 },
 
+
 // ---- Rankings: my rank ----
 async fetchMyWeeklyRank(weekId) {
   if (USE_MOCK) {
@@ -371,5 +372,6 @@ async fetchMyTotalRank() {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", USE_MOCK, "fallback vocab size =", mock.vocab.length);
+
 
 
