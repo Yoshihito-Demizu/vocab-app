@@ -1,7 +1,7 @@
 // js/config.js
 
 // ★ ネットが直ったら false にする
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 // あなたのSupabase（本番用）
 const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
@@ -21,3 +21,4 @@ function toEmail(loginId) {
 // デバッグ用
 console.log("[config] USE_MOCK =", USE_MOCK);
 console.log("[config] Supabase SDK loaded =", hasSupabaseSDK);
+
