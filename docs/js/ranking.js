@@ -155,23 +155,39 @@ console.log("[ranking] loaded! (local ranking v1)");
   }
 
   // ✅ ここが本体（複数形で統一）
-  async function loadRankings() {
-    setText("rankMsg", "読み込み中…", "muted");
+ async function loadRankings() {
+  setText("rankMsg", "読み込み中…", "muted");
 
-    const sel = $("weekSelect");
-    const weekId = sel?.value || getISOWeekId();
+  const sel = $("weekSelect");
+  const weekId = sel?.value || getISOWeekId();
 
-    const db = loadDB();
-    const usersMap = db.users || {};
-    const weeklyList = toArrayWeekly(db, weekId);
+  // ✅ 週Top10：Supabaseから
+  const top = await api.fetchPersonalWeeklyTop(weekId);
 
-    renderTop10(weeklyList, usersMap);
-
-    const myId = await api.getMyUserId();
-    renderMyRank(weeklyList, usersMap, myId);
-
-    setText("rankMsg", `OK（${weekId}）`, "muted");
+  // 表示：top は nickname を含む（RPCで付与してる）
+  const box = $("weeklyTop");
+  box.innerHTML = "";
+  if (!top || top.length === 0) {
+    box.textContent = "（まだデータなし）";
+  } else {
+    const ol = document.createElement("ol");
+    top.forEach((r, i) => {
+      const li = document.createElement("li");
+      li.textContent = `${i + 1}. ${r.nickname} — ${r.points}点（○${r.correct} / ×${r.wrong}）`;
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
   }
+
+  // ✅ 自分の順位：Supabaseから
+  const me = await api.fetchMyWeeklyRank(weekId);
+  const myBox = $("myRank");
+  if (!me) myBox.textContent = "（まだデータなし / ログインしてない可能性）";
+  else myBox.innerHTML = `順位：<b>${me.rank}</b>位　スコア：<b>${me.points}</b>点（○${me.correct} / ×${me.wrong}）`;
+
+  setText("rankMsg", `OK（${weekId}）`, "muted");
+}
+
 
   // ===== グローバル公開 =====
   window.loadWeekOptions = loadWeekOptions;
@@ -179,3 +195,4 @@ console.log("[ranking] loaded! (local ranking v1)");
   window.__recordAttempt = recordAttempt;
 
 })();
+
