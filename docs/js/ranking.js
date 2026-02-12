@@ -1,7 +1,7 @@
 // docs/js/ranking.js
-console.log("[ranking] loaded! (local ranking v1)");
+console.log("[ranking] loaded! (supabase-first + local fallback)");
 
-/* global api */
+/* global api, USE_MOCK */
 
 (function () {
   "use strict";
@@ -15,7 +15,7 @@ console.log("[ranking] loaded! (local ranking v1)");
     el.textContent = String(text ?? "");
   }
 
-  // ===== week_id（YYYY-Www 形式）=====
+  // ===== week_id（YYYY-Www）=====
   function getISOWeekId(d = new Date()) {
     const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     const dayNum = date.getUTCDay() || 7;
@@ -27,7 +27,7 @@ console.log("[ranking] loaded! (local ranking v1)");
     return `${yyyy}-W${ww}`;
   }
 
-  // ===== localStorage keys =====
+  // ===== localStorage（フォールバック用）=====
   const KEY = "vocabTA_v1";
   function loadDB() {
     try { return JSON.parse(localStorage.getItem(KEY) || "{}"); }
@@ -36,7 +36,6 @@ console.log("[ranking] loaded! (local ranking v1)");
   function saveDB(db) {
     localStorage.setItem(KEY, JSON.stringify(db));
   }
-
   function ensureUser(db, userId) {
     db.users = db.users || {};
     if (!db.users[userId]) db.users[userId] = { nickname: `user-${userId}`, grade: 0, class_no: 0 };
@@ -50,7 +49,7 @@ console.log("[ranking] loaded! (local ranking v1)");
     db.total[userId] = db.total[userId] || { points: 0, correct: 0, wrong: 0 };
   }
 
-  // ===== ゲームから呼ばれる：記録 =====
+  // ===== ゲームから呼ばれる：端末内に記録（USE_MOCK時に有効）=====
   async function recordAttempt({ userId, weekId, is_correct, points }) {
     const db = loadDB();
     ensureUser(db, userId);
@@ -58,25 +57,17 @@ console.log("[ranking] loaded! (local ranking v1)");
     ensureTotal(db, userId);
 
     const w = (db.weekly[weekId][userId] ||= { points: 0, correct: 0, wrong: 0 });
-    if (is_correct) {
-      w.points += Number(points || 0);
-      w.correct += 1;
-    } else {
-      w.wrong += 1;
-    }
+    if (is_correct) { w.points += Number(points || 0); w.correct += 1; }
+    else { w.wrong += 1; }
 
     const t = db.total[userId];
-    if (is_correct) {
-      t.points += Number(points || 0);
-      t.correct += 1;
-    } else {
-      t.wrong += 1;
-    }
+    if (is_correct) { t.points += Number(points || 0); t.correct += 1; }
+    else { t.wrong += 1; }
 
     saveDB(db);
   }
 
-  // ===== 週プルダウン =====
+  // ===== weekSelect =====
   async function loadWeekOptions() {
     const sel = $("weekSelect");
     if (!sel) return;
@@ -103,12 +94,46 @@ console.log("[ranking] loaded! (local ranking v1)");
     });
   }
 
+  // ===== 表示（Supabase Top10）=====
+  function renderTop10Supabase(list) {
+    const box = $("weeklyTop");
+    if (!box) return;
+    box.innerHTML = "";
+
+    if (!list || list.length === 0) {
+      box.textContent = "（まだデータなし）";
+      return;
+    }
+
+    const ol = document.createElement("ol");
+    list.forEach((r, i) => {
+      const li = document.createElement("li");
+      const name = r.nickname || r.user_id;
+      li.textContent = `${i + 1}. ${name} — ${r.points}点（○${r.correct} / ×${r.wrong}）`;
+      ol.appendChild(li);
+    });
+    box.appendChild(ol);
+  }
+
+  function renderMyRankSupabase(me) {
+    const box = $("myRank");
+    if (!box) return;
+
+    if (!me) {
+      box.textContent = "（まだデータなし / ログインしてない可能性）";
+      return;
+    }
+    box.innerHTML =
+      `順位：<b>${me.rank}</b>位　スコア：<b>${me.points}</b>点（○${me.correct} / ×${me.wrong}）`;
+  }
+
+  // ===== 表示（ローカルTop10 fallback）=====
   function toArrayWeekly(db, weekId) {
     const m = (db.weekly && db.weekly[weekId]) ? db.weekly[weekId] : {};
     return Object.entries(m).map(([user_id, v]) => ({ user_id, ...v }));
   }
 
-  function renderTop10(list, usersMap) {
+  function renderTop10Local(list, usersMap) {
     const box = $("weeklyTop");
     if (!box) return;
     box.innerHTML = "";
@@ -118,10 +143,7 @@ console.log("[ranking] loaded! (local ranking v1)");
       .sort((a, b) => (b.points - a.points) || (b.correct - a.correct))
       .slice(0, 10);
 
-    if (top.length === 0) {
-      box.textContent = "（まだデータなし）";
-      return;
-    }
+    if (top.length === 0) { box.textContent = "（まだデータなし）"; return; }
 
     const ol = document.createElement("ol");
     top.forEach((r, i) => {
@@ -133,7 +155,7 @@ console.log("[ranking] loaded! (local ranking v1)");
     box.appendChild(ol);
   }
 
-  function renderMyRank(list, usersMap, userId) {
+  function renderMyRankLocal(list, usersMap, userId) {
     const box = $("myRank");
     if (!box) return;
 
@@ -142,10 +164,7 @@ console.log("[ranking] loaded! (local ranking v1)");
       .sort((a, b) => (b.points - a.points) || (b.correct - a.correct));
 
     const idx = sorted.findIndex(x => x.user_id === userId);
-    if (idx < 0) {
-      box.textContent = "（まだデータなし）";
-      return;
-    }
+    if (idx < 0) { box.textContent = "（まだデータなし）"; return; }
 
     const me = sorted[idx];
     const u = usersMap[userId] || { nickname: userId };
@@ -154,45 +173,43 @@ console.log("[ranking] loaded! (local ranking v1)");
       `スコア：<b>${me.points}</b>点（○${me.correct} / ×${me.wrong}）`;
   }
 
-  // ✅ ここが本体（複数形で統一）
- async function loadRankings() {
-  setText("rankMsg", "読み込み中…", "muted");
+  // ===== 本体 =====
+  async function loadRankings() {
+    setText("rankMsg", "読み込み中…", "muted");
 
-  const sel = $("weekSelect");
-  const weekId = sel?.value || getISOWeekId();
+    const sel = $("weekSelect");
+    const weekId = sel?.value || getISOWeekId();
 
-  // ✅ 週Top10：Supabaseから
-  const top = await api.fetchPersonalWeeklyTop(weekId);
+    // ✅ 本番（Supabase）優先
+    if (!USE_MOCK) {
+      try {
+        const top = await api.fetchPersonalWeeklyTop(weekId);
+        renderTop10Supabase(top);
 
-  // 表示：top は nickname を含む（RPCで付与してる）
-  const box = $("weeklyTop");
-  box.innerHTML = "";
-  if (!top || top.length === 0) {
-    box.textContent = "（まだデータなし）";
-  } else {
-    const ol = document.createElement("ol");
-    top.forEach((r, i) => {
-      const li = document.createElement("li");
-      li.textContent = `${i + 1}. ${r.nickname} — ${r.points}点（○${r.correct} / ×${r.wrong}）`;
-      ol.appendChild(li);
-    });
-    box.appendChild(ol);
+        const me = await api.fetchMyWeeklyRank(weekId);
+        renderMyRankSupabase(me);
+
+        setText("rankMsg", `OK（${weekId}）`, "muted");
+        return;
+      } catch (e) {
+        console.warn("[ranking] supabase failed -> fallback local:", e);
+      }
+    }
+
+    // ✅ フォールバック（端末内）
+    const db = loadDB();
+    const usersMap = db.users || {};
+    const weeklyList = toArrayWeekly(db, weekId);
+    renderTop10Local(weeklyList, usersMap);
+
+    const myId = await api.getMyUserId(); // mockならu1
+    renderMyRankLocal(weeklyList, usersMap, myId);
+
+    setText("rankMsg", `OK（${weekId} / local）`, "muted");
   }
-
-  // ✅ 自分の順位：Supabaseから
-  const me = await api.fetchMyWeeklyRank(weekId);
-  const myBox = $("myRank");
-  if (!me) myBox.textContent = "（まだデータなし / ログインしてない可能性）";
-  else myBox.innerHTML = `順位：<b>${me.rank}</b>位　スコア：<b>${me.points}</b>点（○${me.correct} / ×${me.wrong}）`;
-
-  setText("rankMsg", `OK（${weekId}）`, "muted");
-}
-
 
   // ===== グローバル公開 =====
   window.loadWeekOptions = loadWeekOptions;
   window.loadRankings = loadRankings;
   window.__recordAttempt = recordAttempt;
-
 })();
-
