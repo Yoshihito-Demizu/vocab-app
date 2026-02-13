@@ -134,12 +134,30 @@ async function flashyCountdown() {
 
 // ===== 出題 =====
 async function loadQuestion() {
-  const q = await api.fetchLatestQuestion();
-  currentQuestion = q;
+  async function loadQuestion() {
+  let q = null;
+  try {
+    q = await api.fetchLatestQuestion();
+  } catch (e) {
+    console.error("[quiz] fetchLatestQuestion failed:", e);
+  }
 
   const qBox = q$("q");
   const cBox = q$("choices");
   if (!qBox || !cBox) return;
+
+  // ✅ 取れなかったらメッセージ出して止める
+  if (!q) {
+    qBox.innerHTML = `<h3>問題がありません</h3><div class="prompt">出題データ（questions / is_active）を確認してください。</div>`;
+    cBox.innerHTML = "";
+    overlayShow("NO DATA", "ng");
+    await sleep(900);
+    overlayHide();
+    endGame();
+    return;
+  }
+
+  currentQuestion = q;
 
   qBox.innerHTML = `<h3>${q.word}</h3><div class="prompt">${q.prompt}</div>`;
   cBox.innerHTML = "";
@@ -154,11 +172,10 @@ async function loadQuestion() {
   list.forEach(([k, txt]) => {
     const b = document.createElement("button");
     b.textContent = `${k}: ${txt}`;
-    b.addEventListener("click", () => answer(k));
+    b.addEventListener("click", () => answer(k), { passive: true });
     cBox.appendChild(b);
   });
 }
-
 // ===== 回答（B：ランキング記録）=====
 let lock = false;
 async function answer(chosen) {
@@ -259,3 +276,4 @@ function endGame() {
 
 window.startGame = startGame;
 window.endGame = endGame;
+
