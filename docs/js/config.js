@@ -5,7 +5,7 @@
 // ここだけ自分の値にする
 // =====================
 const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";   // ← Supabase Project Settings → API → Project URL
-const SUPABASE_ANON_KEY = "cnczakndzbqvauovoybv";                  // ← Supabase Project Settings → API → anon public
+const SUPABASE_ANON_KEY = "sb_publishable_jz9P5p5bD7MBbfitHvYTiA_q_3CArJz";                  // ← Supabase Project Settings → API → anon public
 
 // Mock切り替え
 // true  = 端末内モード（Supabase不要）
@@ -44,4 +44,5 @@ async function loadSupabaseSDK() {
   window.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   console.log("[config] client created =", !!window.client);
 })();
+
 
