@@ -134,13 +134,31 @@ async function flashyCountdown() {
 }
 
 // ===== 出題 =====
+// ===== 出題 =====
 async function loadQuestion() {
   const q = await api.fetchLatestQuestion();
-  currentQuestion = q;
 
   const qBox = q$("q");
   const cBox = q$("choices");
   if (!qBox || !cBox) return;
+
+  // ✅ 取れない時に落とさず原因が分かる表示にする
+  if (!q) {
+    qBox.innerHTML = `
+      <div style="padding:10px;">
+        <div style="font-weight:900;font-size:16px;">問題が取得できませんでした</div>
+        <div class="prompt" style="margin-top:6px;opacity:.9;">
+          Supabaseの <b>questions</b> に「is_active=true」の問題が無いか、権限が原因です。
+        </div>
+      </div>
+    `;
+    cBox.innerHTML = `
+      <button onclick="location.reload()">再読み込み</button>
+    `;
+    return;
+  }
+
+  currentQuestion = q;
 
   qBox.innerHTML = `<h3>${q.word}</h3><div class="prompt">${q.prompt}</div>`;
   cBox.innerHTML = "";
@@ -159,7 +177,6 @@ async function loadQuestion() {
     cBox.appendChild(b);
   });
 }
-
 // ===== 回答（B：ランキング記録）=====
 let lock = false;
 async function answer(chosen) {
@@ -263,3 +280,4 @@ function endGame() {
 // ===== グローバル公開 =====
 window.startGame = startGame;
 window.endGame = endGame;
+
