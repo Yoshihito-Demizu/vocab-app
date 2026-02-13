@@ -113,15 +113,16 @@ function updateBgmByScore() {
 function overlayShow(text, kind = "") {
   const ov = q$("overlay");
   const panel = ov?.querySelector(".panel");
-  if (!ov || !panel) {
-    console.warn("[overlay] missing overlay/panel");
-    return;
-  }
+  if (!ov || !panel) return;
+
   panel.textContent = String(text ?? "");
   panel.className = "panel" + (kind ? " " + kind : "");
+
   ov.classList.remove("hidden");
 }
-function overlayHide() { q$("overlay")?.classList.add("hidden"); }
+function overlayHide() {
+  q$("overlay")?.classList.add("hidden");
+}
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 async function flashyCountdown() {
@@ -134,30 +135,12 @@ async function flashyCountdown() {
 
 // ===== 出題 =====
 async function loadQuestion() {
-  async function loadQuestion() {
-  let q = null;
-  try {
-    q = await api.fetchLatestQuestion();
-  } catch (e) {
-    console.error("[quiz] fetchLatestQuestion failed:", e);
-  }
+  const q = await api.fetchLatestQuestion();
+  currentQuestion = q;
 
   const qBox = q$("q");
   const cBox = q$("choices");
   if (!qBox || !cBox) return;
-
-  // ✅ 取れなかったらメッセージ出して止める
-  if (!q) {
-    qBox.innerHTML = `<h3>問題がありません</h3><div class="prompt">出題データ（questions / is_active）を確認してください。</div>`;
-    cBox.innerHTML = "";
-    overlayShow("NO DATA", "ng");
-    await sleep(900);
-    overlayHide();
-    endGame();
-    return;
-  }
-
-  currentQuestion = q;
 
   qBox.innerHTML = `<h3>${q.word}</h3><div class="prompt">${q.prompt}</div>`;
   cBox.innerHTML = "";
@@ -176,6 +159,7 @@ async function loadQuestion() {
     cBox.appendChild(b);
   });
 }
+
 // ===== 回答（B：ランキング記録）=====
 let lock = false;
 async function answer(chosen) {
@@ -186,12 +170,17 @@ async function answer(chosen) {
   const r = rows?.[0];
   if (!r) { lock = false; return; }
 
-  // ランキング保存（あれば）
+  // ✅ ランキング保存（localStorage）
   if (window.__recordAttempt) {
     try {
       const userId = await api.getMyUserId();
       const weekId = r.out_week_id;
-      await window.__recordAttempt({ userId, weekId, is_correct: r.is_correct, points: r.points });
+      await window.__recordAttempt({
+        userId,
+        weekId,
+        is_correct: r.is_correct,
+        points: r.points,
+      });
     } catch (e) {
       console.warn("[rank] recordAttempt failed:", e);
     }
@@ -202,6 +191,7 @@ async function answer(chosen) {
     score += Number(r.points || 0) + Math.min(combo, 20);
     combo += 1;
     maxCombo = Math.max(maxCombo, combo);
+
     overlayShow("⭕", "ok");
     sfxCorrect();
   } else {
@@ -212,16 +202,17 @@ async function answer(chosen) {
 
   setText("scoreNow", score);
   setText("comboNow", combo);
+
   updateBgmByScore();
 
   await sleep(520);
   overlayHide();
-  await loadQuestion();
 
+  await loadQuestion();
   lock = false;
 }
 
-// ===== start→battle→result =====
+// ===== 進行（start→battle→result）=====
 async function startGame() {
   await unlockAudio();
 
@@ -267,13 +258,8 @@ function endGame() {
 
   setText("finalScore", score);
   setText("finalCombo", maxCombo);
-
-  // ✅ 結果画面でランキングも即更新
-  if (typeof window.loadRankings === "function") {
-    window.loadRankings().catch(() => {});
-  }
 }
 
+// ===== グローバル公開 =====
 window.startGame = startGame;
 window.endGame = endGame;
-
