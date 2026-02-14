@@ -209,32 +209,46 @@ async fetchLatestQuestion() {
 
   // ---- Attempt（必ず同じ形を返す）----
   async submitAttempt(questionId, chosen) {
-   // USE_MOCK の submitAttempt 内だけ置換
-if (USE_MOCK) {
-  const correct = window.__LAST_MOCK_CORRECT;
-  const ok = chosen === correct;
-  const pts = ok ? 10 : 0;
+  if (USE_MOCK) {
+    const correct = window.__LAST_MOCK_CORRECT;
+    const ok = chosen === correct;
+    return [{
+      is_correct: ok,
+      points: ok ? 10 : 0,
+      out_week_id: mock.weekIds?.[0] || "mock-week",
+    }];
+  }
 
-  // ✅ 今週ID（ranking.jsと同じ形式）
-  const out_week_id = (() => {
-    const d = new Date();
-    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-    const dayNum = date.getUTCDay() || 7;
-    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
-    const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
-    const yyyy = date.getUTCFullYear();
-    const ww = String(weekNo).padStart(2, "0");
-    return `${yyyy}-W${ww}`;
-  })();
+  assertClient();
 
+  // ① セッションが無いとRLSで落ちるので先にチェック
+  const { data: sess } = await client.auth.getSession();
+  const uid = sess?.session?.user?.id;
+  if (!uid) {
+    throw { message: "ログインしていないため送信できません（RLS/auth）" };
+  }
+
+  // ② RPC呼び出し
+  const { data, error } = await client.rpc("submit_attempt", {
+    p_question_id: questionId,
+    p_chosen_choice: chosen,
+    p_client_ms: Date.now(),
+    p_quiz_session_id: null,
+  });
+
+  if (error) throw error;
+
+  // ③ 返り値が配列じゃないケース保険
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) throw { message: "submit_attempt の返り値が空です" };
+
+  // ④ quiz.js が期待する形に正規化（超重要）
   return [{
-    is_correct: ok,
-    points: pts,
-    out_week_id
+    is_correct: !!row.is_correct,
+    points: Number(row.points || 0),
+    out_week_id: String(row.out_week_id || ""),
   }];
-}
-
+},
 
     // 本番（Supabase RPC）
     assertClient();
@@ -352,6 +366,7 @@ async fetchMyTotalRank() {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", USE_MOCK, "fallback vocab size =", mock.vocab.length);
+
 
 
 
