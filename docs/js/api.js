@@ -183,49 +183,29 @@ const api = {
   },
 
   // ---- Question ----
-  async fetchLatestQuestion() {
-    if (USE_MOCK) {
-      const level = document.getElementById("levelSelect")?.value || "all";
-      let pool = (mock.vocab || []).slice();
+async fetchLatestQuestion() {
+  if (USE_MOCK) {
+    // （ここは今のままでOK）
+    return await (async () => { throw new Error("mock not here"); })();
+  }
 
-      if (level !== "all") {
-        pool = pool.filter(v => String(v.level || 1) === String(level));
-      }
-      if (pool.length < 4) pool = (mock.vocab || []).slice();
-      if (pool.length < 4) throw new Error("mock.vocab が少なすぎます（最低4件必要）");
+  // ===== 本番（Supabase）=====
+  assertClient();
 
-      const i = Math.floor(Math.random() * pool.length);
-      const v = pool[i];
+  const { data, error } = await client
+    .from("questions")
+    .select("id, word, prompt, choice_a, choice_b, choice_c, choice_d")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false })
+    .limit(20);
 
-      // 外れ選択肢は全体から取る
-      const base = (mock.vocab || []).slice();
-      const { map, correctLabel } = makeChoices(base, v);
+  if (error) throw error;
+  if (!data || data.length === 0) return null;
 
-      window.__LAST_MOCK_CORRECT = correctLabel;
-
-      return {
-        id: "mock-" + Date.now() + "-" + i,
-        word: v.word,
-        prompt: "意味として正しいものは？",
-        choice_a: map.A,
-        choice_b: map.B,
-        choice_c: map.C,
-        choice_d: map.D,
-      };
-    }
-
-    // 本番（Supabase）
-    assertClient();
-    const { data, error } = await client
-      .from("questions")
-      .select("id, word, prompt, choice_a, choice_b, choice_c, choice_d")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (error) throw error;
-    return data?.[0] ?? null;
-  },
+  // 最新20件からランダムに1つ出す
+  const pick = data[Math.floor(Math.random() * data.length)];
+  return pick;
+},
 
   // ---- Attempt（必ず同じ形を返す）----
   async submitAttempt(questionId, chosen) {
@@ -372,6 +352,7 @@ async fetchMyTotalRank() {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", USE_MOCK, "fallback vocab size =", mock.vocab.length);
+
 
 
 
