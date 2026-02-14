@@ -233,7 +233,8 @@ async function answer(chosen) {
     await loadQuestion();
 
   } catch (e) {
-    console.warn("[answer] failed:", e);
+  console.warn("[answer] failed raw:", e);
+  console.warn("[answer] failed json:", JSON.stringify(e, null, 2));
     // 失敗しても lock を戻す。UIにも出す（任意）
     const qBox = q$("q");
     if (qBox) {
@@ -298,5 +299,6 @@ function endGame() {
 // ===== グローバル公開 =====
 window.startGame = startGame;
 window.endGame = endGame;
+
 
 
