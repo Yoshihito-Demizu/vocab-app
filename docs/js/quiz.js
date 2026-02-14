@@ -177,56 +177,74 @@ async function loadQuestion() {
     cBox.appendChild(b);
   });
 }
+
 // ===== 回答（B：ランキング記録）=====
 let lock = false;
 async function answer(chosen) {
   if (!playing || !currentQuestion || lock) return;
   lock = true;
 
-  const rows = await api.submitAttempt(currentQuestion.id, chosen);
-  const r = rows?.[0];
-  if (!r) { lock = false; return; }
+  try {
+    // 念のため：押した瞬間に「入力できてる」ログ
+    console.log("[answer] chosen=", chosen);
 
-  // ✅ ランキング保存（localStorage）
-  if (window.__recordAttempt) {
-    try {
-      const userId = await api.getMyUserId();
-      const weekId = r.out_week_id;
-      await window.__recordAttempt({
-        userId,
-        weekId,
-        is_correct: r.is_correct,
-        points: r.points,
-      });
-    } catch (e) {
-      console.warn("[rank] recordAttempt failed:", e);
+    const rows = await api.submitAttempt(currentQuestion.id, chosen);
+    const r = rows?.[0];
+    if (!r) throw new Error("submitAttempt returned empty");
+
+    // ✅ B：ランキング保存（存在すれば必ず記録）
+    if (window.__recordAttempt) {
+      try {
+        const userId = await api.getMyUserId();
+        const weekId = r.out_week_id;
+        await window.__recordAttempt({
+          userId,
+          weekId,
+          is_correct: r.is_correct,
+          points: r.points,
+        });
+      } catch (e) {
+        console.warn("[rank] recordAttempt failed:", e);
+      }
     }
+
+    // 演出＆スコア
+    if (r.is_correct) {
+      score += Number(r.points || 0) + Math.min(combo, 20);
+      combo += 1;
+      maxCombo = Math.max(maxCombo, combo);
+
+      overlayShow("⭕", "ok");
+      sfxCorrect();
+    } else {
+      combo = 0;
+      overlayShow("❌", "ng");
+      sfxWrong();
+    }
+
+    setText("scoreNow", score);
+    setText("comboNow", combo);
+
+    updateBgmByScore();
+
+    await sleep(650);
+    overlayHide();
+
+    await loadQuestion();
+
+  } catch (e) {
+    console.warn("[answer] failed:", e);
+    // 失敗しても lock を戻す。UIにも出す（任意）
+    const qBox = q$("q");
+    if (qBox) {
+      qBox.innerHTML = `
+        <div style="font-weight:900;margin-bottom:6px;">送信に失敗しました</div>
+        <div style="opacity:.8;font-size:12px;">通信/権限/設定を確認してください。</div>
+      `;
+    }
+  } finally {
+    lock = false; // ✅ これが超重要（例外でも絶対解除）
   }
-
-  // 演出＆スコア
-  if (r.is_correct) {
-    score += Number(r.points || 0) + Math.min(combo, 20);
-    combo += 1;
-    maxCombo = Math.max(maxCombo, combo);
-
-    overlayShow("⭕", "ok");
-    sfxCorrect();
-  } else {
-    combo = 0;
-    overlayShow("❌", "ng");
-    sfxWrong();
-  }
-
-  setText("scoreNow", score);
-  setText("comboNow", combo);
-
-  updateBgmByScore();
-
-  await sleep(520);
-  overlayHide();
-
-  await loadQuestion();
-  lock = false;
 }
 
 // ===== 進行（start→battle→result）=====
@@ -280,4 +298,5 @@ function endGame() {
 // ===== グローバル公開 =====
 window.startGame = startGame;
 window.endGame = endGame;
+
 
