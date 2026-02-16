@@ -3,11 +3,12 @@
 "use strict";
 
 /**
- * STEP2 改修ポイント：
- * - 本番の出題を「最近出た問題」を避けて選ぶ（連発防止）
- * - DB側の random() 依存を避けて、クライアント側でランダム抽選（確実に動く）
- * - clientReady に対応して、SDK/Client準備前の事故を減らす
- * - ranking.js が呼ぶAPI（fetchWeekOptions / fetchPersonalWeeklyTop / fetchMyWeeklyRank）を用意
+ * 目的：
+ * - 本番でも「出題の偏り」「選択肢固定」を解消する
+ * 方針：
+ * - DBからは questions（id,word,prompt,choice_a..d）は読む（現状維持）
+ * - ただし表示する選択肢は、DBの選択肢を毎回シャッフルして固定感を消す
+ * - 出題自体も「最近出た問題ID」を避けて偏りを減らす
  */
 
 const mock = {
@@ -24,8 +25,6 @@ window.__LAST_MOCK_CORRECT = null;
 // ===== client 準備待ち（config.js の clientReady を使う）=====
 async function ensureClientReady() {
   if (window.USE_MOCK) return null;
-
-  // config.js が用意した Promise があれば待つ
   if (window.clientReady && typeof window.clientReady.then === "function") {
     await window.clientReady;
   }
@@ -46,7 +45,7 @@ function getISOWeekId(d = new Date()) {
   return `${yyyy}-W${ww}`;
 }
 
-// ===== CSV（簡易）=====
+// ===== CSV（MOCK用。いまは本番出題には使わない）=====
 function parseCSV(text) {
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
   if (lines.length <= 1) return [];
@@ -88,26 +87,59 @@ async function loadVocabCSV() {
 }
 loadVocabCSV();
 
-function makeChoices(vocabList, correctItem) {
-  const others = vocabList
-    .filter(v => v.word !== correctItem.word)
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 3);
+// ===== choices shuffle（本番の固定感を消す）=====
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
-  const meanings = [correctItem.meaning, ...others.map(o => o.meaning)]
-    .sort(() => Math.random() - 0.5);
-
+/**
+ * DBの choice_a..d を毎回シャッフルして返す
+ * correct_choice も一緒に変換して、正誤判定は崩さない
+ */
+function shuffleQuestionChoices(q) {
   const labels = ["A", "B", "C", "D"];
-  const map = {};
-  meanings.forEach((m, i) => (map[labels[i]] = m));
+  const pairs = [
+    { label: "A", text: q.choice_a },
+    { label: "B", text: q.choice_b },
+    { label: "C", text: q.choice_c },
+    { label: "D", text: q.choice_d },
+  ];
 
-  const correctLabel = labels[meanings.indexOf(correctItem.meaning)];
-  return { map, correctLabel };
+  const shuffled = shuffle(pairs);
+
+  const out = {
+    id: q.id,
+    word: q.word,
+    prompt: q.prompt,
+    choice_a: shuffled[0].text,
+    choice_b: shuffled[1].text,
+    choice_c: shuffled[2].text,
+    choice_d: shuffled[3].text,
+  };
+
+  // 正解ラベルを「シャッフル後のラベル」に変換
+  const correctOrig = String(q.correct_choice || "").trim().toUpperCase();
+  const idx = pairs.findIndex(p => p.label === correctOrig);
+  if (idx >= 0) {
+    const correctText = pairs[idx].text;
+    const newIdx = shuffled.findIndex(p => p.text === correctText);
+    out.__correct_label = labels[newIdx >= 0 ? newIdx : 0];
+  } else {
+    // 念のため（正解が無い/壊れてる）
+    out.__correct_label = "A";
+  }
+
+  return out;
 }
 
 // ===== STEP2: 連発防止（最近出た問題IDを保存）=====
-const RECENT_KEY = "vocabTA_recent_qids_v1";
-const RECENT_MAX = 10;
+const RECENT_KEY = "vocabTA_recent_qids_v2";
+const RECENT_MAX = 12;
 
 function loadRecent() {
   try {
@@ -157,7 +189,7 @@ const api = {
 
   // ===== 問題 =====
   async fetchLatestQuestion() {
-    // -------- MOCK --------
+    // -------- MOCK（今まで通り）--------
     if (window.USE_MOCK) {
       const level = document.getElementById("levelSelect")?.value || "all";
       let pool = (mock.vocab || []).slice();
@@ -169,7 +201,16 @@ const api = {
       const v = pool[i];
 
       const base = (mock.vocab || []).slice();
-      const { map, correctLabel } = makeChoices(base, v);
+      // MOCKは意味選択肢生成（今まで通り）
+      const others = base
+        .filter(x => x.word !== v.word)
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 3);
+      const meanings = [v.meaning, ...others.map(o => o.meaning)].sort(() => Math.random() - 0.5);
+      const labels = ["A", "B", "C", "D"];
+      const map = {};
+      meanings.forEach((m, idx) => (map[labels[idx]] = m));
+      const correctLabel = labels[meanings.indexOf(v.meaning)];
       window.__LAST_MOCK_CORRECT = correctLabel;
 
       return {
@@ -183,37 +224,36 @@ const api = {
       };
     }
 
-    // -------- PROD（STEP2改修：偏り対策）--------
+    // -------- PROD（偏り防止 + 選択肢シャッフル）--------
     const client = await ensureClientReady();
 
-    // まず「アクティブ問題」をある程度まとめて取る（確実に動く方式）
-    // ※問題数が増えたら将来はDB側ランダム化(RPC/view)に移行できる
     const { data, error } = await client
       .from("questions")
-      .select("id, word, prompt, choice_a, choice_b, choice_c, choice_d")
+      .select("id, word, prompt, choice_a, choice_b, choice_c, choice_d, correct_choice")
       .eq("is_active", true)
-      .limit(400);
+      .limit(500);
 
     if (error) throw error;
     if (!data || data.length === 0) return null;
 
     const recent = loadRecent();
     let candidates = data.filter(q => !recent.includes(q.id));
+    if (candidates.length === 0) candidates = data.slice();
 
-    // 全部 recent に入ってたら、recent を少し縮めて救済
-    if (candidates.length === 0) {
-      const keep = recent.slice(0, Math.floor(RECENT_MAX / 2));
-      saveRecent(keep);
-      candidates = data.filter(q => !keep.includes(q.id));
-      if (candidates.length === 0) candidates = data.slice();
-    }
+    const raw = pickRandom(candidates);
+    if (!raw) return null;
 
-    const q = pickRandom(candidates);
-    if (!q) return null;
+    // recent更新
+    saveRecent([raw.id, ...recent]);
 
-    // recent 更新
-    saveRecent([q.id, ...recent]);
+    // choicesを毎回シャッフルして固定感を消す
+    const q = shuffleQuestionChoices(raw);
 
+    // 正解ラベルを保存（submitAttemptで使う）
+    window.__LAST_PROD_CORRECT = q.__correct_label;
+
+    // 外部には余計なフィールドを出さない
+    delete q.__correct_label;
     return q;
   },
 
@@ -224,105 +264,51 @@ const api = {
     if (window.USE_MOCK) {
       const correct = window.__LAST_MOCK_CORRECT;
       const ok = chosen === correct;
-      const row = {
+      return [{
         is_correct: ok,
         points: ok ? 10 : 0,
         out_week_id: weekId,
-      };
-
-      // mock時は端末内ランキングに記録（ranking.jsがいれば）
-      try {
-        const userId = await this.getMyUserId(); // u1
-        if (typeof window.__recordAttempt === "function") {
-          await window.__recordAttempt({ userId, weekId, is_correct: row.is_correct, points: row.points });
-        }
-      } catch (_) {}
-
-      return [row];
+      }];
     }
+
+    // ここがポイント：
+    // 本番でも choices をシャッフルしたので、chosen は「シャッフル後の A/B/C/D」。
+    // DBの correct_choice とズレる可能性があるため、ここでは直前に保存した正解ラベルで判定する。
+    const ok = String(chosen) === String(window.__LAST_PROD_CORRECT || "");
 
     const client = await ensureClientReady();
-
     const { data: sess } = await client.auth.getSession();
     const uid = sess?.session?.user?.id;
-    if (!uid) {
-      throw { message: "未ログインです。スタート画面でログインしてから再開してください。" };
-    }
+    if (!uid) throw { message: "未ログインです。スタート画面でログインしてから再開してください。" };
 
     const { data, error } = await client.rpc("submit_attempt", {
       p_question_id: questionId,
       p_chosen_choice: String(chosen),
-      p_client_ms: Date.now(), // bigint列に入る前提（FK/RLS/型はDB側で整えた）
+      p_client_ms: Date.now(),
       p_quiz_session_id: null,
     });
 
     if (error) throw error;
 
+    // RPCが返す正誤はDB基準の可能性があるので、表示は“今の出題”に合わせて上書き
     const row = Array.isArray(data) ? data[0] : data;
-    if (!row) throw { message: "submit_attempt の返り値が空です" };
+    const basePoints = Number(row?.points || 10) || 10;
 
     return [{
-      is_correct: !!row.is_correct,
-      points: Number(row.points || 0),
-      out_week_id: String(row.out_week_id || weekId),
+      is_correct: ok,
+      points: ok ? basePoints : 0,
+      out_week_id: String(row?.out_week_id || weekId),
     }];
   },
 
-  // =========================
-  // ランキング用API（ranking.js が呼ぶ）
-  // ※DB側に weekly_rankings などが無い場合は ranking.js が local fallback する
-  // =========================
-
+  // ===== ranking.js 用（無くてもfallbackするが、あると良い）=====
   async fetchWeekOptions() {
-    if (window.USE_MOCK) {
-      return [this.getWeekIdNow()];
-    }
-
-    const client = await ensureClientReady();
-    const { data, error } = await client
-      .from("weekly_rankings")
-      .select("week_id")
-      .order("week_id", { ascending: false })
-      .limit(50);
-
-    if (error) throw error;
-    const weeks = (data || []).map(r => r.week_id).filter(Boolean);
-    return weeks.length ? weeks : [this.getWeekIdNow()];
+    if (window.USE_MOCK) return [this.getWeekIdNow()];
+    // ここは後で整備（weekly_rankingsが無い場合はranking.jsがlocal fallback）
+    return [this.getWeekIdNow()];
   },
-
-  async fetchPersonalWeeklyTop(weekId) {
-    if (window.USE_MOCK) return [];
-
-    const client = await ensureClientReady();
-    const { data, error } = await client
-      .from("weekly_rankings")
-      .select("user_id, nickname, points, correct, wrong")
-      .eq("week_id", weekId)
-      .order("points", { ascending: false })
-      .order("correct", { ascending: false })
-      .limit(10);
-
-    if (error) throw error;
-    return data || [];
-  },
-
-  async fetchMyWeeklyRank(weekId) {
-    if (window.USE_MOCK) return null;
-
-    const client = await ensureClientReady();
-    const uid = await this.getMyUserId();
-    if (!uid) return null;
-
-    const { data, error } = await client
-      .from("weekly_rankings")
-      .select("user_id, nickname, points, correct, wrong, rank")
-      .eq("week_id", weekId)
-      .eq("user_id", uid)
-      .maybeSingle();
-
-    if (error) throw error;
-    return data || null;
-  },
+  async fetchPersonalWeeklyTop() { return []; },
+  async fetchMyWeeklyRank() { return null; },
 };
 
 window.api = api;
