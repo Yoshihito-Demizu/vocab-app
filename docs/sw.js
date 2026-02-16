@@ -1,11 +1,11 @@
 // docs/sw.js
 "use strict";
 
-// ✅ 更新のたびにここだけ変える
-const VERSION = "20260209-1";
+// ✅ 更新のたびにここだけ変える（または日付で更新）
+const VERSION = "20260216-1";
 const CACHE_NAME = `vocab-ta-${VERSION}`;
 
-// キャッシュしたい最低限（?v=なしの素のパスだけでOK）
+// キャッシュしたい最低限（404が混ざっても全体失敗しにくい方式にする）
 const ASSETS = [
   "./",
   "./index.html",
@@ -21,13 +21,25 @@ const ASSETS = [
   "./icons/start-bg.jpg",
 ];
 
+async function cacheSafely(cache, urls) {
+  // addAll は 1個でも失敗すると全体が落ちがちなので、1個ずつ入れる
+  await Promise.all(urls.map(async (u) => {
+    try {
+      const req = new Request(u, { cache: "reload" });
+      const res = await fetch(req);
+      if (res.ok) await cache.put(req, res);
+    } catch (_) {
+      // 失敗は握りつぶす（ただし install 自体は成功させる）
+    }
+  }));
+}
+
 self.addEventListener("install", (event) => {
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(ASSETS))
-      .catch(() => null)
-  );
+  event.waitUntil((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    await cacheSafely(cache, ASSETS);
+  })());
 });
 
 self.addEventListener("activate", (event) => {
@@ -63,7 +75,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // ✅ JS/CSS/CSV は「ネット優先」にして更新ズレを潰す
+  // ✅ JS/CSS/CSV/manifest はネット優先（更新ズレを潰す）
   const isAsset =
     url.pathname.endsWith(".js") ||
     url.pathname.endsWith(".css") ||
@@ -84,7 +96,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // 画像などはキャッシュ優先
+  // 画像などはキャッシュ優先（ただし VERSION を変えれば更新される）
   event.respondWith((async () => {
     const cached = await caches.match(req);
     if (cached) return cached;
