@@ -49,7 +49,7 @@ console.log("[ranking] loaded! (supabase-first + local fallback)");
     db.total[userId] = db.total[userId] || { points: 0, correct: 0, wrong: 0 };
   }
 
-  // ===== ゲームから呼ばれる：端末内に記録（USE_MOCK時に有効）=====
+  // ✅ ゲーム側（api.submitAttemptのmock）から呼ばれる：端末内に記録
   async function recordAttempt({ userId, weekId, is_correct, points }) {
     const db = loadDB();
     ensureUser(db, userId);
