@@ -2,35 +2,18 @@
 /* global USE_MOCK, client, toEmail */
 "use strict";
 
-/**
- * ✅ api.js の役割（壊れない最小セット）
- * - week_id固定（YYYY-Www）
- * - user_id必ず取得（MOCK=u1 / 本番=auth user.id）
- * - submitAttempt() は必ず [{is_correct, points, out_week_id}] を返す
- * - fetchLatestQuestion() は必ず「問題を1つ返す」か、分かりやすくthrowする
- */
-
 // =====================
-// Mockデータ（CSVから読み込む）
+// Mock data
 // =====================
 const mock = {
-  // CSVが読めないときの保険（最低4件）
   vocab: [
     { word: "憂慮", meaning: "心配して気にかけること", level: 1 },
     { word: "端緒", meaning: "物事のはじまり・きっかけ", level: 1 },
     { word: "恣意的", meaning: "自分勝手で根拠がないさま", level: 1 },
     { word: "形骸化", meaning: "中身が失われ形だけ残ること", level: 1 },
   ],
-
-  // 表示名が必要なら使う（今は最低限）
-  users: [
-    { id: "u1", nickname: "テスト生徒A", grade: 2, class_no: 3 },
-    { id: "u2", nickname: "テスト生徒B", grade: 2, class_no: 4 },
-    { id: "u3", nickname: "テスト生徒C", grade: 2, class_no: 3 },
-  ],
 };
 
-// Mockで「今出してる問題の正解ラベル」を覚えておく（答え合わせの生命線）
 window.__LAST_MOCK_CORRECT = null;
 
 // =====================
@@ -55,13 +38,13 @@ function getISOWeekId(d = new Date()) {
 }
 
 // =====================
-// CSV読み込み（mock.vocab置き換え）
+// CSV loader -> mock.vocab
 // =====================
 function parseCSV(text) {
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
   if (lines.length <= 1) return [];
-  const header = lines[0].split(",").map(s => s.trim());
 
+  const header = lines[0].split(",").map(s => s.trim());
   const idxWord = header.indexOf("word");
   const idxMeaning = header.indexOf("meaning");
   const idxLevel = header.indexOf("level");
@@ -89,7 +72,6 @@ async function loadVocabCSV() {
     if (!res.ok) throw new Error("vocab.csv fetch failed: " + res.status);
     const text = await res.text();
     const list = parseCSV(text);
-
     if (list.length >= 4) {
       mock.vocab = list;
       console.log("[api] vocab loaded from CSV:", list.length);
@@ -103,7 +85,7 @@ async function loadVocabCSV() {
 loadVocabCSV();
 
 // =====================
-// 4択生成（意味をシャッフル）
+// 4-choice builder
 // =====================
 function makeChoices(vocabList, correctItem) {
   const others = vocabList
@@ -123,26 +105,10 @@ function makeChoices(vocabList, correctItem) {
 }
 
 // =====================
-// API本体
+// API
 // =====================
 const api = {
   isMock() { return !!USE_MOCK; },
-
-  // ---- Auth ----
-  async signIn(loginId, password) {
-    if (USE_MOCK) return { ok: true, message: "（ダミーモード：ログイン不要）" };
-    assertClient();
-    const email = toEmail(loginId);
-    const { error } = await client.auth.signInWithPassword({ email, password });
-    if (error) return { ok: false, message: error.message };
-    return { ok: true, message: "ログイン成功" };
-  },
-
-  async signOut() {
-    if (USE_MOCK) return;
-    assertClient();
-    await client.auth.signOut();
-  },
 
   async getMyUserId() {
     if (USE_MOCK) return "u1";
@@ -155,28 +121,19 @@ const api = {
     return getISOWeekId(new Date());
   },
 
-  // ---- Question ----
   async fetchLatestQuestion() {
     if (USE_MOCK) {
-      // levelSelect が無くても落ちない
       const level = document.getElementById("levelSelect")?.value || "all";
-
       let pool = (mock.vocab || []).slice();
-      if (level !== "all") {
-        pool = pool.filter(v => String(v.level || 1) === String(level));
-      }
+      if (level !== "all") pool = pool.filter(v => String(v.level || 1) === String(level));
       if (pool.length < 4) pool = (mock.vocab || []).slice();
-
-      if (!pool || pool.length < 4) {
-        throw new Error("vocab が少なすぎます（最低4件必要）");
-      }
+      if (!pool || pool.length < 4) throw new Error("vocabが少なすぎます（最低4件）");
 
       const i = Math.floor(Math.random() * pool.length);
       const v = pool[i];
 
       const base = (mock.vocab || []).slice();
       const { map, correctLabel } = makeChoices(base, v);
-
       window.__LAST_MOCK_CORRECT = correctLabel;
 
       return {
@@ -187,13 +144,10 @@ const api = {
         choice_b: map.B,
         choice_c: map.C,
         choice_d: map.D,
-        correct_choice: correctLabel, // デバッグ用（UIで使わなくてOK）
       };
     }
 
-    // ===== 本番（Supabase）=====
     assertClient();
-
     const { data, error } = await client
       .from("questions")
       .select("id, word, prompt, choice_a, choice_b, choice_c, choice_d")
@@ -202,15 +156,11 @@ const api = {
       .limit(20);
 
     if (error) throw error;
-    if (!data || data.length === 0) {
-      throw new Error("本番DBに有効な問題がありません（questions / is_active=true）");
-    }
+    if (!data || data.length === 0) throw new Error("本番DBに有効な問題がありません（is_active=true）");
 
-    // 最新20件からランダムに1つ
     return data[Math.floor(Math.random() * data.length)];
   },
 
-  // ---- Attempt（必ず同じ形を返す）----
   async submitAttempt(questionId, chosen) {
     if (USE_MOCK) {
       const correct = window.__LAST_MOCK_CORRECT;
@@ -224,21 +174,16 @@ const api = {
 
     assertClient();
 
-    // セッション確認（RLS/auth対策）
     const { data: sess } = await client.auth.getSession();
     const uid = sess?.session?.user?.id;
-    if (!uid) {
-      throw { message: "ログインしていないため送信できません（RLS/auth）" };
-    }
+    if (!uid) throw { message: "ログインしていないため送信できません（RLS/auth）" };
 
-    // RPC呼び出し（あなたのDB側の submit_attempt を想定）
     const { data, error } = await client.rpc("submit_attempt", {
       p_question_id: questionId,
       p_chosen_choice: chosen,
       p_client_ms: Date.now(),
       p_quiz_session_id: null,
     });
-
     if (error) throw error;
 
     const row = Array.isArray(data) ? data[0] : data;
@@ -251,23 +196,10 @@ const api = {
     }];
   },
 
-  // ---- Week options ----
   async fetchWeekOptions() {
-    if (USE_MOCK) {
-      // ranking.js が持ってる localStorage の週があれば拾う
-      const weeks = new Set();
-      weeks.add(this.getWeekIdNow());
-
-      try {
-        const raw = localStorage.getItem("vocabTA_v1"); // ranking.js のKEY
-        const db = raw ? JSON.parse(raw) : {};
-        Object.keys(db.weekly || {}).forEach(w => weeks.add(w));
-      } catch {}
-
-      return Array.from(weeks).sort().reverse();
-    }
-
+    if (USE_MOCK) return [this.getWeekIdNow()];
     assertClient();
+
     const { data, error } = await client
       .from("score_weekly")
       .select("week_id")
@@ -277,22 +209,7 @@ const api = {
     if (error) throw error;
     return Array.from(new Set((data ?? []).map(x => x.week_id)));
   },
-
-  // ---- Users（表示名が必要なら）----
-  async fetchPublicUsers(userIds) {
-    if (USE_MOCK) return mock.users.filter(u => userIds.includes(u.id));
-
-    assertClient();
-    const { data, error } = await client
-      .from("public_users")
-      .select("id, nickname, grade, class_no")
-      .in("id", userIds);
-
-    if (error) throw error;
-    return data ?? [];
-  },
 };
 
-// グローバル公開
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", USE_MOCK, "fallback vocab size =", mock.vocab.length);
