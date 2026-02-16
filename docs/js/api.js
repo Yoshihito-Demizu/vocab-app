@@ -2,9 +2,6 @@
 /* global USE_MOCK, client, toEmail */
 "use strict";
 
-// =====================
-// Mock data
-// =====================
 const mock = {
   vocab: [
     { word: "憂慮", meaning: "心配して気にかけること", level: 1 },
@@ -16,16 +13,10 @@ const mock = {
 
 window.__LAST_MOCK_CORRECT = null;
 
-// =====================
-// Supabase
-// =====================
 function assertClient() {
   if (!client) throw new Error("Supabase client が無い（config.jsの読み込み/ネット確認）");
 }
 
-// =====================
-// week_id（YYYY-Www）
-// =====================
 function getISOWeekId(d = new Date()) {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = date.getUTCDay() || 7;
@@ -37,21 +28,15 @@ function getISOWeekId(d = new Date()) {
   return `${yyyy}-W${ww}`;
 }
 
-// =====================
-// CSV loader -> mock.vocab
-// =====================
 function parseCSV(text) {
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
   if (lines.length <= 1) return [];
-
   const header = lines[0].split(",").map(s => s.trim());
   const idxWord = header.indexOf("word");
   const idxMeaning = header.indexOf("meaning");
   const idxLevel = header.indexOf("level");
 
-  if (idxWord < 0 || idxMeaning < 0) {
-    throw new Error("CSVヘッダに word,meaning が必要です（例: word,meaning,level）");
-  }
+  if (idxWord < 0 || idxMeaning < 0) throw new Error("CSVヘッダに word,meaning が必要です");
 
   const out = [];
   for (let i = 1; i < lines.length; i++) {
@@ -84,9 +69,6 @@ async function loadVocabCSV() {
 }
 loadVocabCSV();
 
-// =====================
-// 4-choice builder
-// =====================
 function makeChoices(vocabList, correctItem) {
   const others = vocabList
     .filter(v => v.word !== correctItem.word)
@@ -104,11 +86,23 @@ function makeChoices(vocabList, correctItem) {
   return { map, correctLabel };
 }
 
-// =====================
-// API
-// =====================
 const api = {
   isMock() { return !!USE_MOCK; },
+
+  async signIn(loginId, password) {
+    if (USE_MOCK) return { ok: true, message: "（モック：ログイン不要）" };
+    assertClient();
+    const email = toEmail(loginId);
+    const { error } = await client.auth.signInWithPassword({ email, password });
+    if (error) return { ok: false, message: error.message };
+    return { ok: true, message: "ログイン成功" };
+  },
+
+  async signOut() {
+    if (USE_MOCK) return;
+    assertClient();
+    await client.auth.signOut();
+  },
 
   async getMyUserId() {
     if (USE_MOCK) return "u1";
@@ -156,7 +150,7 @@ const api = {
       .limit(20);
 
     if (error) throw error;
-    if (!data || data.length === 0) throw new Error("本番DBに有効な問題がありません（is_active=true）");
+    if (!data || data.length === 0) return null;
 
     return data[Math.floor(Math.random() * data.length)];
   },
@@ -176,7 +170,10 @@ const api = {
 
     const { data: sess } = await client.auth.getSession();
     const uid = sess?.session?.user?.id;
-    if (!uid) throw { message: "ログインしていないため送信できません（RLS/auth）" };
+    if (!uid) {
+      // quiz.js 側でこの文言をそのまま出せるようにする
+      throw { message: "未ログインです。スタート画面でログインしてから再開してください。" };
+    }
 
     const { data, error } = await client.rpc("submit_attempt", {
       p_question_id: questionId,
@@ -184,6 +181,7 @@ const api = {
       p_client_ms: Date.now(),
       p_quiz_session_id: null,
     });
+
     if (error) throw error;
 
     const row = Array.isArray(data) ? data[0] : data;
@@ -194,20 +192,6 @@ const api = {
       points: Number(row.points || 0),
       out_week_id: String(row.out_week_id || this.getWeekIdNow()),
     }];
-  },
-
-  async fetchWeekOptions() {
-    if (USE_MOCK) return [this.getWeekIdNow()];
-    assertClient();
-
-    const { data, error } = await client
-      .from("score_weekly")
-      .select("week_id")
-      .order("week_id", { ascending: false })
-      .limit(30);
-
-    if (error) throw error;
-    return Array.from(new Set((data ?? []).map(x => x.week_id)));
   },
 };
 
