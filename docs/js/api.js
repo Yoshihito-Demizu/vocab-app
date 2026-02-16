@@ -2,6 +2,14 @@
 /* global USE_MOCK, toEmail */
 "use strict";
 
+/**
+ * STEP2 改修ポイント：
+ * - 本番の出題を「最近出た問題」を避けて選ぶ（連発防止）
+ * - DB側の random() 依存を避けて、クライアント側でランダム抽選（確実に動く）
+ * - clientReady に対応して、SDK/Client準備前の事故を減らす
+ * - ranking.js が呼ぶAPI（fetchWeekOptions / fetchPersonalWeeklyTop / fetchMyWeeklyRank）を用意
+ */
+
 const mock = {
   vocab: [
     { word: "憂慮", meaning: "心配して気にかけること", level: 1 },
@@ -16,6 +24,7 @@ window.__LAST_MOCK_CORRECT = null;
 // ===== client 準備待ち（config.js の clientReady を使う）=====
 async function ensureClientReady() {
   if (window.USE_MOCK) return null;
+
   // config.js が用意した Promise があれば待つ
   if (window.clientReady && typeof window.clientReady.then === "function") {
     await window.clientReady;
@@ -96,6 +105,27 @@ function makeChoices(vocabList, correctItem) {
   return { map, correctLabel };
 }
 
+// ===== STEP2: 連発防止（最近出た問題IDを保存）=====
+const RECENT_KEY = "vocabTA_recent_qids_v1";
+const RECENT_MAX = 10;
+
+function loadRecent() {
+  try {
+    const a = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+    return Array.isArray(a) ? a : [];
+  } catch {
+    return [];
+  }
+}
+function saveRecent(list) {
+  const uniq = Array.from(new Set(list)).slice(0, RECENT_MAX);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(uniq));
+}
+function pickRandom(list) {
+  if (!list || list.length === 0) return null;
+  return list[Math.floor(Math.random() * list.length)];
+}
+
 const api = {
   isMock() { return !!window.USE_MOCK; },
 
@@ -127,8 +157,8 @@ const api = {
 
   // ===== 問題 =====
   async fetchLatestQuestion() {
+    // -------- MOCK --------
     if (window.USE_MOCK) {
-      // levelSelect は存在しなくてもOK（all扱い）
       const level = document.getElementById("levelSelect")?.value || "all";
       let pool = (mock.vocab || []).slice();
       if (level !== "all") pool = pool.filter(v => String(v.level || 1) === String(level));
@@ -153,18 +183,38 @@ const api = {
       };
     }
 
+    // -------- PROD（STEP2改修：偏り対策）--------
     const client = await ensureClientReady();
+
+    // まず「アクティブ問題」をある程度まとめて取る（確実に動く方式）
+    // ※問題数が増えたら将来はDB側ランダム化(RPC/view)に移行できる
     const { data, error } = await client
       .from("questions")
       .select("id, word, prompt, choice_a, choice_b, choice_c, choice_d")
       .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(20);
+      .limit(400);
 
     if (error) throw error;
     if (!data || data.length === 0) return null;
 
-    return data[Math.floor(Math.random() * data.length)];
+    const recent = loadRecent();
+    let candidates = data.filter(q => !recent.includes(q.id));
+
+    // 全部 recent に入ってたら、recent を少し縮めて救済
+    if (candidates.length === 0) {
+      const keep = recent.slice(0, Math.floor(RECENT_MAX / 2));
+      saveRecent(keep);
+      candidates = data.filter(q => !keep.includes(q.id));
+      if (candidates.length === 0) candidates = data.slice();
+    }
+
+    const q = pickRandom(candidates);
+    if (!q) return null;
+
+    // recent 更新
+    saveRecent([q.id, ...recent]);
+
+    return q;
   },
 
   // ===== 解答送信 =====
@@ -180,7 +230,7 @@ const api = {
         out_week_id: weekId,
       };
 
-      // ✅ mock時は端末内ランキングに記録（ranking.js がいれば）
+      // mock時は端末内ランキングに記録（ranking.jsがいれば）
       try {
         const userId = await this.getMyUserId(); // u1
         if (typeof window.__recordAttempt === "function") {
@@ -199,12 +249,13 @@ const api = {
       throw { message: "未ログインです。スタート画面でログインしてから再開してください。" };
     }
 
-   const { data, error } = await client.rpc("submit_attempt", {
-  p_question_id: questionId,
-  p_chosen_choice: String(chosen),            // text
-  p_client_ms: Date.now(),                    // ← DBがbigintならこれでOK（JS numberでも13桁は安全に表現できる）
-  p_quiz_session_id: null,
-});
+    const { data, error } = await client.rpc("submit_attempt", {
+      p_question_id: questionId,
+      p_chosen_choice: String(chosen),
+      p_client_ms: Date.now(), // bigint列に入る前提（FK/RLS/型はDB側で整えた）
+      p_quiz_session_id: null,
+    });
+
     if (error) throw error;
 
     const row = Array.isArray(data) ? data[0] : data;
@@ -218,19 +269,16 @@ const api = {
   },
 
   // =========================
-  // ランキング用API（ranking.js が呼ぶやつ）
+  // ランキング用API（ranking.js が呼ぶ）
+  // ※DB側に weekly_rankings などが無い場合は ranking.js が local fallback する
   // =========================
 
-  // 週の候補一覧（新しい順）
   async fetchWeekOptions() {
     if (window.USE_MOCK) {
-      // localStorage 側は ranking.js が持ってるので、最小は「今週だけ」でOK
       return [this.getWeekIdNow()];
     }
 
     const client = await ensureClientReady();
-    // ここは「attempts」テーブルなどがある想定。
-    // ない場合でも壊れないように try/catch で ranking.js がフォールバックできる。
     const { data, error } = await client
       .from("weekly_rankings")
       .select("week_id")
@@ -242,7 +290,6 @@ const api = {
     return weeks.length ? weeks : [this.getWeekIdNow()];
   },
 
-  // 週Top10（想定：weekly_rankings view/table）
   async fetchPersonalWeeklyTop(weekId) {
     if (window.USE_MOCK) return [];
 
@@ -259,7 +306,6 @@ const api = {
     return data || [];
   },
 
-  // 自分の順位（想定：my_weekly_rank view/rpc）
   async fetchMyWeeklyRank(weekId) {
     if (window.USE_MOCK) return null;
 
@@ -267,7 +313,6 @@ const api = {
     const uid = await this.getMyUserId();
     if (!uid) return null;
 
-    // まずは view/table から直取り（無ければエラー→ranking.js がlocal fallback）
     const { data, error } = await client
       .from("weekly_rankings")
       .select("user_id, nickname, points, correct, wrong, rank")
@@ -282,4 +327,3 @@ const api = {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", mock.vocab.length);
-
