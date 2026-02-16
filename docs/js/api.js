@@ -1,5 +1,5 @@
 // docs/js/api.js
-/* global USE_MOCK, client, toEmail */
+/* global USE_MOCK, toEmail */
 "use strict";
 
 const mock = {
@@ -13,10 +13,19 @@ const mock = {
 
 window.__LAST_MOCK_CORRECT = null;
 
-function assertClient() {
-  if (!client) throw new Error("Supabase client が無い（config.jsの読み込み/ネット確認）");
+// ===== client 準備待ち（config.js の clientReady を使う）=====
+async function ensureClientReady() {
+  if (window.USE_MOCK) return null;
+  // config.js が用意した Promise があれば待つ
+  if (window.clientReady && typeof window.clientReady.then === "function") {
+    await window.clientReady;
+  }
+  const c = window.client || null;
+  if (!c) throw new Error("Supabase client が無い（config.jsの読み込み/ネット確認）");
+  return c;
 }
 
+// ===== week_id（YYYY-Www）=====
 function getISOWeekId(d = new Date()) {
   const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
   const dayNum = date.getUTCDay() || 7;
@@ -28,6 +37,7 @@ function getISOWeekId(d = new Date()) {
   return `${yyyy}-W${ww}`;
 }
 
+// ===== CSV（簡易）=====
 function parseCSV(text) {
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
   if (lines.length <= 1) return [];
@@ -87,26 +97,26 @@ function makeChoices(vocabList, correctItem) {
 }
 
 const api = {
-  isMock() { return !!USE_MOCK; },
+  isMock() { return !!window.USE_MOCK; },
 
   async signIn(loginId, password) {
-    if (USE_MOCK) return { ok: true, message: "（モック：ログイン不要）" };
-    assertClient();
-    const email = toEmail(loginId);
+    if (window.USE_MOCK) return { ok: true, message: "（モック：ログイン不要）" };
+    const client = await ensureClientReady();
+    const email = window.toEmail ? window.toEmail(loginId) : toEmail(loginId);
     const { error } = await client.auth.signInWithPassword({ email, password });
     if (error) return { ok: false, message: error.message };
     return { ok: true, message: "ログイン成功" };
   },
 
   async signOut() {
-    if (USE_MOCK) return;
-    assertClient();
+    if (window.USE_MOCK) return;
+    const client = await ensureClientReady();
     await client.auth.signOut();
   },
 
   async getMyUserId() {
-    if (USE_MOCK) return "u1";
-    assertClient();
+    if (window.USE_MOCK) return "u1";
+    const client = await ensureClientReady();
     const { data } = await client.auth.getSession();
     return data?.session?.user?.id ?? null;
   },
@@ -115,8 +125,10 @@ const api = {
     return getISOWeekId(new Date());
   },
 
+  // ===== 問題 =====
   async fetchLatestQuestion() {
-    if (USE_MOCK) {
+    if (window.USE_MOCK) {
+      // levelSelect は存在しなくてもOK（all扱い）
       const level = document.getElementById("levelSelect")?.value || "all";
       let pool = (mock.vocab || []).slice();
       if (level !== "all") pool = pool.filter(v => String(v.level || 1) === String(level));
@@ -141,7 +153,7 @@ const api = {
       };
     }
 
-    assertClient();
+    const client = await ensureClientReady();
     const { data, error } = await client
       .from("questions")
       .select("id, word, prompt, choice_a, choice_b, choice_c, choice_d")
@@ -155,23 +167,35 @@ const api = {
     return data[Math.floor(Math.random() * data.length)];
   },
 
+  // ===== 解答送信 =====
   async submitAttempt(questionId, chosen) {
-    if (USE_MOCK) {
+    const weekId = this.getWeekIdNow();
+
+    if (window.USE_MOCK) {
       const correct = window.__LAST_MOCK_CORRECT;
       const ok = chosen === correct;
-      return [{
+      const row = {
         is_correct: ok,
         points: ok ? 10 : 0,
-        out_week_id: this.getWeekIdNow(),
-      }];
+        out_week_id: weekId,
+      };
+
+      // ✅ mock時は端末内ランキングに記録（ranking.js がいれば）
+      try {
+        const userId = await this.getMyUserId(); // u1
+        if (typeof window.__recordAttempt === "function") {
+          await window.__recordAttempt({ userId, weekId, is_correct: row.is_correct, points: row.points });
+        }
+      } catch (_) {}
+
+      return [row];
     }
 
-    assertClient();
+    const client = await ensureClientReady();
 
     const { data: sess } = await client.auth.getSession();
     const uid = sess?.session?.user?.id;
     if (!uid) {
-      // quiz.js 側でこの文言をそのまま出せるようにする
       throw { message: "未ログインです。スタート画面でログインしてから再開してください。" };
     }
 
@@ -181,7 +205,6 @@ const api = {
       p_client_ms: Date.now(),
       p_quiz_session_id: null,
     });
-
     if (error) throw error;
 
     const row = Array.isArray(data) ? data[0] : data;
@@ -190,10 +213,72 @@ const api = {
     return [{
       is_correct: !!row.is_correct,
       points: Number(row.points || 0),
-      out_week_id: String(row.out_week_id || this.getWeekIdNow()),
+      out_week_id: String(row.out_week_id || weekId),
     }];
+  },
+
+  // =========================
+  // ランキング用API（ranking.js が呼ぶやつ）
+  // =========================
+
+  // 週の候補一覧（新しい順）
+  async fetchWeekOptions() {
+    if (window.USE_MOCK) {
+      // localStorage 側は ranking.js が持ってるので、最小は「今週だけ」でOK
+      return [this.getWeekIdNow()];
+    }
+
+    const client = await ensureClientReady();
+    // ここは「attempts」テーブルなどがある想定。
+    // ない場合でも壊れないように try/catch で ranking.js がフォールバックできる。
+    const { data, error } = await client
+      .from("weekly_rankings")
+      .select("week_id")
+      .order("week_id", { ascending: false })
+      .limit(50);
+
+    if (error) throw error;
+    const weeks = (data || []).map(r => r.week_id).filter(Boolean);
+    return weeks.length ? weeks : [this.getWeekIdNow()];
+  },
+
+  // 週Top10（想定：weekly_rankings view/table）
+  async fetchPersonalWeeklyTop(weekId) {
+    if (window.USE_MOCK) return [];
+
+    const client = await ensureClientReady();
+    const { data, error } = await client
+      .from("weekly_rankings")
+      .select("user_id, nickname, points, correct, wrong")
+      .eq("week_id", weekId)
+      .order("points", { ascending: false })
+      .order("correct", { ascending: false })
+      .limit(10);
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  // 自分の順位（想定：my_weekly_rank view/rpc）
+  async fetchMyWeeklyRank(weekId) {
+    if (window.USE_MOCK) return null;
+
+    const client = await ensureClientReady();
+    const uid = await this.getMyUserId();
+    if (!uid) return null;
+
+    // まずは view/table から直取り（無ければエラー→ranking.js がlocal fallback）
+    const { data, error } = await client
+      .from("weekly_rankings")
+      .select("user_id, nickname, points, correct, wrong, rank")
+      .eq("week_id", weekId)
+      .eq("user_id", uid)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data || null;
   },
 };
 
 window.api = api;
-console.log("[api] loaded. USE_MOCK =", USE_MOCK, "fallback vocab size =", mock.vocab.length);
+console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", mock.vocab.length);
