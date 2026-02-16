@@ -17,22 +17,17 @@
 
   <style>
     :root{
-      --bg:#0b1020;
-      --ink:#eaf0ff;
-      --muted:#b8c3e6;
-      --accent:#ff3b30;
-      --ok:#00d38a;
-      --ng:#ff4d7d;
+      --bg:#0b1020; --card:#121a33; --ink:#eaf0ff; --muted:#b8c3e6;
+      --accent:#ff3b30; --ok:#00d38a; --ng:#ff4d7d;
     }
     *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      background: var(--bg);
-      color: var(--ink);
-    }
+    body{ margin:0; font-family:system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--ink); }
     .hidden{ display:none !important; }
     .wrap{ max-width:900px; margin:0 auto; padding:10px; }
+    .btn{ border:none; border-radius:999px; padding:14px 22px; font-weight:900; font-size:18px; cursor:pointer; color:#fff; background:var(--accent); }
+    .btn:active{ transform:scale(.98); }
+    .btn2{ border:none; border-radius:12px; padding:10px 14px; font-weight:800; cursor:pointer; background:rgba(255,255,255,.10); color:var(--ink); }
+    .btn2:active{ transform:scale(.99); }
 
     /* START */
     #startPane{
@@ -40,14 +35,11 @@
       background:
         linear-gradient(rgba(0,0,0,.40), rgba(0,0,0,.55)),
         url("./icons/start-bg.jpg") center/cover no-repeat;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      padding:16px;
+      display:flex; align-items:center; justify-content:center; padding:16px;
     }
     .startCard{
-      width:min(520px, 100%);
-      background: rgba(11,16,32,.72);
+      width:min(560px, 100%);
+      background:rgba(11,16,32,.72);
       border:1px solid rgba(255,255,255,.12);
       border-radius:18px;
       padding:18px;
@@ -55,134 +47,79 @@
       box-shadow: 0 18px 50px rgba(0,0,0,.35);
       text-align:center;
     }
-    .title{ font-size:28px; font-weight:900; margin:6px 0 8px; }
-    .sub{ color:var(--muted); font-size:13px; margin:0 0 12px; line-height:1.5; }
-    .btn{
-      border:none; border-radius:999px;
-      padding:14px 22px;
-      font-weight:900; font-size:18px;
-      cursor:pointer; color:#fff;
-      background: var(--accent);
-      box-shadow: 0 12px 30px rgba(255,59,48,.25);
-    }
-    .btn:active{ transform:scale(.98); }
-    .btn2{
-      border:none; border-radius:12px;
-      padding:10px 14px;
-      font-weight:800;
-      cursor:pointer;
-      background: rgba(255,255,255,.10);
-      color: var(--ink);
-    }
-    .btn2:active{ transform:scale(.99); }
+    .title{ font-size:28px; font-weight:900; margin:6px 0 8px; text-shadow:0 8px 30px rgba(0,0,0,.55); }
+    .sub{ color:var(--muted); font-size:13px; line-height:1.45; margin:0 0 12px; }
 
-    /* BATTLE */
-    .hud{ display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 8px; }
-    .stat{
-      background: rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:14px;
-      padding:10px 12px;
-      font-weight:800;
-    }
-    .stat b{ font-size:18px; }
-    #q{
-      background: rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:16px;
-      padding:14px;
-      margin-top:8px;
-    }
-    #q h3{ margin:0 0 6px; font-size:22px; }
-    .prompt{ color:var(--muted); font-size:13px; }
-
-    /* choices 2x2 */
-    #choices{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:12px;
-      margin-top:12px;
-    }
-    #choices button{
-      border:none;
-      border-radius:16px;
-      padding:16px 12px;
-      min-height:78px;
-      font-size:16px;
-      font-weight:900;
-      color: var(--ink);
-      background: rgba(255,255,255,.10);
-      border:1px solid rgba(255,255,255,.12);
-      box-shadow: 0 10px 24px rgba(0,0,0,.22);
-      cursor:pointer;
-      text-align:left;
-      line-height:1.2;
-    }
-    #choices button:active{ transform:scale(.98); }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px; }
-
-    /* RESULT */
-    .resultCard{
-      background: rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:18px;
-      padding:14px;
-      box-shadow: 0 18px 50px rgba(0,0,0,.25);
-    }
-    .resultBig{ text-align:center; font-size:28px; font-weight:900; margin:6px 0 8px; }
-    .resultLine{ text-align:center; color:var(--muted); margin:6px 0; font-weight:800; }
-    .resultLine b{ color:var(--ink); font-size:22px; }
-    .card{
-      background: rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-      border-radius:18px;
+    .loginBox{
+      margin:12px auto 10px;
       padding:12px;
-      margin-top:10px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      text-align:left;
     }
-    .muted{ color:var(--muted); font-size:12px; }
-    select{
-      padding:10px 12px;
+    .loginRow{ display:flex; gap:10px; flex-wrap:wrap; }
+    label{ font-weight:800; font-size:12px; color:var(--muted); display:block; margin:6px 0 4px; }
+    input{
+      width:100%;
+      padding:12px 12px;
       border-radius:12px;
       border:1px solid rgba(255,255,255,.16);
       background: rgba(255,255,255,.08);
-      color: var(--ink);
+      color:var(--ink);
       font-weight:800;
-      min-width:160px;
       outline:none;
     }
+    .msg{ margin-top:8px; font-size:12px; color:var(--muted); }
+
+    /* BATTLE */
+    .hud{ display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 8px; }
+    .stat{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); border-radius:14px; padding:10px 12px; font-weight:800; }
+    .stat b{ font-size:18px; }
+    #q{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); border-radius:16px; padding:14px; margin-top:8px; }
+    #q h3{ margin:0 0 6px; font-size:22px; }
+    .prompt{ color:var(--muted); font-size:13px; }
+
+    #choices{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+    #choices button{
+      border:none; border-radius:16px; padding:16px 12px; min-height:78px;
+      font-size:16px; font-weight:900; color:var(--ink);
+      background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.12);
+      box-shadow:0 10px 24px rgba(0,0,0,.22); cursor:pointer; text-align:left; line-height:1.2;
+    }
+    #choices button:active{ transform:scale(.98); }
+
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+
+    /* RESULT */
+    #resultPane{ padding:12px 10px 22px; }
+    .resultCard{ background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.10); border-radius:18px; padding:14px; box-shadow:0 18px 50px rgba(0,0,0,.25); }
+    .resultBig{ text-align:center; font-size:28px; font-weight:900; margin:6px 0 8px; }
+    .resultLine{ text-align:center; color:var(--muted); margin:6px 0; font-weight:800; }
+    .resultLine b{ color:var(--ink); font-size:22px; }
 
     /* OVERLAY */
-    #overlay{
-      position:fixed;
-      inset:0;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      background: rgba(0,0,0,.35);
-      z-index:9999;
-    }
+    #overlay{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.35); z-index:9999; }
     #overlay .panel{
       width:min(520px, 92vw);
       text-align:center;
       font-weight:1000;
       border-radius:22px;
       padding:24px 18px;
-      background: rgba(10,16,36,.82);
+      background:rgba(10,16,36,.82);
       border:1px solid rgba(255,255,255,.18);
-      box-shadow: 0 28px 80px rgba(0,0,0,.45);
-      text-shadow: 0 14px 40px rgba(0,0,0,.55);
+      box-shadow:0 28px 80px rgba(0,0,0,.45);
+      text-shadow:0 14px 40px rgba(0,0,0,.55);
       font-size:78px;
       line-height:1;
-      transform: translateY(-6px);
+      transform:translateY(-6px);
     }
     #overlay .panel.count{ animation: pop .18s ease-out; }
-    #overlay .panel.go{ color: var(--ok); animation: pop .18s ease-out; }
-    #overlay .panel.ok{ color: var(--ok); font-size:90px; animation: pop .14s ease-out; }
-    #overlay .panel.ng{ color: var(--ng); font-size:90px; animation: shake .28s ease-in-out; }
-    @keyframes pop{
-      from{ transform: translateY(-6px) scale(.92); opacity:.3; }
-      to{ transform: translateY(-6px) scale(1); opacity:1; }
-    }
+    #overlay .panel.go{ color:var(--ok); animation: pop .18s ease-out; }
+    #overlay .panel.ok{ color:var(--ok); font-size:90px; animation: pop .14s ease-out; }
+    #overlay .panel.ng{ color:var(--ng); font-size:90px; animation: shake .28s ease-in-out; }
+    #overlay .panel.warn{ color:#ffd54a; font-size:34px; line-height:1.2; }
+    @keyframes pop{ from{ transform:translateY(-6px) scale(.92); opacity:.3; } to{ transform:translateY(-6px) scale(1); opacity:1; } }
     @keyframes shake{
       0%,100%{ transform: translateY(-6px) translateX(0); }
       25%{ transform: translateY(-6px) translateX(-10px); }
@@ -198,9 +135,29 @@
   <div id="startPane">
     <div class="startCard">
       <div class="title">語彙タイムアタック</div>
-      <p class="sub">30秒で何問正解できるか勝負！<br>（先生テスト配布モード：今はログイン無しでも遊べます）</p>
+      <p class="sub">30秒で何問正解できるか勝負！</p>
+
+      <div class="loginBox" id="loginBox">
+        <div style="font-weight:900; margin-bottom:6px;">ログイン（本番送信に必須）</div>
+        <div class="loginRow">
+          <div style="flex:1; min-width:220px;">
+            <label>ログインID（例：taro / 1234）</label>
+            <input id="loginId" placeholder="login id">
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label>パスワード</label>
+            <input id="loginPw" type="password" placeholder="password">
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="loginBtn" class="btn2">ログイン</button>
+          <button id="logoutBtn" class="btn2">ログアウト</button>
+        </div>
+        <div id="loginMsg" class="msg"></div>
+      </div>
+
       <button id="startBtn" class="btn">▶ START</button>
-      <div class="muted" style="margin-top:10px;">※iPhoneは共有→「ホーム画面に追加」</div>
+      <div class="msg">※iPhoneは共有→「ホーム画面に追加」</div>
     </div>
   </div>
 
@@ -233,35 +190,12 @@
 
       <div class="row">
         <button id="retryBtn" class="btn">もう一回！</button>
-        <button id="goRankBtn" class="btn2">ランキングを見る</button>
       </div>
-
-      <!-- Ranking -->
-      <section id="rankingPane" class="card" style="margin-top:14px;">
-        <div style="font-weight:900; font-size:18px;">ランキング（先生テスト用：端末内）</div>
-
-        <div style="display:flex; gap:10px; align-items:center; margin:10px 0;">
-          <label for="weekSelect">週：</label>
-          <select id="weekSelect" style="flex:1; min-width:160px;"></select>
-          <button id="rankRefreshBtn" class="btn2">更新</button>
-        </div>
-
-        <div class="card">
-          <div style="font-weight:900;">週Top10（個人）</div>
-          <div id="weeklyTop" class="muted" style="margin-top:6px;">（まだデータなし）</div>
-        </div>
-
-        <div class="card" style="margin-top:12px;">
-          <div style="font-weight:900;">あなたの順位</div>
-          <div id="myRank" class="muted" style="margin-top:6px;">（まだデータなし）</div>
-        </div>
-
-        <div id="rankMsg" class="muted" style="margin-top:10px;"></div>
-      </section>
     </div>
   </div>
 
-  
+  <!-- OVERLAY -->
+  <div id="overlay" class="hidden"><div class="panel"></div></div>
 
   <!-- JS（順番厳守） -->
   <script src="./js/config.js"></script>
@@ -276,8 +210,6 @@
       navigator.serviceWorker.register("./sw.js");
     }
   </script>
-　<!-- ✅ OVERLAYは必ず body直下の最後（重要） -->
-  <div id="overlay" class="hidden"><div class="panel"></div></div>
+
 </body>
 </html>
-
