@@ -199,12 +199,12 @@ const api = {
       throw { message: "未ログインです。スタート画面でログインしてから再開してください。" };
     }
 
-    const { data, error } = await client.rpc("submit_attempt", {
-      p_question_id: questionId,
-      p_chosen_choice: chosen,
-      p_client_ms: Date.now(),
-      p_quiz_session_id: null,
-    });
+   const { data, error } = await client.rpc("submit_attempt", {
+  p_question_id: questionId,
+  p_chosen_choice: String(chosen),            // text
+  p_client_ms: Date.now(),                    // ← DBがbigintならこれでOK（JS numberでも13桁は安全に表現できる）
+  p_quiz_session_id: null,
+});
     if (error) throw error;
 
     const row = Array.isArray(data) ? data[0] : data;
@@ -282,3 +282,4 @@ const api = {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", mock.vocab.length);
+
