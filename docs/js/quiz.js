@@ -1,9 +1,8 @@
 // docs/js/quiz.js
-console.log("[quiz] loaded! (flow+overlay+B-record)");
+console.log("[quiz] loaded! (flow+overlay+auth-safe)");
 
 /* global api */
 
-// ===== 状態 =====
 let timer = null;
 let timeLeft = 30;
 let score = 0;
@@ -12,22 +11,12 @@ let maxCombo = 0;
 let currentQuestion = null;
 let playing = false;
 
-// ===== DOM =====
 function q$(id) { return document.getElementById(id); }
 function show(id) { q$(id)?.classList.remove("hidden"); }
 function hide(id) { q$(id)?.classList.add("hidden"); }
-function setText(id, v, cls) {
-  const el = q$(id);
-  if (!el) return;
-  if (cls) el.className = cls;
-  el.textContent = String(v);
-}
+function setText(id, v) { const el = q$(id); if (el) el.textContent = String(v); }
 
-// ===== Audio（スマホ対応：ユーザー操作で解放）=====
-let AC = null;
-let master = null;
-let bgmTimer = null;
-let bgmTier = null;
+let AC = null, master = null, bgmTimer = null, bgmTier = null;
 
 function ensureAudio() {
   if (AC) return;
@@ -41,89 +30,60 @@ async function unlockAudio() {
   ensureAudio();
   if (AC.state !== "running") await AC.resume();
 }
-function beep({ freq = 440, dur = 0.12, type = "square", gain = 0.12 }) {
+function beep({ freq=440, dur=0.12, type="square", gain=0.12 }) {
   if (!AC || !master) return;
   const o = AC.createOscillator();
   const g = AC.createGain();
   o.type = type;
   o.frequency.value = freq;
-
   g.gain.value = 0.0001;
   g.gain.linearRampToValueAtTime(gain, AC.currentTime + 0.01);
   g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
+  o.connect(g); g.connect(master);
+  o.start(); o.stop(AC.currentTime + dur + 0.02);
+}
+function sfxCount(n){ beep({ freq:n===3?440:n===2?523:659, dur:0.12, gain:0.16 }); }
+function sfxGo(){ beep({ freq:988, dur:0.10, gain:0.18 }); setTimeout(()=>beep({ freq:1319, dur:0.12, gain:0.16 }), 90); }
+function sfxCorrect(){ beep({ freq:880, dur:0.08, gain:0.18 }); setTimeout(()=>beep({ freq:1175, dur:0.10, gain:0.16 }), 90); }
+function sfxWrong(){ beep({ freq:160, dur:0.22, type:"sawtooth", gain:0.22 }); }
 
-  o.connect(g);
-  g.connect(master);
-  o.start();
-  o.stop(AC.currentTime + dur + 0.02);
-}
-
-// SFX
-function sfxCount(n) {
-  const f = n === 3 ? 440 : n === 2 ? 523 : 659;
-  beep({ freq: f, dur: 0.12, type: "square", gain: 0.16 });
-}
-function sfxGo() {
-  beep({ freq: 988, dur: 0.10, type: "square", gain: 0.18 });
-  setTimeout(() => beep({ freq: 1319, dur: 0.12, type: "square", gain: 0.16 }), 90);
-}
-function sfxCorrect() {
-  beep({ freq: 880, dur: 0.08, type: "square", gain: 0.18 });
-  setTimeout(() => beep({ freq: 1175, dur: 0.10, type: "square", gain: 0.16 }), 90);
-}
-function sfxWrong() {
-  beep({ freq: 160, dur: 0.22, type: "sawtooth", gain: 0.22 });
-}
-
-// BGM（簡易チップチューン）
-function stopBGM() {
-  if (bgmTimer) { clearInterval(bgmTimer); bgmTimer = null; }
-  bgmTier = null;
-}
-function startBGM(tier) {
+function stopBGM(){ if (bgmTimer){ clearInterval(bgmTimer); bgmTimer=null; } bgmTier=null; }
+function startBGM(tier){
   ensureAudio();
   if (bgmTier === tier) return;
   stopBGM();
   bgmTier = tier;
-
   const patterns = {
-    low:   { bpm: 140, seq: [659, 523, 587, 523, 494, 440, 494, 523] },
-    mid:   { bpm: 160, seq: [784, 659, 698, 659, 587, 523, 587, 659] },
-    high:  { bpm: 180, seq: [988, 784, 880, 784, 698, 659, 698, 784] },
-    result:{ bpm: 120, seq: [523, 659, 784, 659, 523, 494, 523, 659] }
+    low:{ bpm:140, seq:[659,523,587,523,494,440,494,523] },
+    mid:{ bpm:160, seq:[784,659,698,659,587,523,587,659] },
+    high:{ bpm:180, seq:[988,784,880,784,698,659,698,784] },
+    result:{ bpm:120, seq:[523,659,784,659,523,494,523,659] }
   };
-
   const p = patterns[tier] || patterns.low;
   const stepMs = Math.floor(60000 / p.bpm / 2);
   let i = 0;
-
   bgmTimer = setInterval(() => {
-    beep({ freq: p.seq[i % p.seq.length], dur: 0.07, type: "square", gain: 0.07 });
+    beep({ freq: p.seq[i % p.seq.length], dur: 0.07, gain: 0.07 });
     i++;
   }, stepMs);
 }
-function updateBgmByScore() {
+function updateBgmByScore(){
   if (!playing) return;
   if (score >= 120) startBGM("high");
   else if (score >= 60) startBGM("mid");
   else startBGM("low");
 }
 
-// ===== Overlay（321 / ○×）=====
-function overlayShow(text, kind = "") {
+function overlayShow(text, kind="") {
   const ov = q$("overlay");
   const panel = ov?.querySelector(".panel");
   if (!ov || !panel) return;
-
   panel.textContent = String(text ?? "");
   panel.className = "panel" + (kind ? " " + kind : "");
-
   ov.classList.remove("hidden");
 }
-function overlayHide() {
-  q$("overlay")?.classList.add("hidden");
-}
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function overlayHide(){ q$("overlay")?.classList.add("hidden"); }
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function flashyCountdown() {
   overlayShow("3", "count"); sfxCount(3); await sleep(900);
@@ -133,44 +93,24 @@ async function flashyCountdown() {
   overlayHide();
 }
 
-// ===== 出題 =====
-// ===== 出題 =====
 async function loadQuestion() {
   const q = await api.fetchLatestQuestion();
+  if (!q) throw new Error("問題が見つかりません（questions が空 / is_active=false など）");
+  currentQuestion = q;
 
   const qBox = q$("q");
   const cBox = q$("choices");
   if (!qBox || !cBox) return;
 
-  // ✅ 取れない時に落とさず原因が分かる表示にする
-  if (!q) {
-    qBox.innerHTML = `
-      <div style="padding:10px;">
-        <div style="font-weight:900;font-size:16px;">問題が取得できませんでした</div>
-        <div class="prompt" style="margin-top:6px;opacity:.9;">
-          Supabaseの <b>questions</b> に「is_active=true」の問題が無いか、権限が原因です。
-        </div>
-      </div>
-    `;
-    cBox.innerHTML = `
-      <button onclick="location.reload()">再読み込み</button>
-    `;
-    return;
-  }
-
-  currentQuestion = q;
-
   qBox.innerHTML = `<h3>${q.word}</h3><div class="prompt">${q.prompt}</div>`;
   cBox.innerHTML = "";
 
-  const list = [
+  [
     ["A", q.choice_a],
     ["B", q.choice_b],
     ["C", q.choice_c],
     ["D", q.choice_d],
-  ];
-
-  list.forEach(([k, txt]) => {
+  ].forEach(([k, txt]) => {
     const b = document.createElement("button");
     b.textContent = `${k}: ${txt}`;
     b.addEventListener("click", () => answer(k), { passive: true });
@@ -178,42 +118,22 @@ async function loadQuestion() {
   });
 }
 
-// ===== 回答（B：ランキング記録）=====
 let lock = false;
+
 async function answer(chosen) {
   if (!playing || !currentQuestion || lock) return;
   lock = true;
+  console.log("[answer] chosen=", chosen);
 
   try {
-    // 念のため：押した瞬間に「入力できてる」ログ
-    console.log("[answer] chosen=", chosen);
-
     const rows = await api.submitAttempt(currentQuestion.id, chosen);
     const r = rows?.[0];
-    if (!r) throw new Error("submitAttempt returned empty");
+    if (!r) throw new Error("submitAttempt の返り値が空です");
 
-    // ✅ B：ランキング保存（存在すれば必ず記録）
-    if (window.__recordAttempt) {
-      try {
-        const userId = await api.getMyUserId();
-        const weekId = r.out_week_id;
-        await window.__recordAttempt({
-          userId,
-          weekId,
-          is_correct: r.is_correct,
-          points: r.points,
-        });
-      } catch (e) {
-        console.warn("[rank] recordAttempt failed:", e);
-      }
-    }
-
-    // 演出＆スコア
     if (r.is_correct) {
       score += Number(r.points || 0) + Math.min(combo, 20);
       combo += 1;
       maxCombo = Math.max(maxCombo, combo);
-
       overlayShow("⭕", "ok");
       sfxCorrect();
     } else {
@@ -224,33 +144,39 @@ async function answer(chosen) {
 
     setText("scoreNow", score);
     setText("comboNow", combo);
-
     updateBgmByScore();
 
-    await sleep(650);
+    await sleep(520);
     overlayHide();
-
     await loadQuestion();
-
   } catch (e) {
-  console.warn("[answer] failed raw:", e);
-  console.warn("[answer] failed json:", JSON.stringify(e, null, 2));
-    // 失敗しても lock を戻す。UIにも出す（任意）
-    const qBox = q$("q");
-    if (qBox) {
-      qBox.innerHTML = `
-        <div style="font-weight:900;margin-bottom:6px;">送信に失敗しました</div>
-        <div style="opacity:.8;font-size:12px;">通信/権限/設定を確認してください。</div>
-      `;
-    }
+    console.warn("[answer] failed raw:", e);
+    const msg = e?.message || "送信に失敗しました。";
+    console.log("[answer] failed json:", JSON.stringify({ message: msg }, null, 2));
+
+    // ✅ 未ログインなどは「安全に止める」
+    overlayShow(msg, "warn");
+    await sleep(1100);
+    overlayHide();
+    endGame(true); // force back to start
   } finally {
-    lock = false; // ✅ これが超重要（例外でも絶対解除）
+    lock = false;
   }
 }
 
-// ===== 進行（start→battle→result）=====
 async function startGame() {
   await unlockAudio();
+
+  // ✅ 本番モードは「ログインしてないと開始しない」
+  if (!api.isMock()) {
+    const uid = await api.getMyUserId();
+    if (!uid) {
+      overlayShow("未ログインです。\n先にログインしてね", "warn");
+      await sleep(1100);
+      overlayHide();
+      return;
+    }
+  }
 
   if (playing) return;
   playing = true;
@@ -277,14 +203,12 @@ async function startGame() {
   timer = setInterval(() => {
     timeLeft--;
     setText("timeLeft", timeLeft);
-    if (timeLeft <= 0) endGame();
+    if (timeLeft <= 0) endGame(false);
   }, 1000);
 }
 
-function endGame() {
-  if (!playing) return;
+function endGame(forceToStart) {
   playing = false;
-
   clearInterval(timer);
   stopBGM();
   startBGM("result");
@@ -294,11 +218,13 @@ function endGame() {
 
   setText("finalScore", score);
   setText("finalCombo", maxCombo);
+
+  if (forceToStart) {
+    // 送信失敗などで戻す
+    hide("resultPane");
+    show("startPane");
+  }
 }
 
-// ===== グローバル公開 =====
 window.startGame = startGame;
 window.endGame = endGame;
-
-
-
