@@ -1,29 +1,55 @@
 // docs/js/main.js
-console.log("[main] loaded! (buttons+ranking)");
+console.log("[main] loaded! (buttons+login)");
 
-function $(id) { return document.getElementById(id); }
+/* global api */
 
-function safe(fn) {
-  try { fn && fn(); } catch (e) { console.warn(e); }
+function $(id){ return document.getElementById(id); }
+
+function setLoginMsg(t){
+  const el = $("loginMsg");
+  if (el) el.textContent = t || "";
 }
 
-window.addEventListener("DOMContentLoaded", async () => {
-  // START / RETRY / STOP
-  $("startBtn")?.addEventListener("click", () => safe(window.startGame));
-  $("retryBtn")?.addEventListener("click", () => safe(window.startGame));
-  $("stopBtn")?.addEventListener("click", () => safe(window.endGame));
+async function refreshLoginBox(){
+  // MOCKならログイン欄を隠す（事故らない）
+  const box = $("loginBox");
+  if (!box) return;
 
-  // 週プルダウン作る
-  if (window.loadWeekOptions) {
-    await window.loadWeekOptions();
+  if (api.isMock()) {
+    box.classList.add("hidden");
+    return;
   }
+  box.classList.remove("hidden");
 
-  // ランキング更新ボタン
-  $("rankRefreshBtn")?.addEventListener("click", () => safe(window.loadRankings));
+  const uid = await api.getMyUserId();
+  setLoginMsg(uid ? `ログイン中：${uid}` : "未ログイン（本番送信にはログインが必要）");
+}
 
-  // 「ランキングを見る」→ ランキング欄へスクロールして更新
-  $("goRankBtn")?.addEventListener("click", async () => {
-    $("rankingPane")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    await safe(window.loadRankings);
-  });
+$("startBtn")?.addEventListener("click", () => window.startGame?.());
+$("retryBtn")?.addEventListener("click", () => window.startGame?.());
+$("stopBtn")?.addEventListener("click", () => window.endGame?.());
+
+$("loginBtn")?.addEventListener("click", async () => {
+  try{
+    const loginId = $("loginId")?.value || "";
+    const pw = $("loginPw")?.value || "";
+    if (!loginId || !pw) { setLoginMsg("ログインIDとパスワードを入れてね"); return; }
+    const res = await api.signIn(loginId, pw);
+    setLoginMsg(res.message || "");
+    await refreshLoginBox();
+  } catch(e){
+    setLoginMsg(e?.message || "ログイン失敗");
+  }
 });
+
+$("logoutBtn")?.addEventListener("click", async () => {
+  try{
+    await api.signOut();
+    setLoginMsg("ログアウトしました");
+    await refreshLoginBox();
+  } catch(e){
+    setLoginMsg(e?.message || "ログアウト失敗");
+  }
+});
+
+refreshLoginBox();
