@@ -1,11 +1,11 @@
 // docs/sw.js
 "use strict";
 
-// ✅ 更新のたびにここだけ変える（または日付で更新）
-const VERSION = "20260216-1";
+// ✅ 更新のたびにここだけ変える（YYYYMMDD-連番）
+const VERSION = "20260217-1";
 const CACHE_NAME = `vocab-ta-${VERSION}`;
 
-// キャッシュしたい最低限（404が混ざっても全体失敗しにくい方式にする）
+// ✅ これだけキャッシュ（基本は最低限にする）
 const ASSETS = [
   "./",
   "./index.html",
@@ -21,35 +21,38 @@ const ASSETS = [
   "./icons/start-bg.jpg",
 ];
 
-async function cacheSafely(cache, urls) {
-  // addAll は 1個でも失敗すると全体が落ちがちなので、1個ずつ入れる
-  await Promise.all(urls.map(async (u) => {
-    try {
-      const req = new Request(u, { cache: "reload" });
-      const res = await fetch(req);
-      if (res.ok) await cache.put(req, res);
-    } catch (_) {
-      // 失敗は握りつぶす（ただし install 自体は成功させる）
-    }
-  }));
-}
-
+// ========== install ==========
 self.addEventListener("install", (event) => {
-  self.skipWaiting();
-  event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    await cacheSafely(cache, ASSETS);
-  })());
+  // 先にキャッシュしてから即待機解除（ただし実際に切替はクライアント側で行う）
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
+      await cache.addAll(ASSETS);
+      await self.skipWaiting();
+    })().catch(() => null)
+  );
 });
 
+// ========== activate ==========
 self.addEventListener("activate", (event) => {
-  event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))));
-    await self.clients.claim();
-  })());
+  event.waitUntil(
+    (async () => {
+      // 古いキャッシュを削除
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))));
+      await self.clients.claim();
+    })()
+  );
 });
 
+// ========== メッセージ（即切替要求） ==========
+self.addEventListener("message", (event) => {
+  if (event?.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
+// ========== fetch ==========
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
@@ -60,49 +63,55 @@ self.addEventListener("fetch", (event) => {
   const accept = req.headers.get("accept") || "";
   const isHTML = req.mode === "navigate" || accept.includes("text/html");
 
-  // ✅ HTMLはネット優先（更新反映）
+  // ✅ HTML は network-first（更新反映優先）
   if (isHTML) {
-    event.respondWith((async () => {
-      try {
-        const fresh = await fetch(req, { cache: "no-store" });
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(req, fresh.clone()).catch(() => null);
-        return fresh;
-      } catch (e) {
-        return (await caches.match(req)) || (await caches.match("./index.html"));
-      }
-    })());
+    event.respondWith(
+      (async () => {
+        try {
+          const fresh = await fetch(req, { cache: "no-store" });
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(req, fresh.clone()).catch(() => null);
+          return fresh;
+        } catch {
+          return (await caches.match(req)) || (await caches.match("./index.html"));
+        }
+      })()
+    );
     return;
   }
 
-  // ✅ JS/CSS/CSV/manifest はネット優先（更新ズレを潰す）
-  const isAsset =
+  // ✅ JS/CSS/CSV/manifest も network-first（更新ズレ防止）
+  const isHotAsset =
     url.pathname.endsWith(".js") ||
     url.pathname.endsWith(".css") ||
     url.pathname.endsWith(".csv") ||
     url.pathname.endsWith(".webmanifest");
 
-  if (isAsset) {
-    event.respondWith((async () => {
-      try {
-        const fresh = await fetch(req, { cache: "no-store" });
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(req, fresh.clone()).catch(() => null);
-        return fresh;
-      } catch (e) {
-        return (await caches.match(req)) || fetch(req);
-      }
-    })());
+  if (isHotAsset) {
+    event.respondWith(
+      (async () => {
+        try {
+          const fresh = await fetch(req, { cache: "no-store" });
+          const cache = await caches.open(CACHE_NAME);
+          cache.put(req, fresh.clone()).catch(() => null);
+          return fresh;
+        } catch {
+          return (await caches.match(req)) || fetch(req);
+        }
+      })()
+    );
     return;
   }
 
-  // 画像などはキャッシュ優先（ただし VERSION を変えれば更新される）
-  event.respondWith((async () => {
-    const cached = await caches.match(req);
-    if (cached) return cached;
-    const fresh = await fetch(req);
-    const cache = await caches.open(CACHE_NAME);
-    cache.put(req, fresh.clone()).catch(() => null);
-    return fresh;
-  })());
+  // ✅ 画像などは cache-first
+  event.respondWith(
+    (async () => {
+      const cached = await caches.match(req);
+      if (cached) return cached;
+      const fresh = await fetch(req);
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(req, fresh.clone()).catch(() => null);
+      return fresh;
+    })()
+  );
 });
