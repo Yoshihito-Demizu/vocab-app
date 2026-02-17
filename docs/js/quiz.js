@@ -1,5 +1,5 @@
 // docs/js/quiz.js
-console.log("[quiz] loaded! (flow+overlay+auth-safe+comboFX+audioStop)");
+console.log("[quiz] loaded! (flow+overlay+auth-safe+guarded-start)");
 
 /* global api */
 
@@ -16,72 +16,7 @@ function show(id) { q$(id)?.classList.remove("hidden"); }
 function hide(id) { q$(id)?.classList.add("hidden"); }
 function setText(id, v) { const el = q$(id); if (el) el.textContent = String(v); }
 
-// 秒数はここだけ変えればOK（後でUI化してもいい）
-const TIME_LIMIT = Number(window.APP_CONFIG?.GAME?.TIME_LIMIT || 30) || 30;
-
-// ===== Audio =====
-let AC = null, master = null, bgmTimer = null, bgmTier = null;
-
-function ensureAudio() {
-  if (AC) return;
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  AC = new Ctx();
-  master = AC.createGain();
-  master.gain.value = 0.25;
-  master.connect(AC.destination);
-}
-async function unlockAudio() {
-  ensureAudio();
-  if (AC.state !== "running") await AC.resume();
-}
-function hardStopAudio() {
-  // 事故防止：BGM停止＋AudioContext停止
-  try { stopBGM(); } catch (_) {}
-  try { if (AC && AC.state === "running") AC.suspend(); } catch (_) {}
-}
-function beep({ freq=440, dur=0.12, type="square", gain=0.12 }) {
-  if (!AC || !master) return;
-  const o = AC.createOscillator();
-  const g = AC.createGain();
-  o.type = type;
-  o.frequency.value = freq;
-  g.gain.value = 0.0001;
-  g.gain.linearRampToValueAtTime(gain, AC.currentTime + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
-  o.connect(g); g.connect(master);
-  o.start(); o.stop(AC.currentTime + dur + 0.02);
-}
-function sfxCount(n){ beep({ freq:n===3?440:n===2?523:659, dur:0.12, gain:0.16 }); }
-function sfxGo(){ beep({ freq:988, dur:0.10, gain:0.18 }); setTimeout(()=>beep({ freq:1319, dur:0.12, gain:0.16 }), 90); }
-function sfxCorrect(){ beep({ freq:880, dur:0.08, gain:0.18 }); setTimeout(()=>beep({ freq:1175, dur:0.10, gain:0.16 }), 90); }
-function sfxWrong(){ beep({ freq:160, dur:0.22, type:"sawtooth", gain:0.22 }); }
-
-function stopBGM(){ if (bgmTimer){ clearInterval(bgmTimer); bgmTimer=null; } bgmTier=null; }
-function startBGM(tier){
-  ensureAudio();
-  if (bgmTier === tier) return;
-  stopBGM();
-  bgmTier = tier;
-  const patterns = {
-    low:{ bpm:140, seq:[659,523,587,523,494,440,494,523] },
-    mid:{ bpm:160, seq:[784,659,698,659,587,523,587,659] },
-    high:{ bpm:180, seq:[988,784,880,784,698,659,698,784] },
-    result:{ bpm:120, seq:[523,659,784,659,523,494,523,659] }
-  };
-  const p = patterns[tier] || patterns.low;
-  const stepMs = Math.floor(60000 / p.bpm / 2);
-  let i = 0;
-  bgmTimer = setInterval(() => {
-    beep({ freq: p.seq[i % p.seq.length], dur: 0.07, gain: 0.07 });
-    i++;
-  }, stepMs);
-}
-function updateBgmByScore(){
-  if (!playing) return;
-  if (score >= 120) startBGM("high");
-  else if (score >= 60) startBGM("mid");
-  else startBGM("low");
-}
+const TIME_LIMIT = 30;
 
 // ===== Overlay =====
 function overlayShow(text, kind="") {
@@ -96,33 +31,17 @@ function overlayHide(){ q$("overlay")?.classList.add("hidden"); }
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 async function flashyCountdown() {
-  overlayShow("3", "count"); sfxCount(3); await sleep(900);
-  overlayShow("2", "count"); sfxCount(2); await sleep(900);
-  overlayShow("1", "count"); sfxCount(1); await sleep(900);
-  overlayShow("GO!", "go");  sfxGo();      await sleep(700);
+  overlayShow("3", "count"); await sleep(800);
+  overlayShow("2", "count"); await sleep(800);
+  overlayShow("1", "count"); await sleep(800);
+  overlayShow("GO!", "go");  await sleep(600);
   overlayHide();
 }
 
-// ===== Combo FX =====
-function comboText(n){
-  if (n >= 50) return `COMBO ${n}!!!`;
-  if (n >= 20) return `COMBO ${n}!!`;
-  if (n >= 10) return `COMBO ${n}!!`;
-  if (n >= 5)  return `COMBO ${n}!`;
-  return null;
-}
-async function showComboFxIfNeeded(){
-  const t = comboText(combo);
-  if (!t) return;
-  overlayShow(t, "go");
-  await sleep(420);
-  overlayHide();
-}
-
+// ===== Question =====
 async function loadQuestion() {
-    console.log("[loadQuestion] fetching...");
   const q = await api.fetchLatestQuestion();
-  if (!q) throw new Error("問題が見つかりません（questions が空 / is_active=false など）");
+  if (!q) throw new Error("問題が見つかりません（questionsが空 / is_active=false など）");
   currentQuestion = q;
 
   const qBox = q$("q");
@@ -160,31 +79,22 @@ async function answer(chosen) {
       score += Number(r.points || 0) + Math.min(combo, 20);
       combo += 1;
       maxCombo = Math.max(maxCombo, combo);
-
       overlayShow("⭕", "ok");
-      sfxCorrect();
     } else {
       combo = 0;
       overlayShow("❌", "ng");
-      sfxWrong();
     }
 
     setText("scoreNow", score);
     setText("comboNow", combo);
-    updateBgmByScore();
 
-    await sleep(520);
+    await sleep(450);
     overlayHide();
-
-    if (r.is_correct && (combo === 5 || combo === 10 || combo === 20 || combo % 25 === 0)) {
-      await showComboFxIfNeeded();
-    }
-
     await loadQuestion();
   } catch (e) {
     const msg = e?.message || "送信に失敗しました。";
     overlayShow(msg, "warn");
-    await sleep(1100);
+    await sleep(1200);
     overlayHide();
     endGame(true);
   } finally {
@@ -192,16 +102,22 @@ async function answer(chosen) {
   }
 }
 
+// ===== START (必ずcatchして Uncaught を潰す) =====
 async function startGame() {
   try {
-    await unlockAudio();
+    if (!window.api) {
+      overlayShow("APIが初期化されていません。再読み込みしてください。", "warn");
+      await sleep(1200);
+      overlayHide();
+      return;
+    }
 
-    // ✅ 本番モードは「ログインしてないと開始しない」
+    // ✅ 本番モードはログイン必須
     if (!api.isMock()) {
       const uid = await api.getMyUserId();
       if (!uid) {
         overlayShow("未ログインです。\n先にログインしてね", "warn");
-        await sleep(1100);
+        await sleep(1200);
         overlayHide();
         return;
       }
@@ -223,8 +139,6 @@ async function startGame() {
     setText("scoreNow", score);
     setText("comboNow", combo);
 
-    startBGM("low");
-
     await flashyCountdown();
     await loadQuestion();
 
@@ -236,35 +150,37 @@ async function startGame() {
     }, 1000);
 
   } catch (e) {
-    // ✅ ここで “Object” を握りつぶして表示
-    const msg =
-      (e && e.message) ? e.message :
-      (typeof e === "string") ? e :
-      "開始に失敗しました（本番設定/ログイン/DBを確認）";
-
     console.warn("[startGame] failed:", e);
+    const msg = e?.message || "開始に失敗しました（本番設定/ログイン/DBを確認）";
     overlayShow(msg, "warn");
     await sleep(1400);
     overlayHide();
 
-    // 安全にスタート画面へ
+    // 安全に戻す
     playing = false;
     clearInterval(timer);
-    stopBGM();
     hide("battlePane");
     hide("resultPane");
     show("startPane");
   }
 }
 
-// タブ非表示/離脱で音停止（事故防止）
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden) hardStopAudio();
-});
-window.addEventListener("pagehide", () => hardStopAudio());
-window.addEventListener("beforeunload", () => hardStopAudio());
+// ===== END（これが無いと endGame is not defined になる）=====
+function endGame(forceToStart) {
+  playing = false;
+  clearInterval(timer);
+
+  hide("battlePane");
+  show("resultPane");
+
+  setText("finalScore", score);
+  setText("finalCombo", maxCombo);
+
+  if (forceToStart) {
+    hide("resultPane");
+    show("startPane");
+  }
+}
 
 window.startGame = startGame;
 window.endGame = endGame;
-
-
