@@ -5,9 +5,16 @@
 // ここだけ自分の値にする
 // =====================
 const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
-// ★コピペ混入（改行/空白）を強制除去
-const SUPABASE_ANON_KEY = ("あなたのanon keyをここに貼る").replace(/\s+/g, "");
-window.__DEBUG_SUPABASE_KEY = SUPABASE_ANON_KEY; // ★確認用（あとで消してOK）
+
+// ✅ ここを「本物の anon key」に置き換える（日本語NG）
+// 例： const SUPABASE_ANON_KEY_RAW = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9....";
+const SUPABASE_ANON_KEY_RAW = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuY3pha25kemJxdmF1b3ZveWJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyMjQxNzgsImV4cCI6MjA4NDgwMDE3OH0.IRszAYwh3XPqWvl6fCApjEPTuOm9x647cqzPCgmgYUA";
+
+// ★コピペ混入（改行/空白/見えない文字）を強制除去
+const SUPABASE_ANON_KEY = String(SUPABASE_ANON_KEY_RAW).replace(/\s+/g, "");
+
+// ★確認用（問題が解決したら消してOK）
+window.__DEBUG_SUPABASE_KEY = SUPABASE_ANON_KEY;
 
 // =====================
 // MODE 切り替え（事故防止）
@@ -61,6 +68,14 @@ window.clientReady = (async () => {
     return;
   }
 
+  // キーが未設定なら安全にMOCKへ
+  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === "YOUR_REAL_ANON_KEY_HERE") {
+    console.warn("[config] ANON KEY not set -> MODE forced mock.");
+    window.USE_MOCK = true;
+    window.client = null;
+    return;
+  }
+
   const ok = await loadSupabaseSDK();
   console.log("[config] Supabase SDK loaded =", ok);
 
@@ -71,6 +86,7 @@ window.clientReady = (async () => {
     return;
   }
 
+  // Supabase client 作成
   window.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   console.log("[config] client created =", !!window.client);
 })();
@@ -79,7 +95,6 @@ window.clientReady = (async () => {
 // 画面に今のモードを出す（見落とし防止）
 // =====================
 window.addEventListener("DOMContentLoaded", () => {
-  // 右上にバッジ（小さく）
   const badge = document.createElement("div");
   badge.textContent = window.USE_MOCK ? "MODE: MOCK" : "MODE: PROD";
   badge.style.position = "fixed";
@@ -106,4 +121,3 @@ window.addEventListener("DOMContentLoaded", () => {
 
   document.body.appendChild(badge);
 });
-
