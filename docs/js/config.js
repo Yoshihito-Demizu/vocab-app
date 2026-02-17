@@ -5,7 +5,9 @@
 // ここだけ自分の値にする
 // =====================
 const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
-const SUPABASE_ANON_KEY = "（あなたのanon keyはここ。今のままでOK）";
+// ★コピペ混入（改行/空白）を強制除去
+const SUPABASE_ANON_KEY = ("あなたのanon keyをここに貼る").replace(/\s+/g, "");
+window.__DEBUG_SUPABASE_KEY = SUPABASE_ANON_KEY; // ★確認用（あとで消してOK）
 
 // =====================
 // MODE 切り替え（事故防止）
@@ -104,3 +106,4 @@ window.addEventListener("DOMContentLoaded", () => {
 
   document.body.appendChild(badge);
 });
+
