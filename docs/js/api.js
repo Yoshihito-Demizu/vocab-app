@@ -2,13 +2,6 @@
 /* global USE_MOCK, toEmail */
 "use strict";
 
-/**
- * ✅ 目的
- * - api.js の文法エラーを完全に潰す（= STARTが押せる状態に戻す）
- * - MOCK/PROD どちらでも動く
- * - ranking 用RPCがあれば使う（無ければ ranking.js が local fallback する）
- */
-
 const mock = {
   vocab: [
     { word: "憂慮", meaning: "心配して気にかけること", level: 1 },
@@ -69,7 +62,7 @@ function parseCSV(text) {
   return out;
 }
 
-async function loadVocabCSV() {
+async function _loadVocabCSV() {
   try {
     const res = await fetch("./vocab.csv", { cache: "no-store" });
     if (!res.ok) throw new Error("vocab.csv fetch failed: " + res.status);
@@ -85,7 +78,11 @@ async function loadVocabCSV() {
     console.warn("[api] vocab.csv load skipped:", e && e.message ? e.message : e);
   }
 }
-loadVocabCSV();
+
+// ✅ これを待てば vocab が必ず準備できる
+window.vocabReady = (async () => {
+  await _loadVocabCSV();
+})();
 
 // ===== choices generator（意味4択）=====
 function makeChoices(vocabList, correctItem) {
@@ -136,6 +133,11 @@ const api = {
 
   // ===== 出題 =====
   async fetchLatestQuestion() {
+    // ✅ 最初の出題前に必ずCSVロード完了を待つ
+    if (window.vocabReady) {
+      try { await window.vocabReady; } catch { /* ignore */ }
+    }
+
     // ---- MOCK：CSV vocab から作る ----
     if (window.USE_MOCK) {
       const pool = (mock.vocab || []).slice();
@@ -156,7 +158,7 @@ const api = {
       };
     }
 
-    // ---- PROD：DB questions をそのまま使う（まず復旧優先）----
+    // ---- PROD：DB questions ----
     const client = await ensureClientReady();
     const { data, error } = await client
       .from("questions")
@@ -169,8 +171,6 @@ const api = {
     if (!data || data.length === 0) return null;
 
     const q = data[Math.floor(Math.random() * data.length)];
-
-    // 正解ラベルはDBのものを保持（submitAttemptで使う）
     window.__LAST_PROD_CORRECT = String(q.correct_choice || "").trim().toUpperCase();
 
     return {
@@ -203,7 +203,6 @@ const api = {
     const uid = sess && sess.session && sess.session.user ? sess.session.user.id : null;
     if (!uid) throw { message: "未ログインです。スタート画面でログインしてから再開してください。" };
 
-    // まずDBに記録（あなたのRPCに合わせる）
     const { data, error } = await client.rpc("submit_attempt", {
       p_question_id: questionId,
       p_chosen_choice: String(chosen),
@@ -212,7 +211,6 @@ const api = {
     });
     if (error) throw error;
 
-    // 表示はDBからの返り値優先。無ければ直前正解で補完
     const row = Array.isArray(data) ? data[0] : data;
     const ok = (row && typeof row.is_correct !== "undefined")
       ? !!row.is_correct
