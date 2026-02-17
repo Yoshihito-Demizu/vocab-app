@@ -301,15 +301,48 @@ const api = {
     }];
   },
 
-  // ===== ranking.js 用（無くてもfallbackするが、あると良い）=====
+   // ===== ranking.js 用（Supabase RPC）=====
   async fetchWeekOptions() {
     if (window.USE_MOCK) return [this.getWeekIdNow()];
-    // ここは後で整備（weekly_rankingsが無い場合はranking.jsがlocal fallback）
-    return [this.getWeekIdNow()];
+    const client = await ensureClientReady();
+
+    const { data, error } = await client.rpc("list_weeks", { p_limit: 30 });
+    if (error) throw error;
+
+    const weeks = (data || []).map(r => r.week_id).filter(Boolean);
+    const now = this.getWeekIdNow();
+    if (!weeks.includes(now)) weeks.unshift(now);
+
+    // 重複排除して新しい順
+    return Array.from(new Set(weeks)).sort().reverse();
   },
-  async fetchPersonalWeeklyTop() { return []; },
-  async fetchMyWeeklyRank() { return null; },
-};
+
+  async fetchPersonalWeeklyTop(weekId) {
+    if (window.USE_MOCK) return [];
+    const client = await ensureClientReady();
+
+    const { data, error } = await client.rpc("get_weekly_top", {
+      p_week_id: weekId,
+      p_limit: 10,
+    });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async fetchMyWeeklyRank(weekId) {
+    if (window.USE_MOCK) return null;
+    const client = await ensureClientReady();
+
+    const { data, error } = await client.rpc("get_my_weekly_rank", {
+      p_week_id: weekId,
+    });
+    if (error) throw error;
+
+    // RPCは「1行 or 0行」で返る
+    const row = Array.isArray(data) ? data[0] : data;
+    return row || null;
+  },
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", mock.vocab.length);
+
