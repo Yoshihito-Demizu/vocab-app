@@ -4,25 +4,37 @@
 // =====================
 // ここだけ自分の値にする
 // =====================
-const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";   // Supabase Project Settings → API → Project URL
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuY3pha25kemJxdmF1b3ZveWJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyMjQxNzgsImV4cCI6MjA4NDgwMDE3OH0.IRszAYwh3XPqWvl6fCApjEPTuOm9x647cqzPCgmgYUA"; // Supabase Project Settings → API → anon public
+const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
+const SUPABASE_ANON_KEY = "（あなたのanon keyはここ。今のままでOK）";
 
-// Mock切り替え
-// true  = 端末内モード（Supabase不要）
-// false = Supabase本番
-window.USE_MOCK = false;
+// =====================
+// MODE 切り替え（事故防止）
+// =====================
+// 優先度：URLパラメータ > localStorage > デフォルト
+// ?mode=mock でMOCK、?mode=prod で本番
+function getMode() {
+  const p = new URLSearchParams(location.search);
+  const q = (p.get("mode") || "").toLowerCase();
+  if (q === "mock" || q === "prod") return q;
 
-// loginId をメール化（今は仮）
+  const saved = (localStorage.getItem("vocab_mode") || "").toLowerCase();
+  if (saved === "mock" || saved === "prod") return saved;
+
+  // 初期値：安全側（MOCK）
+  return "mock";
+}
+
+function setMode(mode) {
+  localStorage.setItem("vocab_mode", mode);
+}
+
+const MODE = getMode();
+setMode(MODE);
+
+window.USE_MOCK = (MODE === "mock");
+
+// loginId をメール化（仮）
 window.toEmail = (loginId) => `${loginId}@demo.local`;
-
-// =====================
-// アプリ設定（第2章：ここに集約）
-// =====================
-window.APP_CONFIG = window.APP_CONFIG || {};
-window.APP_CONFIG.GAME = {
-  // ✅ 30秒→60秒にしたいならここだけ変える
-  TIME_LIMIT: 30,
-};
 
 // =====================
 // SDK を動的に読み込む
@@ -39,21 +51,56 @@ async function loadSupabaseSDK() {
   });
 }
 
-// =====================
-// client準備完了を待てるようにする（重要）
-// =====================
+// clientReady を用意（api.js が安全に待てる）
 window.clientReady = (async () => {
+  if (window.USE_MOCK) {
+    console.log("[config] MODE=mock -> supabase not used.");
+    window.client = null;
+    return;
+  }
+
   const ok = await loadSupabaseSDK();
   console.log("[config] Supabase SDK loaded =", ok);
 
   if (!ok) {
-    console.warn("[config] SDK load failed. USE_MOCK forced true.");
+    console.warn("[config] SDK load failed. MODE forced mock.");
     window.USE_MOCK = true;
     window.client = null;
-    return null;
+    return;
   }
 
   window.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   console.log("[config] client created =", !!window.client);
-  return window.client;
 })();
+
+// =====================
+// 画面に今のモードを出す（見落とし防止）
+// =====================
+window.addEventListener("DOMContentLoaded", () => {
+  // 右上にバッジ（小さく）
+  const badge = document.createElement("div");
+  badge.textContent = window.USE_MOCK ? "MODE: MOCK" : "MODE: PROD";
+  badge.style.position = "fixed";
+  badge.style.top = "10px";
+  badge.style.right = "10px";
+  badge.style.zIndex = "99999";
+  badge.style.padding = "6px 10px";
+  badge.style.borderRadius = "999px";
+  badge.style.fontWeight = "900";
+  badge.style.fontSize = "12px";
+  badge.style.border = "1px solid rgba(255,255,255,.18)";
+  badge.style.background = window.USE_MOCK ? "rgba(0,211,138,.18)" : "rgba(255,59,48,.18)";
+  badge.style.color = "white";
+  badge.style.backdropFilter = "blur(6px)";
+  badge.style.cursor = "pointer";
+  badge.title = "クリックで切替（MOCK/PROD）";
+
+  badge.addEventListener("click", () => {
+    const next = window.USE_MOCK ? "prod" : "mock";
+    setMode(next);
+    alert(`モードを ${next.toUpperCase()} に切り替えます。再読み込みします。`);
+    location.reload();
+  });
+
+  document.body.appendChild(badge);
+});
