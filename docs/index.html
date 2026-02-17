@@ -204,12 +204,40 @@
   <script src="./js/quiz.js"></script>
   <script src="./js/main.js"></script>
 
-  <!-- SW登録 -->
-  <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./sw.js");
-    }
-  </script>
+ <!-- SW登録（更新検知→通知→即反映） -->
+<script>
+  (function () {
+    if (!("serviceWorker" in navigator)) return;
+
+    navigator.serviceWorker.register("./sw.js").then((reg) => {
+      // 新しいSWが来たら「更新しますか？」を出す
+      reg.addEventListener("updatefound", () => {
+        const newWorker = reg.installing;
+        if (!newWorker) return;
+
+        newWorker.addEventListener("statechange", () => {
+          // すでに制御中（=既にSWがある状態）で新SWがinstalledになったら更新の合図
+          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+            const ok = confirm("アップデートがあります。今すぐ更新しますか？");
+            if (ok) {
+              // 待機中SWを即有効化
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            }
+          }
+        });
+      });
+    });
+
+    // SWが切り替わったらリロードして新バージョンへ
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (refreshing) return;
+      refreshing = true;
+      location.reload();
+    });
+  })();
+</script>
 
 </body>
 </html>
+
