@@ -120,6 +120,7 @@ async function showComboFxIfNeeded(){
 }
 
 async function loadQuestion() {
+    console.log("[loadQuestion] fetching...");
   const q = await api.fetchLatestQuestion();
   if (!q) throw new Error("問題が見つかりません（questions が空 / is_active=false など）");
   currentQuestion = q;
@@ -192,69 +193,67 @@ async function answer(chosen) {
 }
 
 async function startGame() {
-  // ---- 安全ガード（本番APIが死んでも進める）----
-if (!window.api) {
-  alert("APIが初期化されていません。再読み込みしてください。");
-  return;
-}
-  await unlockAudio();
+  try {
+    await unlockAudio();
 
-  if (!api.isMock()) {
-    const uid = await api.getMyUserId();
-    if (!uid) {
-      overlayShow("未ログインです。\n先にログインしてね", "warn");
-      await sleep(1100);
-      overlayHide();
-      return;
+    // ✅ 本番モードは「ログインしてないと開始しない」
+    if (!api.isMock()) {
+      const uid = await api.getMyUserId();
+      if (!uid) {
+        overlayShow("未ログインです。\n先にログインしてね", "warn");
+        await sleep(1100);
+        overlayHide();
+        return;
+      }
     }
-  }
 
-  if (playing) return;
-  playing = true;
+    if (playing) return;
+    playing = true;
 
-  hide("startPane");
-  hide("resultPane");
-  show("battlePane");
+    hide("startPane");
+    hide("resultPane");
+    show("battlePane");
 
-  timeLeft = TIME_LIMIT;
-  score = 0;
-  combo = 0;
-  maxCombo = 0;
+    timeLeft = TIME_LIMIT;
+    score = 0;
+    combo = 0;
+    maxCombo = 0;
 
-  setText("timeLeft", timeLeft);
-  setText("scoreNow", score);
-  setText("comboNow", combo);
-
-  startBGM("low");
-
-  await flashyCountdown();
-  await loadQuestion();
-
-  clearInterval(timer);
-  timer = setInterval(() => {
-    timeLeft--;
     setText("timeLeft", timeLeft);
-    if (timeLeft <= 0) endGame(false);
-  }, 1000);
-}
+    setText("scoreNow", score);
+    setText("comboNow", combo);
 
-function endGame(forceToStart) {
-  playing = false;
-  clearInterval(timer);
+    startBGM("low");
 
-  stopBGM();
-  startBGM("result");
+    await flashyCountdown();
+    await loadQuestion();
 
-  hide("battlePane");
-  show("resultPane");
+    clearInterval(timer);
+    timer = setInterval(() => {
+      timeLeft--;
+      setText("timeLeft", timeLeft);
+      if (timeLeft <= 0) endGame(false);
+    }, 1000);
 
-  setText("finalScore", score);
-  setText("finalCombo", maxCombo);
+  } catch (e) {
+    // ✅ ここで “Object” を握りつぶして表示
+    const msg =
+      (e && e.message) ? e.message :
+      (typeof e === "string") ? e :
+      "開始に失敗しました（本番設定/ログイン/DBを確認）";
 
-  if (forceToStart) {
+    console.warn("[startGame] failed:", e);
+    overlayShow(msg, "warn");
+    await sleep(1400);
+    overlayHide();
+
+    // 安全にスタート画面へ
+    playing = false;
+    clearInterval(timer);
+    stopBGM();
+    hide("battlePane");
     hide("resultPane");
     show("startPane");
-    hardStopAudio();
   }
 }
 
@@ -267,4 +266,5 @@ window.addEventListener("beforeunload", () => hardStopAudio());
 
 window.startGame = startGame;
 window.endGame = endGame;
+
 
