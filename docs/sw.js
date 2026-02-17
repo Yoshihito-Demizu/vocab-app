@@ -2,7 +2,7 @@
 "use strict";
 
 // ✅ 更新のたびにここだけ変える（YYYYMMDD-連番）
-const VERSION = "20260217-4";
+const VERSION = "20260218-1";
 const CACHE_NAME = `vocab-ta-${VERSION}`;
 
 // ✅ これだけキャッシュ（基本は最低限にする）
@@ -115,6 +115,7 @@ self.addEventListener("fetch", (event) => {
     })()
   );
 });
+
 
 
 
