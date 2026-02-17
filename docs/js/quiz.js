@@ -192,6 +192,11 @@ async function answer(chosen) {
 }
 
 async function startGame() {
+  // ---- 安全ガード（本番APIが死んでも進める）----
+if (!window.api) {
+  alert("APIが初期化されていません。再読み込みしてください。");
+  return;
+}
   await unlockAudio();
 
   if (!api.isMock()) {
@@ -262,3 +267,4 @@ window.addEventListener("beforeunload", () => hardStopAudio());
 
 window.startGame = startGame;
 window.endGame = endGame;
+
