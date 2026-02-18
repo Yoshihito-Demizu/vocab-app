@@ -11,6 +11,30 @@ const mock = {
   ],
 };
 
+// ===== 出題の「連続防止」状態 =====
+const pickState = {
+  recentWords: [], // 直近の単語（最大5）
+};
+function rememberWord(w) {
+  if (!w) return;
+  // 先頭に入れて重複排除
+  pickState.recentWords = [w, ...pickState.recentWords.filter(x => x !== w)].slice(0, 5);
+}
+function pickAvoidRecent(items, getWord) {
+  if (!items || items.length === 0) return null;
+  if (items.length === 1) return items[0];
+
+  const recent = new Set(pickState.recentWords);
+  let candidates = items.filter(it => !recent.has(getWord(it)));
+
+  // 全部弾かれたら（データが少ない場合）仕方ないので全体から
+  if (candidates.length === 0) candidates = items;
+
+  const picked = candidates[Math.floor(Math.random() * candidates.length)];
+  rememberWord(getWord(picked));
+  return picked;
+}
+
 window.__LAST_MOCK_CORRECT = null;
 window.__LAST_PROD_CORRECT = null;
 
@@ -131,7 +155,7 @@ const api = {
     return getISOWeekId(new Date());
   },
 
-  // ===== 出題 =====
+  // ===== 出題（①：同じ単語が連続で出ない）=====
   async fetchLatestQuestion() {
     // ✅ 最初の出題前に必ずCSVロード完了を待つ
     if (window.vocabReady) {
@@ -142,7 +166,10 @@ const api = {
     if (window.USE_MOCK) {
       const pool = (mock.vocab || []).slice();
       if (pool.length < 4) throw new Error("vocabが少なすぎます（最低4件）");
-      const v = pool[Math.floor(Math.random() * pool.length)];
+
+      // ★ここで「直近5問」を避けて単語を選ぶ
+      const v = pickAvoidRecent(pool, (x) => x.word);
+
       const base = (mock.vocab || []).slice();
       const r = makeChoices(base, v);
       window.__LAST_MOCK_CORRECT = r.correctLabel;
@@ -170,7 +197,9 @@ const api = {
     if (error) throw error;
     if (!data || data.length === 0) return null;
 
-    const q = data[Math.floor(Math.random() * data.length)];
+    // ★ここで「直近5問」を避けて問題を選ぶ
+    const q = pickAvoidRecent(data, (x) => x.word);
+
     window.__LAST_PROD_CORRECT = String(q.correct_choice || "").trim().toUpperCase();
 
     return {
@@ -221,35 +250,6 @@ const api = {
       points: ok ? Number(row && row.points ? row.points : 10) : 0,
       out_week_id: String(row && row.out_week_id ? row.out_week_id : weekId),
     }];
-  },
-
-  // ===== ranking 用（あれば使う / 無ければ ranking.js が local fallback）=====
-  async fetchWeekOptions() {
-    if (window.USE_MOCK) return [this.getWeekIdNow()];
-    const client = await ensureClientReady();
-    const { data, error } = await client.rpc("list_weeks", { p_limit: 30 });
-    if (error) throw error;
-    const weeks = (data || []).map(r => r.week_id).filter(Boolean);
-    const now = this.getWeekIdNow();
-    if (weeks.indexOf(now) < 0) weeks.unshift(now);
-    return Array.from(new Set(weeks)).sort().reverse();
-  },
-
-  async fetchPersonalWeeklyTop(weekId) {
-    if (window.USE_MOCK) return [];
-    const client = await ensureClientReady();
-    const { data, error } = await client.rpc("get_weekly_top", { p_week_id: weekId, p_limit: 10 });
-    if (error) throw error;
-    return data || [];
-  },
-
-  async fetchMyWeeklyRank(weekId) {
-    if (window.USE_MOCK) return null;
-    const client = await ensureClientReady();
-    const { data, error } = await client.rpc("get_my_weekly_rank", { p_week_id: weekId });
-    if (error) throw error;
-    const row = Array.isArray(data) ? data[0] : data;
-    return row || null;
   },
 };
 
