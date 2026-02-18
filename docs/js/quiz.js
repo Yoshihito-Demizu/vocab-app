@@ -1,5 +1,5 @@
 // docs/js/quiz.js
-console.log("[quiz] loaded! (flow+overlay+auth-safe+comboFX+audioStop)");
+console.log("[quiz] loaded! (flow+overlay+auth-safe+comboFX+audioStop+btnFX+screenFlash)");
 
 /* global api */
 
@@ -85,11 +85,79 @@ function overlayShow(text, kind="") {
 function overlayHide(){ q$("overlay")?.classList.add("hidden"); }
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-// ===== COMBO FX（④）=====
+// ===== ④-2: FX用のスタイルを注入（HTML編集不要）=====
+let fxStyleInjected = false;
+function injectFxStyle() {
+  if (fxStyleInjected) return;
+  fxStyleInjected = true;
+
+  const style = document.createElement("style");
+  style.textContent = `
+    /* screen flash */
+    #screenFlash {
+      position: fixed; inset: 0; z-index: 99997; pointer-events: none;
+      opacity: 0; transition: opacity 120ms ease;
+    }
+    #screenFlash.ok { background: rgba(0, 211, 138, .18); }
+    #screenFlash.ng { background: rgba(255, 77, 125, .22); }
+
+    /* choice button FX */
+    .choice-ok {
+      outline: 2px solid rgba(0, 211, 138, .85);
+      box-shadow: 0 0 0 3px rgba(0, 211, 138, .22), 0 18px 44px rgba(0,0,0,.35);
+      transform: translateY(-1px) scale(1.01);
+      transition: transform 120ms ease, box-shadow 120ms ease;
+    }
+    .choice-ng {
+      outline: 2px solid rgba(255, 77, 125, .90);
+      box-shadow: 0 0 0 3px rgba(255, 77, 125, .20), 0 18px 44px rgba(0,0,0,.35);
+      animation: shake2 .22s ease-in-out;
+    }
+    @keyframes shake2 {
+      0%,100%{ transform: translateX(0); }
+      25%{ transform: translateX(-8px); }
+      50%{ transform: translateX(8px); }
+      75%{ transform: translateX(-5px); }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+let screenFlashEl = null;
+let screenFlashTimer = null;
+function ensureScreenFlash() {
+  injectFxStyle();
+  if (screenFlashEl) return screenFlashEl;
+  const el = document.createElement("div");
+  el.id = "screenFlash";
+  document.body.appendChild(el);
+  screenFlashEl = el;
+  return el;
+}
+function flashScreen(kind) {
+  const el = ensureScreenFlash();
+  if (screenFlashTimer) clearTimeout(screenFlashTimer);
+
+  el.className = "";
+  el.classList.add(kind === "ok" ? "ok" : "ng");
+  el.style.opacity = "1";
+
+  screenFlashTimer = setTimeout(() => { el.style.opacity = "0"; }, 140);
+}
+
+function pulseChoiceButton(btn, ok) {
+  if (!btn) return;
+  btn.classList.remove("choice-ok", "choice-ng");
+  btn.classList.add(ok ? "choice-ok" : "choice-ng");
+  setTimeout(() => btn.classList.remove("choice-ok", "choice-ng"), ok ? 220 : 320);
+}
+
+// ===== COMBO FX（④-1）=====
 let comboFxEl = null;
 let comboFxTimer = null;
 
 function ensureComboFxEl() {
+  injectFxStyle();
   if (comboFxEl) return comboFxEl;
 
   const el = document.createElement("div");
@@ -122,11 +190,9 @@ function showComboFX(n) {
   el.style.fontSize = milestone ? "44px" : "26px";
   el.style.color = milestone ? "#ffd54a" : "rgba(234,240,255,.92)";
 
-  // pop
   el.style.opacity = "1";
   el.style.transform = "translateY(-8px) scale(1)";
 
-  // ちょい追加の音（節目だけ）
   if (milestone) {
     beep({ freq: 1047, dur: 0.08, gain: 0.10 });
     setTimeout(() => beep({ freq: 1319, dur: 0.10, gain: 0.10 }), 80);
@@ -145,12 +211,10 @@ function resetComboFX() {
   comboFxEl.style.transform = "translateY(-16px) scale(0.98)";
 }
 
-// ===== audio stop（結果画面/離脱で止める）=====
+// ===== audio stop =====
 function stopAllAudio() {
   stopBGM();
-  try {
-    if (AC && AC.state !== "closed") AC.suspend();
-  } catch {}
+  try { if (AC && AC.state !== "closed") AC.suspend(); } catch {}
 }
 
 async function flashyCountdown() {
@@ -181,14 +245,15 @@ async function loadQuestion() {
   ].forEach(([k, txt]) => {
     const b = document.createElement("button");
     b.textContent = `${k}: ${txt}`;
-    b.addEventListener("click", () => answer(k), { passive: true });
+    // ✅ ボタン要素も渡す
+    b.addEventListener("click", () => answer(k, b), { passive: true });
     cBox.appendChild(b);
   });
 }
 
 let lock = false;
 
-async function answer(chosen) {
+async function answer(chosen, btnEl) {
   if (!playing || !currentQuestion || lock) return;
   lock = true;
 
@@ -202,17 +267,27 @@ async function answer(chosen) {
       combo += 1;
       maxCombo = Math.max(maxCombo, combo);
 
+      // ✅ ④-2：正解FX
+      pulseChoiceButton(btnEl, true);
+      flashScreen("ok");
+      if (navigator.vibrate) navigator.vibrate(12);
+
       overlayShow("⭕", "ok");
       sfxCorrect();
 
-      // ✅ ④：COMBO演出
+      // ✅ ④-1：COMBO演出
       showComboFX(combo);
     } else {
       combo = 0;
+
+      // ✅ ④-2：不正解FX
+      pulseChoiceButton(btnEl, false);
+      flashScreen("ng");
+      if (navigator.vibrate) navigator.vibrate([20, 20, 20]);
+
       overlayShow("❌", "ng");
       sfxWrong();
 
-      // コンボ切れたら消す
       resetComboFX();
     }
 
@@ -235,13 +310,11 @@ async function answer(chosen) {
 }
 
 async function startGame() {
-  try {
-    await unlockAudio();
-  } catch (e) {
-    console.warn("[startGame] audio unlock failed:", e);
-  }
+  injectFxStyle();
 
-  // ✅ 本番モードは「ログインしてないと開始しない」
+  try { await unlockAudio(); }
+  catch (e) { console.warn("[startGame] audio unlock failed:", e); }
+
   if (!api.isMock()) {
     const uid = await api.getMyUserId();
     if (!uid) {
@@ -305,7 +378,6 @@ function endGame(forceToStart) {
   }
 }
 
-// ✅ 離脱時に音を止める（スマホで効く）
 window.addEventListener("pagehide", stopAllAudio);
 window.addEventListener("beforeunload", stopAllAudio);
 
