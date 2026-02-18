@@ -13,13 +13,20 @@ const mock = {
 
 // ===== 出題の「連続防止」状態 =====
 const pickState = {
-  recentWords: [], // 直近の単語（最大5）
+  recentWords: [],         // 直近の単語（最大5）
+  recentCorrectLabels: [], // 直近の正解ラベル（最大3）
 };
+
 function rememberWord(w) {
   if (!w) return;
-  // 先頭に入れて重複排除
   pickState.recentWords = [w, ...pickState.recentWords.filter(x => x !== w)].slice(0, 5);
 }
+
+function rememberCorrectLabel(lbl) {
+  if (!lbl) return;
+  pickState.recentCorrectLabels = [lbl, ...pickState.recentCorrectLabels].slice(0, 3);
+}
+
 function pickAvoidRecent(items, getWord) {
   if (!items || items.length === 0) return null;
   if (items.length === 1) return items[0];
@@ -27,12 +34,21 @@ function pickAvoidRecent(items, getWord) {
   const recent = new Set(pickState.recentWords);
   let candidates = items.filter(it => !recent.has(getWord(it)));
 
-  // 全部弾かれたら（データが少ない場合）仕方ないので全体から
   if (candidates.length === 0) candidates = items;
 
   const picked = candidates[Math.floor(Math.random() * candidates.length)];
   rememberWord(getWord(picked));
   return picked;
+}
+
+// ===== 乱数シャッフル（Fisher–Yates）=====
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 window.__LAST_MOCK_CORRECT = null;
@@ -103,27 +119,56 @@ async function _loadVocabCSV() {
   }
 }
 
-// ✅ これを待てば vocab が必ず準備できる
-window.vocabReady = (async () => {
-  await _loadVocabCSV();
-})();
+window.vocabReady = (async () => { await _loadVocabCSV(); })();
 
-// ===== choices generator（意味4択）=====
+// ===== choices generator（②：正解位置の偏り防止）=====
 function makeChoices(vocabList, correctItem) {
-  const others = vocabList
+  const base = vocabList.slice();
+  const others = base
     .filter(v => v.word !== correctItem.word)
     .sort(() => Math.random() - 0.5)
     .slice(0, 3);
 
-  const meanings = [correctItem.meaning].concat(others.map(o => o.meaning))
-    .sort(() => Math.random() - 0.5);
+  const meanings = [correctItem.meaning, ...others.map(o => o.meaning)];
 
+  // 選択肢の中身をシャッフル（まず中身）
+  const shuffledMeanings = shuffle(meanings);
+
+  // ラベル（A/B/C/D）もシャッフルして、正解位置が偏らないようにする
   const labels = ["A", "B", "C", "D"];
-  const map = {};
-  for (let i = 0; i < 4; i++) map[labels[i]] = meanings[i];
+  let shuffledLabels = shuffle(labels);
 
-  const correctLabel = labels[meanings.indexOf(correctItem.meaning)];
-  return { map, correctLabel };
+  // おまけ：直近3問で同じ正解ラベルを避ける
+  // （避けられる時だけ避ける。無理ならそのまま）
+  const recent = new Set(pickState.recentCorrectLabels);
+  const correctIndex = shuffledMeanings.indexOf(correctItem.meaning);
+  if (correctIndex >= 0 && recent.size > 0) {
+    // 何回か引き直して「最近使ってないラベル」になるようにする
+    for (let tries = 0; tries < 10; tries++) {
+      const candidateLabel = shuffledLabels[correctIndex];
+      if (!recent.has(candidateLabel)) break;
+      shuffledLabels = shuffle(labels);
+    }
+  }
+
+  // map作成
+  const map = {};
+  for (let i = 0; i < 4; i++) {
+    map[shuffledLabels[i]] = shuffledMeanings[i];
+  }
+
+  // correctLabel を返す
+  const correctLabel = shuffledLabels[correctIndex];
+  rememberCorrectLabel(correctLabel);
+
+  // quiz.js 側は choice_a/b/c/d を期待してるので、必ずA-Dを埋める
+  return {
+    choice_a: map.A,
+    choice_b: map.B,
+    choice_c: map.C,
+    choice_d: map.D,
+    correctLabel,
+  };
 }
 
 const api = {
@@ -155,37 +200,33 @@ const api = {
     return getISOWeekId(new Date());
   },
 
-  // ===== 出題（①：同じ単語が連続で出ない）=====
+  // ===== 出題（①：同じ単語が連続で出ない / ②：正解位置が偏らない）=====
   async fetchLatestQuestion() {
-    // ✅ 最初の出題前に必ずCSVロード完了を待つ
     if (window.vocabReady) {
       try { await window.vocabReady; } catch { /* ignore */ }
     }
 
-    // ---- MOCK：CSV vocab から作る ----
     if (window.USE_MOCK) {
       const pool = (mock.vocab || []).slice();
       if (pool.length < 4) throw new Error("vocabが少なすぎます（最低4件）");
 
-      // ★ここで「直近5問」を避けて単語を選ぶ
       const v = pickAvoidRecent(pool, (x) => x.word);
+      const r = makeChoices(mock.vocab, v);
 
-      const base = (mock.vocab || []).slice();
-      const r = makeChoices(base, v);
       window.__LAST_MOCK_CORRECT = r.correctLabel;
 
       return {
         id: "mock-" + Date.now(),
         word: v.word,
         prompt: "意味として正しいものは？",
-        choice_a: r.map.A,
-        choice_b: r.map.B,
-        choice_c: r.map.C,
-        choice_d: r.map.D,
+        choice_a: r.choice_a,
+        choice_b: r.choice_b,
+        choice_c: r.choice_c,
+        choice_d: r.choice_d,
       };
     }
 
-    // ---- PROD：DB questions ----
+    // prodは後回しOK（いまは触らない前提）
     const client = await ensureClientReady();
     const { data, error } = await client
       .from("questions")
@@ -197,9 +238,7 @@ const api = {
     if (error) throw error;
     if (!data || data.length === 0) return null;
 
-    // ★ここで「直近5問」を避けて問題を選ぶ
     const q = pickAvoidRecent(data, (x) => x.word);
-
     window.__LAST_PROD_CORRECT = String(q.correct_choice || "").trim().toUpperCase();
 
     return {
@@ -213,7 +252,7 @@ const api = {
     };
   },
 
-  // ===== 送信 =====
+  // ===== 送信（mockだけ使う想定でOK）=====
   async submitAttempt(questionId, chosen) {
     const weekId = this.getWeekIdNow();
 
@@ -241,13 +280,9 @@ const api = {
     if (error) throw error;
 
     const row = Array.isArray(data) ? data[0] : data;
-    const ok = (row && typeof row.is_correct !== "undefined")
-      ? !!row.is_correct
-      : (String(chosen) === String(window.__LAST_PROD_CORRECT));
-
     return [{
-      is_correct: ok,
-      points: ok ? Number(row && row.points ? row.points : 10) : 0,
+      is_correct: !!(row && row.is_correct),
+      points: Number(row && row.points ? row.points : 0),
       out_week_id: String(row && row.out_week_id ? row.out_week_id : weekId),
     }];
   },
