@@ -1,5 +1,5 @@
 // docs/js/quiz.js
-console.log("[quiz] loaded! (flow+overlay+auth-safe+guarded-start)");
+console.log("[quiz] loaded! (flow+overlay+auth-safe+comboFX+audioStop)");
 
 /* global api */
 
@@ -16,9 +16,64 @@ function show(id) { q$(id)?.classList.remove("hidden"); }
 function hide(id) { q$(id)?.classList.add("hidden"); }
 function setText(id, v) { const el = q$(id); if (el) el.textContent = String(v); }
 
-const TIME_LIMIT = 30;
+let AC = null, master = null, bgmTimer = null, bgmTier = null;
 
-// ===== Overlay =====
+function ensureAudio() {
+  if (AC) return;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  AC = new Ctx();
+  master = AC.createGain();
+  master.gain.value = 0.25;
+  master.connect(AC.destination);
+}
+async function unlockAudio() {
+  ensureAudio();
+  if (AC.state !== "running") await AC.resume();
+}
+function beep({ freq=440, dur=0.12, type="square", gain=0.12 }) {
+  if (!AC || !master) return;
+  const o = AC.createOscillator();
+  const g = AC.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.value = 0.0001;
+  g.gain.linearRampToValueAtTime(gain, AC.currentTime + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
+  o.connect(g); g.connect(master);
+  o.start(); o.stop(AC.currentTime + dur + 0.02);
+}
+function sfxCount(n){ beep({ freq:n===3?440:n===2?523:659, dur:0.12, gain:0.16 }); }
+function sfxGo(){ beep({ freq:988, dur:0.10, gain:0.18 }); setTimeout(()=>beep({ freq:1319, dur:0.12, gain:0.16 }), 90); }
+function sfxCorrect(){ beep({ freq:880, dur:0.08, gain:0.18 }); setTimeout(()=>beep({ freq:1175, dur:0.10, gain:0.16 }), 90); }
+function sfxWrong(){ beep({ freq:160, dur:0.22, type:"sawtooth", gain:0.22 }); }
+
+function stopBGM(){ if (bgmTimer){ clearInterval(bgmTimer); bgmTimer=null; } bgmTier=null; }
+function startBGM(tier){
+  ensureAudio();
+  if (bgmTier === tier) return;
+  stopBGM();
+  bgmTier = tier;
+  const patterns = {
+    low:{ bpm:140, seq:[659,523,587,523,494,440,494,523] },
+    mid:{ bpm:160, seq:[784,659,698,659,587,523,587,659] },
+    high:{ bpm:180, seq:[988,784,880,784,698,659,698,784] },
+    result:{ bpm:120, seq:[523,659,784,659,523,494,523,659] }
+  };
+  const p = patterns[tier] || patterns.low;
+  const stepMs = Math.floor(60000 / p.bpm / 2);
+  let i = 0;
+  bgmTimer = setInterval(() => {
+    beep({ freq: p.seq[i % p.seq.length], dur: 0.07, gain: 0.07 });
+    i++;
+  }, stepMs);
+}
+function updateBgmByScore(){
+  if (!playing) return;
+  if (score >= 120) startBGM("high");
+  else if (score >= 60) startBGM("mid");
+  else startBGM("low");
+}
+
 function overlayShow(text, kind="") {
   const ov = q$("overlay");
   const panel = ov?.querySelector(".panel");
@@ -30,18 +85,85 @@ function overlayShow(text, kind="") {
 function overlayHide(){ q$("overlay")?.classList.add("hidden"); }
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
+// ===== COMBO FX（④）=====
+let comboFxEl = null;
+let comboFxTimer = null;
+
+function ensureComboFxEl() {
+  if (comboFxEl) return comboFxEl;
+
+  const el = document.createElement("div");
+  el.id = "comboFx";
+  el.style.position = "fixed";
+  el.style.right = "14px";
+  el.style.top = "66px";
+  el.style.zIndex = "99998";
+  el.style.pointerEvents = "none";
+  el.style.fontWeight = "1000";
+  el.style.letterSpacing = "0.5px";
+  el.style.textShadow = "0 12px 40px rgba(0,0,0,.55)";
+  el.style.transform = "translateY(-8px) scale(0.92)";
+  el.style.opacity = "0";
+  el.style.transition = "transform 180ms ease, opacity 180ms ease";
+  document.body.appendChild(el);
+
+  comboFxEl = el;
+  return el;
+}
+
+function showComboFX(n) {
+  const el = ensureComboFxEl();
+  if (comboFxTimer) clearTimeout(comboFxTimer);
+
+  const milestone = (n > 0 && n % 10 === 0);
+  const text = milestone ? `COMBO ${n}!!` : `COMBO ${n}`;
+
+  el.textContent = text;
+  el.style.fontSize = milestone ? "44px" : "26px";
+  el.style.color = milestone ? "#ffd54a" : "rgba(234,240,255,.92)";
+
+  // pop
+  el.style.opacity = "1";
+  el.style.transform = "translateY(-8px) scale(1)";
+
+  // ちょい追加の音（節目だけ）
+  if (milestone) {
+    beep({ freq: 1047, dur: 0.08, gain: 0.10 });
+    setTimeout(() => beep({ freq: 1319, dur: 0.10, gain: 0.10 }), 80);
+  }
+
+  comboFxTimer = setTimeout(() => {
+    el.style.opacity = "0";
+    el.style.transform = "translateY(-16px) scale(0.98)";
+  }, milestone ? 700 : 520);
+}
+
+function resetComboFX() {
+  if (!comboFxEl) return;
+  if (comboFxTimer) clearTimeout(comboFxTimer);
+  comboFxEl.style.opacity = "0";
+  comboFxEl.style.transform = "translateY(-16px) scale(0.98)";
+}
+
+// ===== audio stop（結果画面/離脱で止める）=====
+function stopAllAudio() {
+  stopBGM();
+  try {
+    if (AC && AC.state !== "closed") AC.suspend();
+  } catch {}
+}
+
 async function flashyCountdown() {
-  overlayShow("3", "count"); await sleep(800);
-  overlayShow("2", "count"); await sleep(800);
-  overlayShow("1", "count"); await sleep(800);
-  overlayShow("GO!", "go");  await sleep(600);
+  overlayShow("3", "count"); sfxCount(3); await sleep(900);
+  overlayShow("2", "count"); sfxCount(2); await sleep(900);
+  overlayShow("1", "count"); sfxCount(1); await sleep(900);
+  overlayShow("GO!", "go");  sfxGo();      await sleep(700);
   overlayHide();
 }
 
-// ===== Question =====
 async function loadQuestion() {
   const q = await api.fetchLatestQuestion();
-  if (!q) throw new Error("問題が見つかりません（questionsが空 / is_active=false など）");
+  if (!q) throw new Error("問題が見つかりません（CSVが空/4件未満など）");
   currentQuestion = q;
 
   const qBox = q$("q");
@@ -79,22 +201,32 @@ async function answer(chosen) {
       score += Number(r.points || 0) + Math.min(combo, 20);
       combo += 1;
       maxCombo = Math.max(maxCombo, combo);
+
       overlayShow("⭕", "ok");
+      sfxCorrect();
+
+      // ✅ ④：COMBO演出
+      showComboFX(combo);
     } else {
       combo = 0;
       overlayShow("❌", "ng");
+      sfxWrong();
+
+      // コンボ切れたら消す
+      resetComboFX();
     }
 
     setText("scoreNow", score);
     setText("comboNow", combo);
+    updateBgmByScore();
 
-    await sleep(450);
+    await sleep(520);
     overlayHide();
     await loadQuestion();
   } catch (e) {
     const msg = e?.message || "送信に失敗しました。";
     overlayShow(msg, "warn");
-    await sleep(1200);
+    await sleep(1100);
     overlayHide();
     endGame(true);
   } finally {
@@ -102,73 +234,61 @@ async function answer(chosen) {
   }
 }
 
-// ===== START (必ずcatchして Uncaught を潰す) =====
 async function startGame() {
   try {
-    if (!window.api) {
-      overlayShow("APIが初期化されていません。再読み込みしてください。", "warn");
-      await sleep(1200);
+    await unlockAudio();
+  } catch (e) {
+    console.warn("[startGame] audio unlock failed:", e);
+  }
+
+  // ✅ 本番モードは「ログインしてないと開始しない」
+  if (!api.isMock()) {
+    const uid = await api.getMyUserId();
+    if (!uid) {
+      overlayShow("未ログインです。\n先にログインしてね", "warn");
+      await sleep(1100);
       overlayHide();
       return;
     }
-
-    // ✅ 本番モードはログイン必須
-    if (!api.isMock()) {
-      const uid = await api.getMyUserId();
-      if (!uid) {
-        overlayShow("未ログインです。\n先にログインしてね", "warn");
-        await sleep(1200);
-        overlayHide();
-        return;
-      }
-    }
-
-    if (playing) return;
-    playing = true;
-
-    hide("startPane");
-    hide("resultPane");
-    show("battlePane");
-
-    timeLeft = TIME_LIMIT;
-    score = 0;
-    combo = 0;
-    maxCombo = 0;
-
-    setText("timeLeft", timeLeft);
-    setText("scoreNow", score);
-    setText("comboNow", combo);
-
-    await flashyCountdown();
-    await loadQuestion();
-
-    clearInterval(timer);
-    timer = setInterval(() => {
-      timeLeft--;
-      setText("timeLeft", timeLeft);
-      if (timeLeft <= 0) endGame(false);
-    }, 1000);
-
-  } catch (e) {
-    console.warn("[startGame] failed:", e);
-    const msg = e?.message || "開始に失敗しました（本番設定/ログイン/DBを確認）";
-    overlayShow(msg, "warn");
-    await sleep(1400);
-    overlayHide();
-
-    // 安全に戻す
-    playing = false;
-    clearInterval(timer);
-    hide("battlePane");
-    hide("resultPane");
-    show("startPane");
   }
+
+  if (playing) return;
+  playing = true;
+
+  hide("startPane");
+  hide("resultPane");
+  show("battlePane");
+
+  timeLeft = 30;
+  score = 0;
+  combo = 0;
+  maxCombo = 0;
+
+  resetComboFX();
+
+  setText("timeLeft", timeLeft);
+  setText("scoreNow", score);
+  setText("comboNow", combo);
+
+  startBGM("low");
+
+  await flashyCountdown();
+  await loadQuestion();
+
+  clearInterval(timer);
+  timer = setInterval(() => {
+    timeLeft--;
+    setText("timeLeft", timeLeft);
+    if (timeLeft <= 0) endGame(false);
+  }, 1000);
 }
 
-// ===== END（これが無いと endGame is not defined になる）=====
 function endGame(forceToStart) {
   playing = false;
   clearInterval(timer);
+
+  stopAllAudio();
+  startBGM("result");
 
   hide("battlePane");
   show("resultPane");
@@ -176,11 +296,18 @@ function endGame(forceToStart) {
   setText("finalScore", score);
   setText("finalCombo", maxCombo);
 
+  resetComboFX();
+
   if (forceToStart) {
     hide("resultPane");
     show("startPane");
+    stopAllAudio();
   }
 }
+
+// ✅ 離脱時に音を止める（スマホで効く）
+window.addEventListener("pagehide", stopAllAudio);
+window.addEventListener("beforeunload", stopAllAudio);
 
 window.startGame = startGame;
 window.endGame = endGame;
