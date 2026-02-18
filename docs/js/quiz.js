@@ -4,7 +4,7 @@ console.log("[quiz] loaded! (flow+overlay+auth-safe+comboFX+audioStop+btnFX+scre
 /* global api */
 
 let timer = null;
-let timeLeft = 30;
+let timeLeft = 60;
 let score = 0;
 let combo = 0;
 let maxCombo = 0;
@@ -332,7 +332,7 @@ async function startGame() {
   hide("resultPane");
   show("battlePane");
 
-  timeLeft = 30;
+  timeLeft = 60;
   score = 0;
   combo = 0;
   maxCombo = 0;
@@ -383,3 +383,4 @@ window.addEventListener("beforeunload", stopAllAudio);
 
 window.startGame = startGame;
 window.endGame = endGame;
+
