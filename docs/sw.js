@@ -1,10 +1,11 @@
 // docs/sw.js
 "use strict";
 
-// ✅ 更新のたびにここだけ変える（必須）
-const VERSION = "20260219-4";
+// ✅ 更新のたびにここだけ変える（必ず変更！）
+const VERSION = "20260219-1";
 const CACHE_NAME = `vocab-ta-${VERSION}`;
 
+// キャッシュしたい最低限
 const ASSETS = [
   "./",
   "./index.html",
@@ -37,7 +38,7 @@ self.addEventListener("activate", (event) => {
   })());
 });
 
-// ✅ ページ側から「今すぐ新SWを有効化」させる
+// ✅ ここが重要：index.html側の postMessage({type:"SKIP_WAITING"}) を受け取る
 self.addEventListener("message", (event) => {
   if (event?.data?.type === "SKIP_WAITING") {
     self.skipWaiting();
@@ -68,7 +69,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // ✅ JS/CSS/CSV/webmanifest はネット優先
+  // ✅ JS/CSS/CSV はネット優先
   const isAsset =
     url.pathname.endsWith(".js") ||
     url.pathname.endsWith(".css") ||
@@ -99,6 +100,3 @@ self.addEventListener("fetch", (event) => {
     return fresh;
   })());
 });
-
-
-
