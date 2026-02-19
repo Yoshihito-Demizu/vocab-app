@@ -33,7 +33,6 @@ function pickAvoidRecent(items, getWord) {
 
   const recent = new Set(pickState.recentWords);
   let candidates = items.filter(it => !recent.has(getWord(it)));
-
   if (candidates.length === 0) candidates = items;
 
   const picked = candidates[Math.floor(Math.random() * candidates.length)];
@@ -57,9 +56,11 @@ window.__LAST_PROD_CORRECT = null;
 // ===== client 準備待ち =====
 async function ensureClientReady() {
   if (window.USE_MOCK) return null;
+
   if (window.clientReady && typeof window.clientReady.then === "function") {
     await window.clientReady;
   }
+
   const c = window.client || null;
   if (!c) throw new Error("Supabase client が無い（config.jsの読み込み/ネット確認）");
   return c;
@@ -131,19 +132,17 @@ function makeChoices(vocabList, correctItem) {
 
   const meanings = [correctItem.meaning, ...others.map(o => o.meaning)];
 
-  // 選択肢の中身をシャッフル（まず中身）
+  // 選択肢の中身をシャッフル
   const shuffledMeanings = shuffle(meanings);
 
-  // ラベル（A/B/C/D）もシャッフルして、正解位置が偏らないようにする
+  // ラベル（A/B/C/D）もシャッフル
   const labels = ["A", "B", "C", "D"];
   let shuffledLabels = shuffle(labels);
 
-  // おまけ：直近3問で同じ正解ラベルを避ける
-  // （避けられる時だけ避ける。無理ならそのまま）
+  // 直近3問で同じ正解ラベルを避ける（可能な範囲で）
   const recent = new Set(pickState.recentCorrectLabels);
   const correctIndex = shuffledMeanings.indexOf(correctItem.meaning);
   if (correctIndex >= 0 && recent.size > 0) {
-    // 何回か引き直して「最近使ってないラベル」になるようにする
     for (let tries = 0; tries < 10; tries++) {
       const candidateLabel = shuffledLabels[correctIndex];
       if (!recent.has(candidateLabel)) break;
@@ -151,17 +150,14 @@ function makeChoices(vocabList, correctItem) {
     }
   }
 
-  // map作成
   const map = {};
   for (let i = 0; i < 4; i++) {
     map[shuffledLabels[i]] = shuffledMeanings[i];
   }
 
-  // correctLabel を返す
   const correctLabel = shuffledLabels[correctIndex];
   rememberCorrectLabel(correctLabel);
 
-  // quiz.js 側は choice_a/b/c/d を期待してるので、必ずA-Dを埋める
   return {
     choice_a: map.A,
     choice_b: map.B,
@@ -178,6 +174,7 @@ const api = {
     if (window.USE_MOCK) return { ok: true, message: "（モック：ログイン不要）" };
     const client = await ensureClientReady();
     const email = (window.toEmail || toEmail)(loginId);
+
     const { error } = await client.auth.signInWithPassword({ email, password });
     if (error) return { ok: false, message: error.message };
     return { ok: true, message: "ログイン成功" };
@@ -193,7 +190,9 @@ const api = {
     if (window.USE_MOCK) return "u1";
     const client = await ensureClientReady();
     const { data } = await client.auth.getSession();
-    return (data && data.session && data.session.user && data.session.user.id) ? data.session.user.id : null;
+    return (data && data.session && data.session.user && data.session.user.id)
+      ? data.session.user.id
+      : null;
   },
 
   getWeekIdNow() {
@@ -224,62 +223,9 @@ const api = {
         choice_c: r.choice_c,
         choice_d: r.choice_d,
       };
-   
-   async fetchWeekOptions() {
-    if (window.USE_MOCK) {
-      return [];
     }
 
-    await window.clientReady;
-    const { data, error } = await window.client.rpc("get_week_options");
-
-    if (error) {
-      console.warn("[api] get_week_options error:", error);
-      throw error;
-    }
-
-    return (data || []).map(x => x.week_id).filter(Boolean);
-  },
-
-  async fetchPersonalWeeklyTop(weekId) {
-    if (window.USE_MOCK) {
-      return [];
-    }
-
-    await window.clientReady;
-    const { data, error } = await window.client.rpc("get_weekly_top10", {
-      p_week_id: weekId
-    });
-
-    if (error) {
-      console.warn("[api] get_weekly_top10 error:", error);
-      throw error;
-    }
-
-    return data || [];
-  },
-
-  async fetchMyWeeklyRank(weekId) {
-    if (window.USE_MOCK) {
-      return null;
-    }
-
-    await window.clientReady;
-    const { data, error } = await window.client.rpc("get_my_weekly_rank", {
-      p_week_id: weekId
-    });
-
-    if (error) {
-      console.warn("[api] get_my_weekly_rank error:", error);
-      throw error;
-    }
-
-    return Array.isArray(data) ? data[0] : data;
-  },
-
-    }
-
-    // prodは後回しOK（いまは触らない前提）
+    // ===== PROD（Supabase questions から取得）=====
     const client = await ensureClientReady();
     const { data, error } = await client
       .from("questions")
@@ -305,7 +251,7 @@ const api = {
     };
   },
 
-  // ===== 送信（mockだけ使う想定でOK）=====
+  // ===== 送信 =====
   async submitAttempt(questionId, chosen) {
     const weekId = this.getWeekIdNow();
 
@@ -327,7 +273,7 @@ const api = {
     const { data, error } = await client.rpc("submit_attempt", {
       p_question_id: questionId,
       p_chosen_choice: String(chosen),
-      p_client_ms: Date.now(),
+      p_client_ms: Date.now(),       // bigintで受ける想定
       p_quiz_session_id: null,
     });
     if (error) throw error;
@@ -339,8 +285,32 @@ const api = {
       out_week_id: String(row && row.out_week_id ? row.out_week_id : weekId),
     }];
   },
+
+  // ===== ランキング用（Supabase RPC）=====
+  async fetchWeekOptions() {
+    if (window.USE_MOCK) return [];
+    const client = await ensureClientReady();
+    const { data, error } = await client.rpc("get_week_options");
+    if (error) throw error;
+    return (data || []).map(x => x.week_id).filter(Boolean);
+  },
+
+  async fetchPersonalWeeklyTop(weekId) {
+    if (window.USE_MOCK) return [];
+    const client = await ensureClientReady();
+    const { data, error } = await client.rpc("get_weekly_top10", { p_week_id: weekId });
+    if (error) throw error;
+    return data || [];
+  },
+
+  async fetchMyWeeklyRank(weekId) {
+    if (window.USE_MOCK) return null;
+    const client = await ensureClientReady();
+    const { data, error } = await client.rpc("get_my_weekly_rank", { p_week_id: weekId });
+    if (error) throw error;
+    return Array.isArray(data) ? data[0] : data;
+  },
 };
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", mock.vocab.length);
-
