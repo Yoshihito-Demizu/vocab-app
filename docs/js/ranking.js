@@ -1,5 +1,5 @@
 // docs/js/ranking.js
-console.log("[ranking] loaded! (supabase-first + local fallback)");
+console.log("[ranking] loaded! (supabase-first + local fallback + auto-run)");
 
 /* global api, USE_MOCK */
 
@@ -49,7 +49,7 @@ console.log("[ranking] loaded! (supabase-first + local fallback)");
     db.total[userId] = db.total[userId] || { points: 0, correct: 0, wrong: 0 };
   }
 
-  // ✅ ゲーム側（api.submitAttemptのmock）から呼ばれる：端末内に記録
+  // ===== ゲームから呼ばれる：端末内に記録（USE_MOCK時に有効）=====
   async function recordAttempt({ userId, weekId, is_correct, points }) {
     const db = loadDB();
     ensureUser(db, userId);
@@ -92,6 +92,9 @@ console.log("[ranking] loaded! (supabase-first + local fallback)");
       opt.textContent = w;
       sel.appendChild(opt);
     });
+
+    // 先頭選択
+    sel.value = weeks[0] || now;
   }
 
   // ===== 表示（Supabase Top10）=====
@@ -106,10 +109,10 @@ console.log("[ranking] loaded! (supabase-first + local fallback)");
     }
 
     const ol = document.createElement("ol");
-    list.forEach((r, i) => {
+    list.forEach((r) => {
       const li = document.createElement("li");
       const name = r.nickname || r.user_id;
-      li.textContent = `${i + 1}. ${name} — ${r.points}点（○${r.correct} / ×${r.wrong}）`;
+      li.textContent = `${r.rank}. ${name} — ${r.points}点（○${r.correct} / ×${r.wrong}）`;
       ol.appendChild(li);
     });
     box.appendChild(ol);
@@ -175,7 +178,7 @@ console.log("[ranking] loaded! (supabase-first + local fallback)");
 
   // ===== 本体 =====
   async function loadRankings() {
-    setText("rankMsg", "読み込み中…", "muted");
+    setText("rankMsg", "読み込み中…", "msg");
 
     const sel = $("weekSelect");
     const weekId = sel?.value || getISOWeekId();
@@ -189,7 +192,7 @@ console.log("[ranking] loaded! (supabase-first + local fallback)");
         const me = await api.fetchMyWeeklyRank(weekId);
         renderMyRankSupabase(me);
 
-        setText("rankMsg", `OK（${weekId}）`, "muted");
+        setText("rankMsg", `OK（${weekId}）`, "msg");
         return;
       } catch (e) {
         console.warn("[ranking] supabase failed -> fallback local:", e);
@@ -205,10 +208,25 @@ console.log("[ranking] loaded! (supabase-first + local fallback)");
     const myId = await api.getMyUserId(); // mockならu1
     renderMyRankLocal(weeklyList, usersMap, myId);
 
-    setText("rankMsg", `OK（${weekId} / local）`, "muted");
+    setText("rankMsg", `OK（${weekId} / local）`, "msg");
   }
 
-  // ===== グローバル公開 =====
+  // ===== 自動起動 =====
+  function boot() {
+    const sel = $("weekSelect");
+    const btn = $("rankReloadBtn");
+
+    if (btn) btn.addEventListener("click", () => loadRankings());
+    if (sel) sel.addEventListener("change", () => loadRankings());
+
+    // 先に週候補→ランキング
+    loadWeekOptions().then(loadRankings).catch(loadRankings);
+  }
+
+  // DOMができたら起動
+  window.addEventListener("DOMContentLoaded", boot);
+
+  // 結果画面が出た後でも呼べるよう公開
   window.loadWeekOptions = loadWeekOptions;
   window.loadRankings = loadRankings;
   window.__recordAttempt = recordAttempt;
