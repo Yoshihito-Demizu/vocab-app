@@ -194,6 +194,36 @@
     </div>
   </div>
 
+　<!-- RANKING -->
+　<div id="rankPane" style="margin-top:14px;">
+  <div class="resultCard">
+    <div class="resultBig" style="font-size:20px;">🏆 ランキング</div>
+
+    <div class="row" style="justify-content:space-between; align-items:center;">
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <label style="margin:0; font-size:12px; color:var(--muted);">週</label>
+        <select id="weekSelect" class="btn2" style="padding:10px 12px;">
+          <option value="">loading...</option>
+        </select>
+        <button id="rankReloadBtn" class="btn2">更新</button>
+      </div>
+
+      <div id="rankMsg" class="msg" style="margin:0;">—</div>
+    </div>
+
+    <div style="margin-top:10px;">
+      <div style="font-weight:900; margin:6px 0;">Top10</div>
+      <div id="weeklyTop" class="msg">（まだデータなし）</div>
+    </div>
+
+    <div style="margin-top:10px;">
+      <div style="font-weight:900; margin:6px 0;">あなた</div>
+      <div id="myRank" class="msg">（まだデータなし）</div>
+    </div>
+  </div>
+</div>
+
+  
   <!-- OVERLAY -->
   <div id="overlay" class="hidden"><div class="panel"></div></div>
 
@@ -240,4 +270,5 @@
 
 </body>
 </html>
+
 
