@@ -165,7 +165,7 @@
   <div id="battlePane" class="hidden">
     <div class="wrap">
       <div class="hud">
-        <div class="stat">残り <b id="timeLeft">30</b> 秒</div>
+        <div class="stat">残り <b id="timeLeft">60</b> 秒</div>
         <div class="stat">スコア <b id="scoreNow">0</b></div>
         <div class="stat">COMBO <b id="comboNow">0</b></div>
       </div>
@@ -179,7 +179,7 @@
     </div>
   </div>
 
-   <!-- RESULT -->
+  <!-- RESULT -->
   <div id="resultPane" class="hidden">
     <div class="wrap">
 
@@ -225,37 +225,6 @@
     </div>
   </div>
 
-
-　<!-- RANKING -->
-　<div id="rankPane" style="margin-top:14px;">
-  <div class="resultCard">
-    <div class="resultBig" style="font-size:20px;">🏆 ランキング</div>
-
-    <div class="row" style="justify-content:space-between; align-items:center;">
-      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <label style="margin:0; font-size:12px; color:var(--muted);">週</label>
-        <select id="weekSelect" class="btn2" style="padding:10px 12px;">
-          <option value="">loading...</option>
-        </select>
-        <button id="rankReloadBtn" class="btn2">更新</button>
-      </div>
-
-      <div id="rankMsg" class="msg" style="margin:0;">—</div>
-    </div>
-
-    <div style="margin-top:10px;">
-      <div style="font-weight:900; margin:6px 0;">Top10</div>
-      <div id="weeklyTop" class="msg">（まだデータなし）</div>
-    </div>
-
-    <div style="margin-top:10px;">
-      <div style="font-weight:900; margin:6px 0;">あなた</div>
-      <div id="myRank" class="msg">（まだデータなし）</div>
-    </div>
-  </div>
-</div>
-
-  
   <!-- OVERLAY -->
   <div id="overlay" class="hidden"><div class="panel"></div></div>
 
@@ -266,42 +235,33 @@
   <script src="./js/quiz.js"></script>
   <script src="./js/main.js"></script>
 
- <!-- SW登録（更新検知→通知→即反映） -->
-<script>
-  (function () {
-    if (!("serviceWorker" in navigator)) return;
+  <!-- SW登録（更新検知→通知→即反映） -->
+  <script>
+    (function () {
+      if (!("serviceWorker" in navigator)) return;
 
-    navigator.serviceWorker.register("./sw.js").then((reg) => {
-      // 新しいSWが来たら「更新しますか？」を出す
-      reg.addEventListener("updatefound", () => {
-        const newWorker = reg.installing;
-        if (!newWorker) return;
+      navigator.serviceWorker.register("./sw.js").then((reg) => {
+        reg.addEventListener("updatefound", () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
 
-        newWorker.addEventListener("statechange", () => {
-          // すでに制御中（=既にSWがある状態）で新SWがinstalledになったら更新の合図
-          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-            const ok = confirm("アップデートがあります。今すぐ更新しますか？");
-            if (ok) {
-              // 待機中SWを即有効化
-              newWorker.postMessage({ type: "SKIP_WAITING" });
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              const ok = confirm("アップデートがあります。今すぐ更新しますか？");
+              if (ok) newWorker.postMessage({ type: "SKIP_WAITING" });
             }
-          }
+          });
         });
       });
-    });
 
-    // SWが切り替わったらリロードして新バージョンへ
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (refreshing) return;
-      refreshing = true;
-      location.reload();
-    });
-  })();
-</script>
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (refreshing) return;
+        refreshing = true;
+        location.reload();
+      });
+    })();
+  </script>
 
 </body>
 </html>
-
-
-
