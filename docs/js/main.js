@@ -1,5 +1,5 @@
 // docs/js/main.js
-console.log("[main] loaded! (buttons+login+sw-update)");
+console.log("[main] loaded! (buttons+login+ranking)");
 
 /* global api */
 
@@ -14,7 +14,7 @@ async function refreshLoginBox(){
   const box = $("loginBox");
   if (!box) return;
 
-  if (api.isMock()) {
+  if (api?.isMock?.()) {
     box.classList.add("hidden");
     return;
   }
@@ -24,10 +24,39 @@ async function refreshLoginBox(){
   setLoginMsg(uid ? `ログイン中：${uid}` : "未ログイン（本番送信にはログインが必要）");
 }
 
+// ===== ランキングを読み込む（存在しない時は何もしない）=====
+async function refreshRanking(){
+  try{
+    // ranking.js が読み込まれていない / DOMが無い なら静かに終わる
+    if (typeof window.loadWeekOptions !== "function") return;
+    if (typeof window.loadRankings !== "function") return;
+
+    await window.loadWeekOptions();
+    await window.loadRankings();
+  } catch(e){
+    console.warn("[main] refreshRanking failed:", e);
+    // rankMsg があるなら一言だけ
+    const msg = $("rankMsg");
+    if (msg) msg.textContent = "ランキング取得に失敗";
+  }
+}
+
+// ===== ボタン =====
 $("startBtn")?.addEventListener("click", () => window.startGame?.());
 $("retryBtn")?.addEventListener("click", () => window.startGame?.());
 $("stopBtn")?.addEventListener("click", () => window.endGame?.());
 
+// ランキングの更新ボタン
+$("rankReloadBtn")?.addEventListener("click", async () => {
+  await refreshRanking();
+});
+
+// 週を変えたら自動更新
+$("weekSelect")?.addEventListener("change", async () => {
+  if (typeof window.loadRankings === "function") await window.loadRankings();
+});
+
+// ===== ログイン =====
 $("loginBtn")?.addEventListener("click", async () => {
   try{
     const loginId = $("loginId")?.value || "";
@@ -51,81 +80,17 @@ $("logoutBtn")?.addEventListener("click", async () => {
   }
 });
 
-refreshLoginBox();
+// ===== 初期化 =====
+(async () => {
+  await refreshLoginBox();
 
-// ========= PWA 更新通知 =========
-function ensureUpdateBanner(){
-  let bar = document.getElementById("updateBar");
-  if (bar) return bar;
+  // ページ起動時に結果画面が表示されている場合もあるので、ここで一度試す
+  //（rankPaneが無ければ何もしない）
+  await refreshRanking();
 
-  bar = document.createElement("div");
-  bar.id = "updateBar";
-  bar.style.position = "fixed";
-  bar.style.left = "10px";
-  bar.style.right = "10px";
-  bar.style.bottom = "12px";
-  bar.style.zIndex = "99999";
-  bar.style.padding = "12px 12px";
-  bar.style.borderRadius = "14px";
-  bar.style.border = "1px solid rgba(255,255,255,.18)";
-  bar.style.background = "rgba(10,16,36,.92)";
-  bar.style.backdropFilter = "blur(8px)";
-  bar.style.color = "white";
-  bar.style.display = "none";
-  bar.style.boxShadow = "0 18px 50px rgba(0,0,0,.35)";
-
-  bar.innerHTML = `
-    <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;">
-      <div style="font-weight:900;">新しいバージョンがあります</div>
-      <div style="display:flex; gap:8px;">
-        <button id="updateBtn" style="border:none;border-radius:999px;padding:10px 14px;font-weight:900;cursor:pointer;background:#ff3b30;color:white;">更新</button>
-        <button id="updateHideBtn" style="border:none;border-radius:999px;padding:10px 14px;font-weight:900;cursor:pointer;background:rgba(255,255,255,.12);color:white;">あとで</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(bar);
-
-  document.getElementById("updateHideBtn")?.addEventListener("click", () => {
-    bar.style.display = "none";
-  });
-
-  return bar;
-}
-
-function showUpdateBanner(waitingSW){
-  const bar = ensureUpdateBanner();
-  bar.style.display = "block";
-
-  document.getElementById("updateBtn")?.addEventListener("click", () => {
-    try {
-      waitingSW?.postMessage({ type: "SKIP_WAITING" });
-    } catch {}
-
-    // controllerchange でリロード
-  }, { once: true });
-}
-
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js").then((reg) => {
-    // すでに待機中のSWがいるなら出す
-    if (reg.waiting) showUpdateBanner(reg.waiting);
-
-    // 更新が見つかったら
-    reg.addEventListener("updatefound", () => {
-      const newWorker = reg.installing;
-      if (!newWorker) return;
-
-      newWorker.addEventListener("statechange", () => {
-        if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-          // 新SWが入った（ただしまだ待機）→ 更新ボタン出す
-          showUpdateBanner(newWorker);
-        }
-      });
-    });
-
-    // 新SWが有効化されたらリロード
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      location.reload();
-    });
-  }).catch(() => null);
-}
+  // ✅ 結果画面が表示されたタイミングでも更新できるように
+  // quiz.js 側から window.onResultShown() を呼べるようにする
+  window.onResultShown = async () => {
+    await refreshRanking();
+  };
+})();
