@@ -224,6 +224,59 @@ const api = {
         choice_c: r.choice_c,
         choice_d: r.choice_d,
       };
+   
+   async fetchWeekOptions() {
+    if (window.USE_MOCK) {
+      return [];
+    }
+
+    await window.clientReady;
+    const { data, error } = await window.client.rpc("get_week_options");
+
+    if (error) {
+      console.warn("[api] get_week_options error:", error);
+      throw error;
+    }
+
+    return (data || []).map(x => x.week_id).filter(Boolean);
+  },
+
+  async fetchPersonalWeeklyTop(weekId) {
+    if (window.USE_MOCK) {
+      return [];
+    }
+
+    await window.clientReady;
+    const { data, error } = await window.client.rpc("get_weekly_top10", {
+      p_week_id: weekId
+    });
+
+    if (error) {
+      console.warn("[api] get_weekly_top10 error:", error);
+      throw error;
+    }
+
+    return data || [];
+  },
+
+  async fetchMyWeeklyRank(weekId) {
+    if (window.USE_MOCK) {
+      return null;
+    }
+
+    await window.clientReady;
+    const { data, error } = await window.client.rpc("get_my_weekly_rank", {
+      p_week_id: weekId
+    });
+
+    if (error) {
+      console.warn("[api] get_my_weekly_rank error:", error);
+      throw error;
+    }
+
+    return Array.isArray(data) ? data[0] : data;
+  },
+
     }
 
     // prodは後回しOK（いまは触らない前提）
@@ -290,3 +343,4 @@ const api = {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", mock.vocab.length);
+
