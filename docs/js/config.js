@@ -1,34 +1,35 @@
 // docs/js/config.js
 "use strict";
 
+// =====================
+// ここだけ自分の値にする
+// =====================
 const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
+
+// ✅ 本物の anon key（改行/空白/見えない文字を除去）
 const SUPABASE_ANON_KEY_RAW =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuY3pha25kemJxdmF1b3ZveWJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyMjQxNzgsImV4cCI6MjA4NDgwMDE3OH0.IRszAYwh3XPqWvl6fCApjEPTuOm9x647cqzPCgmgYUA";
 
-// 1) 空白除去
-let SUPABASE_ANON_KEY = String(SUPABASE_ANON_KEY_RAW).replace(/\s+/g, "");
-// 2) JWTとして許可する文字だけ残す（見えない文字混入対策）
-SUPABASE_ANON_KEY = SUPABASE_ANON_KEY.replace(/[^A-Za-z0-9._-]/g, "");
+const SUPABASE_ANON_KEY = String(SUPABASE_ANON_KEY_RAW).replace(/\s+/g, "");
 
-// デバッグ情報（これが見えれば「更新反映OK」）
-window.__DEBUG_SUPABASE_KEY_INFO = {
-  len: SUPABASE_ANON_KEY.length,
-  dotCount: (SUPABASE_ANON_KEY.match(/\./g) || []).length,
-  hasNonAscii: [...SUPABASE_ANON_KEY].some(ch => ch.charCodeAt(0) > 127),
-};
-
-// ===== MODE =====
+// =====================
+// MODE 切り替え（事故防止）
+// =====================
+// 優先度：URLパラメータ > localStorage > デフォルト
 function getMode() {
-  const p = new URLSearchParams(location.search);
-  const q = (p.get("mode") || "").toLowerCase();
+  const u = new URL(location.href);
+  const q = (u.searchParams.get("mode") || "").toLowerCase();
   if (q === "mock" || q === "prod") return q;
 
   const saved = (localStorage.getItem("vocab_mode") || "").toLowerCase();
   if (saved === "mock" || saved === "prod") return saved;
 
-  return "mock";
+  return "mock"; // 初期値：安全側
 }
-function setMode(mode) { localStorage.setItem("vocab_mode", mode); }
+
+function setMode(mode) {
+  localStorage.setItem("vocab_mode", mode);
+}
 
 const MODE = getMode();
 setMode(MODE);
@@ -37,9 +38,12 @@ window.USE_MOCK = (MODE === "mock");
 // loginId をメール化（仮）
 window.toEmail = (loginId) => `${loginId}@demo.local`;
 
-// ===== SDK load =====
+// =====================
+// SDK を動的に読み込む
+// =====================
 async function loadSupabaseSDK() {
   if (window.supabase?.createClient) return true;
+
   return new Promise((resolve) => {
     const s = document.createElement("script");
     s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
@@ -49,7 +53,7 @@ async function loadSupabaseSDK() {
   });
 }
 
-// clientReady
+// clientReady を用意（api.js が安全に待てる）
 window.clientReady = (async () => {
   if (window.USE_MOCK) {
     console.log("[config] MODE=mock -> supabase not used.");
@@ -57,10 +61,9 @@ window.clientReady = (async () => {
     return;
   }
 
-  // キーが変なら安全に止める
-  if (!SUPABASE_ANON_KEY || window.__DEBUG_SUPABASE_KEY_INFO.dotCount !== 2 || window.__DEBUG_SUPABASE_KEY_INFO.hasNonAscii) {
-    console.error("[config] Bad anon key:", window.__DEBUG_SUPABASE_KEY_INFO);
-    alert("Supabase anon key が不正（見えない文字混入など）。MOCKに切り替えます。");
+  // キーが未設定なら安全にMOCKへ
+  if (!SUPABASE_ANON_KEY) {
+    console.warn("[config] ANON KEY missing -> MODE forced mock.");
     window.USE_MOCK = true;
     window.client = null;
     return;
@@ -80,7 +83,9 @@ window.clientReady = (async () => {
   console.log("[config] client created =", !!window.client);
 })();
 
-// バッジ
+// =====================
+// 画面に今のモードを出す（見落とし防止）
+// =====================
 window.addEventListener("DOMContentLoaded", () => {
   const badge = document.createElement("div");
   badge.textContent = window.USE_MOCK ? "MODE: MOCK" : "MODE: PROD";
@@ -102,8 +107,13 @@ window.addEventListener("DOMContentLoaded", () => {
   badge.addEventListener("click", () => {
     const next = window.USE_MOCK ? "prod" : "mock";
     setMode(next);
+
+    // ✅ ここが重要：URLの ?mode= を書き換える（URLが最優先だから）
+    const u = new URL(location.href);
+    u.searchParams.set("mode", next);
+
     alert(`モードを ${next.toUpperCase()} に切り替えます。再読み込みします。`);
-    location.reload();
+    location.href = u.toString();
   });
 
   document.body.appendChild(badge);
