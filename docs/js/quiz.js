@@ -359,8 +359,7 @@ async function startGame() {
 function endGame(forceToStart) {
   playing = false;
   clearInterval(timer);
-
-  stopAllAudio();
+  stopBGM();
   startBGM("result");
 
   hide("battlePane");
@@ -369,18 +368,25 @@ function endGame(forceToStart) {
   setText("finalScore", score);
   setText("finalCombo", maxCombo);
 
-  resetComboFX();
+  // ✅ 結果画面を出した瞬間にランキング更新（失敗してもゲームは止めない）
+  try {
+    Promise.resolve()
+      .then(() => window.loadWeekOptions?.())
+      .then(() => window.loadRankings?.())
+      .catch(() => null);
+  } catch (_) {}
 
   if (forceToStart) {
     hide("resultPane");
     show("startPane");
-    stopAllAudio();
   }
 }
+
 
 window.addEventListener("pagehide", stopAllAudio);
 window.addEventListener("beforeunload", stopAllAudio);
 
 window.startGame = startGame;
 window.endGame = endGame;
+
 
