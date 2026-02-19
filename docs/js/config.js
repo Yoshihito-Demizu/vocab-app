@@ -13,22 +13,24 @@ const SUPABASE_ANON_KEY_RAW =
 const SUPABASE_ANON_KEY = String(SUPABASE_ANON_KEY_RAW).replace(/\s+/g, "");
 
 // =====================
-// MODE 切り替え（事故防止）
+// MODE 切り替え（クリックが必ず勝つ版）
 // =====================
-// 優先度：URLパラメータ > localStorage > デフォルト
-function getMode() {
-  const u = new URL(location.href);
-  const q = (u.searchParams.get("mode") || "").toLowerCase();
-  if (q === "mock" || q === "prod") return q;
+const MODE_KEY = "vocab_mode";
 
-  const saved = (localStorage.getItem("vocab_mode") || "").toLowerCase();
+// 優先度：localStorage > URLパラメータ > デフォルト
+function getMode() {
+  const saved = (localStorage.getItem(MODE_KEY) || "").toLowerCase();
   if (saved === "mock" || saved === "prod") return saved;
+
+  const p = new URLSearchParams(location.search);
+  const q = (p.get("mode") || "").toLowerCase();
+  if (q === "mock" || q === "prod") return q;
 
   return "mock"; // 初期値：安全側
 }
 
 function setMode(mode) {
-  localStorage.setItem("vocab_mode", mode);
+  localStorage.setItem(MODE_KEY, mode);
 }
 
 const MODE = getMode();
@@ -61,7 +63,6 @@ window.clientReady = (async () => {
     return;
   }
 
-  // キーが未設定なら安全にMOCKへ
   if (!SUPABASE_ANON_KEY) {
     console.warn("[config] ANON KEY missing -> MODE forced mock.");
     window.USE_MOCK = true;
@@ -108,12 +109,9 @@ window.addEventListener("DOMContentLoaded", () => {
     const next = window.USE_MOCK ? "prod" : "mock";
     setMode(next);
 
-    // ✅ ここが重要：URLの ?mode= を書き換える（URLが最優先だから）
-    const u = new URL(location.href);
-    u.searchParams.set("mode", next);
-
     alert(`モードを ${next.toUpperCase()} に切り替えます。再読み込みします。`);
-    location.href = u.toString();
+    // ✅ URLを書き換えなくても、localStorage優先なので必ず切り替わる
+    location.reload();
   });
 
   document.body.appendChild(badge);
