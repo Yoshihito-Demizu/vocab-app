@@ -2,14 +2,6 @@
 /* global USE_MOCK, toEmail */
 "use strict";
 
-/**
- * 方針：
- * - 出題は常に vocab.csv（ローカル）から行う（MOCK/PRODどちらでも同じ出題）
- * - MOCK/PRODの差は「送信先」だけ
- *   - MOCK: 端末内で正誤判定して返す
- *   - PROD: Supabase RPC submit_attempt に送る（ランキング用）
- */
-
 const mock = {
   vocab: [
     { word: "憂慮", meaning: "心配して気にかけること", level: 1 },
@@ -19,19 +11,11 @@ const mock = {
   ],
 };
 
-// ===== 出題の「連続防止」状態 =====
-const pickState = {
-  recentWords: [],         // 直近の単語（最大8）
-  recentCorrectLabels: [], // 直近の正解ラベル（最大4）
-};
-
+// ===== 連続防止 =====
+const pickState = { recentWords: [] };
 function rememberWord(w) {
   if (!w) return;
   pickState.recentWords = [w, ...pickState.recentWords.filter(x => x !== w)].slice(0, 8);
-}
-function rememberCorrectLabel(lbl) {
-  if (!lbl) return;
-  pickState.recentCorrectLabels = [lbl, ...pickState.recentCorrectLabels].slice(0, 4);
 }
 function pickAvoidRecent(items, getWord) {
   if (!items || items.length === 0) return null;
@@ -46,7 +30,7 @@ function pickAvoidRecent(items, getWord) {
   return picked;
 }
 
-// ===== シャッフル（Fisher–Yates）=====
+// ===== シャッフル =====
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -56,9 +40,9 @@ function shuffle(arr) {
   return a;
 }
 
-window.__LAST_CORRECT = null; // MOCK用（正解ラベル）
+window.__LAST_MOCK_CORRECT = null;
 
-// ===== client 準備待ち =====
+// ===== Supabase client待ち =====
 async function ensureClientReady() {
   if (window.USE_MOCK) return null;
   if (window.clientReady && typeof window.clientReady.then === "function") {
@@ -69,7 +53,7 @@ async function ensureClientReady() {
   return c;
 }
 
-// ===== week_id（YYYY-Www）=====
+// ===== week_id =====
 function getISOWeekId(d) {
   const dd = d ? new Date(d) : new Date();
   const date = new Date(Date.UTC(dd.getFullYear(), dd.getMonth(), dd.getDate()));
@@ -82,7 +66,7 @@ function getISOWeekId(d) {
   return `${yyyy}-W${ww}`;
 }
 
-// ===== CSV loader（vocab.csv を出題元にする）=====
+// ===== vocab.csv（MOCK用語彙）=====
 function parseCSV(text) {
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
   if (lines.length <= 1) return [];
@@ -90,7 +74,6 @@ function parseCSV(text) {
   const idxWord = header.indexOf("word");
   const idxMeaning = header.indexOf("meaning");
   const idxLevel = header.indexOf("level");
-
   if (idxWord < 0 || idxMeaning < 0) throw new Error("CSVヘッダに word,meaning が必要です");
 
   const out = [];
@@ -115,50 +98,28 @@ async function loadVocabCSV() {
     if (list.length >= 4) {
       mock.vocab = list;
       console.log("[api] vocab loaded from CSV:", list.length);
-    } else {
-      console.warn("[api] vocab.csv too small (need >=4). keep fallback:", list.length);
     }
   } catch (e) {
-    console.warn("[api] vocab.csv load skipped:", (e && e.message) ? e.message : e);
+    console.warn("[api] vocab.csv load skipped:", e?.message || e);
   }
 }
 window.vocabReady = (async () => { await loadVocabCSV(); })();
 
-// ===== choices generator（正解位置の偏り防止）=====
-function makeChoices(vocabList, correctItem) {
+// ===== MOCKの4択生成（意味から作る）=====
+function makeChoicesFromVocab(vocabList, correctItem) {
   const base = vocabList.slice();
   const others = shuffle(base.filter(v => v.word !== correctItem.word)).slice(0, 3);
-
-  const meanings = [correctItem.meaning, ...others.map(o => o.meaning)];
-  const shuffledMeanings = shuffle(meanings);
+  const meanings = shuffle([correctItem.meaning, ...others.map(o => o.meaning)]);
 
   const labels = ["A", "B", "C", "D"];
-  let shuffledLabels = shuffle(labels);
-
-  const recent = new Set(pickState.recentCorrectLabels);
-  const correctIndex = shuffledMeanings.indexOf(correctItem.meaning);
-
-  if (correctIndex >= 0 && recent.size > 0) {
-    for (let tries = 0; tries < 12; tries++) {
-      const candidateLabel = shuffledLabels[correctIndex];
-      if (!recent.has(candidateLabel)) break;
-      shuffledLabels = shuffle(labels);
-    }
-  }
-
-  const map = {};
-  for (let i = 0; i < 4; i++) {
-    map[shuffledLabels[i]] = shuffledMeanings[i];
-  }
-
-  const correctLabel = shuffledLabels[correctIndex];
-  rememberCorrectLabel(correctLabel);
+  const correctLabel = labels[meanings.indexOf(correctItem.meaning)];
+  window.__LAST_MOCK_CORRECT = correctLabel;
 
   return {
-    choice_a: map.A,
-    choice_b: map.B,
-    choice_c: map.C,
-    choice_d: map.D,
+    choice_a: meanings[0],
+    choice_b: meanings[1],
+    choice_c: meanings[2],
+    choice_d: meanings[3],
     correctLabel,
   };
 }
@@ -192,34 +153,53 @@ const api = {
     return getISOWeekId(new Date());
   },
 
-  // ✅ 出題は常にCSVから
+  // ===== 出題 =====
   async fetchLatestQuestion() {
-    if (window.vocabReady) {
-      try { await window.vocabReady; } catch {}
+    // vocabReadyはMOCKだけで使う
+    if (window.vocabReady) { try { await window.vocabReady; } catch {} }
+
+    // ---- MOCK：CSVから出題 ----
+    if (window.USE_MOCK) {
+      const pool = (mock.vocab || []).slice();
+      if (pool.length < 4) throw new Error("vocabが少なすぎます（最低4件）");
+
+      const v = pickAvoidRecent(pool, (x) => x.word);
+      const r = makeChoicesFromVocab(pool, v);
+
+      return {
+        id: "mock-" + Date.now(),
+        word: v.word,
+        prompt: "意味として正しいものは？",
+        choice_a: r.choice_a,
+        choice_b: r.choice_b,
+        choice_c: r.choice_c,
+        choice_d: r.choice_d,
+      };
     }
 
-    const pool = (mock.vocab || []).slice();
-    if (pool.length < 4) throw new Error("vocabが少なすぎます（最低4件）");
+    // ---- PROD：questionsテーブルから出題（送信と整合） ----
+    const client = await ensureClientReady();
 
-    // levelSelect があれば絞る（無ければ全件）
-    const level = document.getElementById("levelSelect")?.value || "all";
-    let filtered = pool;
-    if (level !== "all") filtered = pool.filter(v => String(v.level || 1) === String(level));
-    if (filtered.length < 4) filtered = pool;
+    const { data, error } = await client
+      .from("questions")
+      .select("id, word, prompt, choice_a, choice_b, choice_c, choice_d, correct_choice")
+      .eq("is_active", true)
+      .limit(300);
 
-    const v = pickAvoidRecent(filtered, (x) => x.word);
-    const r = makeChoices(pool, v);
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
 
-    window.__LAST_CORRECT = r.correctLabel;
+    const q = pickAvoidRecent(data, (x) => x.word);
 
+    // quiz.jsが期待する形
     return {
-      id: "csv-" + Date.now(),
-      word: v.word,
-      prompt: "意味として正しいものは？",
-      choice_a: r.choice_a,
-      choice_b: r.choice_b,
-      choice_c: r.choice_c,
-      choice_d: r.choice_d,
+      id: q.id,
+      word: q.word,
+      prompt: q.prompt,
+      choice_a: q.choice_a,
+      choice_b: q.choice_b,
+      choice_c: q.choice_c,
+      choice_d: q.choice_d,
     };
   },
 
@@ -248,18 +228,13 @@ const api = {
     return Array.isArray(data) ? data[0] : data;
   },
 
-  // ✅ 送信だけPRODでSupabaseへ（MOCKは端末内判定）
-  async submitAttempt(_questionId, chosen) {
+  // ===== 送信 =====
+  async submitAttempt(questionId, chosen) {
     const weekId = this.getWeekIdNow();
 
     if (window.USE_MOCK) {
-      const correct = window.__LAST_CORRECT;
-      const ok = String(chosen) === String(correct);
-      return [{
-        is_correct: ok,
-        points: ok ? 10 : 0,
-        out_week_id: weekId,
-      }];
+      const ok = String(chosen) === String(window.__LAST_MOCK_CORRECT);
+      return [{ is_correct: ok, points: ok ? 10 : 0, out_week_id: weekId }];
     }
 
     const client = await ensureClientReady();
@@ -268,8 +243,8 @@ const api = {
     if (!uid) throw { message: "未ログインです。スタート画面でログインしてから再開してください。" };
 
     const { data, error } = await client.rpc("submit_attempt", {
-      p_question_id: null,              // ← CSV出題なのでnullで送る（SQL側が許容してる前提）
-      p_chosen_choice: String(chosen),  // A/B/C/D
+      p_question_id: questionId,           // ★ここがDBのUUIDじゃないと落ちる
+      p_chosen_choice: String(chosen),
       p_client_ms: Date.now(),
       p_quiz_session_id: null,
     });
@@ -285,4 +260,4 @@ const api = {
 };
 
 window.api = api;
-console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "vocab size =", mock.vocab.length);
+console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", mock.vocab.length);
