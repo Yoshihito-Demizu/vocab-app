@@ -2,7 +2,7 @@
 "use strict";
 
 // ✅ 更新のたびにここだけ変える（必ず変更！）
-const VERSION = "20260219-1";
+const VERSION = "20260219-2";
 const CACHE_NAME = `vocab-ta-${VERSION}`;
 
 // キャッシュしたい最低限
@@ -100,3 +100,4 @@ self.addEventListener("fetch", (event) => {
     return fresh;
   })());
 });
+
