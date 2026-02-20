@@ -1,5 +1,5 @@
 // docs/js/ranking.js
-console.log("[ranking] loaded! (supabase-first + local fallback + auto-run)");
+console.log("[ranking] loaded! (supabase-first + local fallback + auto-wire)");
 
 /* global api, USE_MOCK */
 
@@ -75,7 +75,7 @@ console.log("[ranking] loaded! (supabase-first + local fallback + auto-run)");
     let weeks = [];
     try {
       weeks = await api.fetchWeekOptions();
-    } catch {
+    } catch (e) {
       const db = loadDB();
       weeks = Object.keys(db.weekly || {});
     }
@@ -93,8 +93,8 @@ console.log("[ranking] loaded! (supabase-first + local fallback + auto-run)");
       sel.appendChild(opt);
     });
 
-    // 先頭選択
-    sel.value = weeks[0] || now;
+    // 先頭を選択
+    if (sel.options.length > 0) sel.value = sel.options[0].value;
   }
 
   // ===== 表示（Supabase Top10）=====
@@ -109,10 +109,10 @@ console.log("[ranking] loaded! (supabase-first + local fallback + auto-run)");
     }
 
     const ol = document.createElement("ol");
-    list.forEach((r) => {
+    list.forEach((r, i) => {
       const li = document.createElement("li");
       const name = r.nickname || r.user_id;
-      li.textContent = `${r.rank}. ${name} — ${r.points}点（○${r.correct} / ×${r.wrong}）`;
+      li.textContent = `${i + 1}. ${name} — ${r.points}点（○${r.correct} / ×${r.wrong}）`;
       ol.appendChild(li);
     });
     box.appendChild(ol);
@@ -211,22 +211,23 @@ console.log("[ranking] loaded! (supabase-first + local fallback + auto-run)");
     setText("rankMsg", `OK（${weekId} / local）`, "msg");
   }
 
-  // ===== 自動起動 =====
-  function boot() {
-    const sel = $("weekSelect");
-    const btn = $("rankReloadBtn");
+  // ===== 自動配線（ここが今回の肝）=====
+  async function initRankingUI() {
+    // ranking用DOMが無い画面では何もしない
+    if (!$("weekSelect") || !$("weeklyTop") || !$("myRank")) return;
 
-    if (btn) btn.addEventListener("click", () => loadRankings());
-    if (sel) sel.addEventListener("change", () => loadRankings());
+    $("rankReloadBtn")?.addEventListener("click", () => loadRankings());
+    $("weekSelect")?.addEventListener("change", () => loadRankings());
 
-    // 先に週候補→ランキング
-    loadWeekOptions().then(loadRankings).catch(loadRankings);
+    await loadWeekOptions();
+    await loadRankings();
   }
 
-  // DOMができたら起動
-  window.addEventListener("DOMContentLoaded", boot);
+  window.addEventListener("DOMContentLoaded", () => {
+    initRankingUI().catch((e) => console.warn("[ranking] init failed:", e));
+  });
 
-  // 結果画面が出た後でも呼べるよう公開
+  // ===== グローバル公開 =====
   window.loadWeekOptions = loadWeekOptions;
   window.loadRankings = loadRankings;
   window.__recordAttempt = recordAttempt;
