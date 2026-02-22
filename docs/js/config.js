@@ -1,41 +1,37 @@
-// ===== 強化モードバッジ =====
-window.addEventListener("DOMContentLoaded", () => {
-  const badge = document.createElement("div");
+"use strict";
 
-  function render() {
-    const mode = window.USE_MOCK ? "MOCK" : "PROD";
-    badge.textContent = `MODE: ${mode}`;
-    badge.style.background =
-      window.USE_MOCK ? "rgba(0,211,138,.25)" : "rgba(255,59,48,.25)";
-  }
+// ===== Supabase =====
+const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
+const SUPABASE_ANON_KEY = "あなたのanonキー";
 
-  badge.style.position = "fixed";
-  badge.style.top = "10px";
-  badge.style.right = "10px";
-  badge.style.zIndex = "99999";
-  badge.style.padding = "8px 14px";
-  badge.style.borderRadius = "999px";
-  badge.style.fontWeight = "900";
-  badge.style.fontSize = "13px";
-  badge.style.border = "1px solid rgba(255,255,255,.25)";
-  badge.style.color = "white";
-  badge.style.backdropFilter = "blur(8px)";
-  badge.style.cursor = "pointer";
-  badge.title = "クリックでモード切替（完全リロード）";
+// ===== モード決定（超シンプル版）=====
+const params = new URLSearchParams(location.search);
+const urlMode = params.get("mode");
 
-  badge.addEventListener("click", () => {
-    const next = window.USE_MOCK ? "prod" : "mock";
+let MODE = urlMode || localStorage.getItem("vocab_mode") || "mock";
 
-    // localStorage完全クリア（事故防止）
-    localStorage.removeItem("vocab_mode");
+if (MODE !== "mock" && MODE !== "prod") {
+  MODE = "mock";
+}
 
-    localStorage.setItem("vocab_mode", next);
+localStorage.setItem("vocab_mode", MODE);
 
-    alert(`モードを ${next.toUpperCase()} に変更します。完全リロードします。`);
+window.USE_MOCK = MODE === "mock";
 
-    location.href = location.pathname + `?mode=${next}&t=${Date.now()}`;
-  });
+console.log("[config] MODE =", MODE);
 
-  render();
-  document.body.appendChild(badge);
-});
+// ===== Supabase読み込み =====
+window.client = null;
+
+if (!window.USE_MOCK) {
+  const s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+  s.onload = () => {
+    window.client = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY
+    );
+    console.log("[config] Supabase client created");
+  };
+  document.head.appendChild(s);
+}
