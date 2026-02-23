@@ -8,10 +8,10 @@ const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
 
 // ✅ Supabase Dashboard → Project Settings → API → anon / public
 // ここを「本物の anon key」に置き換え
-const SUPABASE_ANON_KEY_RAW = "";
+const SUPABASE_ANON_KEY_RAW = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuY3pha25kemJxdmF1b3ZveWJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyMjQxNzgsImV4cCI6MjA4NDgwMDE3OH0.IRszAYwh3XPqWvl6fCApjEPTuOm9x647cqzPCgmgYUA";
 
 // =====================
-// キーの「見えない文字混入」を徹底除去eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuY3pha25kemJxdmF1b3ZveWJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyMjQxNzgsImV4cCI6MjA4NDgwMDE3OH0.IRszAYwh3XPqWvl6fCApjEPTuOm9x647cqzPCgmgYUA
+// キーの「見えない文字混入」を徹底除去
 // - JWTに出ない文字は全部捨てる（日本語/全角/ゼロ幅/BOMなど全部落ちる）
 // =====================
 function cleanJwtLikeKey(raw) {
@@ -96,3 +96,4 @@ window.clientReady = (async () => {
   console.log("[config] Supabase client created =", !!window.client);
   return window.client;
 })();
+
