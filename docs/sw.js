@@ -3,7 +3,7 @@
 
 // ✅ 更新のたびにここだけ変える（必ず変更！）
 const VERSION = "20260225-1";
-const CACHE_NAME = `vocab-ta-${VERSION}`;
+const CACHE_NAME = `vocab-ta-${VERSION1}`;
 
 // キャッシュしたい最低限
 const ASSETS = [
@@ -100,5 +100,6 @@ self.addEventListener("fetch", (event) => {
     return fresh;
   })());
 });
+
 
 
