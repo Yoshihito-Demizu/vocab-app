@@ -175,6 +175,24 @@ const api = {
         choice_c: r.choice_c,
         choice_d: r.choice_d,
       };
+   async submitRun(score, maxCombo) {
+    if (window.USE_MOCK) return { ok: true };
+
+    const client = await ensureClientReady();
+    const uid = await this.getMyUserId();
+    if (!uid) throw { message: "未ログインです。ログインしてから再開してください。" };
+
+    const weekId = this.getWeekIdNow();
+
+    const { error } = await client.rpc("submit_run", {
+      p_week_id: weekId,
+      p_score: Number(score || 0),
+      p_max_combo: Number(maxCombo || 0),
+    });
+
+    if (error) throw error;
+    return { ok: true };
+  },
     }
 
     // ---- PROD：questionsテーブルから出題（送信と整合） ----
@@ -261,3 +279,4 @@ const api = {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", mock.vocab.length);
+
