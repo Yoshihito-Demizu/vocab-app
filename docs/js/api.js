@@ -1,7 +1,10 @@
 // docs/js/api.js
-/* global USE_MOCK, toEmail */
+/* global toEmail */
 "use strict";
 
+// =========================
+// MOCK vocab（最低4つ必要）
+// =========================
 const mock = {
   vocab: [
     { word: "憂慮", meaning: "心配して気にかけること", level: 1 },
@@ -11,12 +14,22 @@ const mock = {
   ],
 };
 
-// ===== 連続防止 =====
-const pickState = { recentWords: [] };
+// ===== 出題の「連続防止」状態 =====
+const pickState = {
+  recentWords: [],         // 直近の単語（最大5）
+  recentCorrectLabels: [], // 直近の正解ラベル（最大3）
+};
+
 function rememberWord(w) {
   if (!w) return;
-  pickState.recentWords = [w, ...pickState.recentWords.filter(x => x !== w)].slice(0, 8);
+  pickState.recentWords = [w, ...pickState.recentWords.filter(x => x !== w)].slice(0, 5);
 }
+
+function rememberCorrectLabel(lbl) {
+  if (!lbl) return;
+  pickState.recentCorrectLabels = [lbl, ...pickState.recentCorrectLabels].slice(0, 3);
+}
+
 function pickAvoidRecent(items, getWord) {
   if (!items || items.length === 0) return null;
   if (items.length === 1) return items[0];
@@ -30,7 +43,7 @@ function pickAvoidRecent(items, getWord) {
   return picked;
 }
 
-// ===== シャッフル =====
+// ===== 乱数シャッフル（Fisher–Yates）=====
 function shuffle(arr) {
   const a = arr.slice();
   for (let i = a.length - 1; i > 0; i--) {
@@ -40,20 +53,7 @@ function shuffle(arr) {
   return a;
 }
 
-window.__LAST_MOCK_CORRECT = null;
-
-// ===== Supabase client待ち =====
-async function ensureClientReady() {
-  if (window.USE_MOCK) return null;
-  if (window.clientReady && typeof window.clientReady.then === "function") {
-    await window.clientReady;
-  }
-  const c = window.client || null;
-  if (!c) throw new Error("Supabase client が無い（config.jsの読み込み/ネット確認）");
-  return c;
-}
-
-// ===== week_id =====
+// ===== week_id（YYYY-Www）=====
 function getISOWeekId(d) {
   const dd = d ? new Date(d) : new Date();
   const date = new Date(Date.UTC(dd.getFullYear(), dd.getMonth(), dd.getDate()));
@@ -66,14 +66,29 @@ function getISOWeekId(d) {
   return `${yyyy}-W${ww}`;
 }
 
-// ===== vocab.csv（MOCK用語彙）=====
+// ===== Supabase client 準備待ち =====
+async function ensureClientReady() {
+  if (window.USE_MOCK) return null;
+
+  if (window.clientReady && typeof window.clientReady.then === "function") {
+    await window.clientReady;
+  }
+
+  const c = window.client || null;
+  if (!c) throw new Error("Supabase client が無い（config.jsの読み込み/ネット確認）");
+  return c;
+}
+
+// ===== CSV loader（MOCK用語彙を増やす）=====
 function parseCSV(text) {
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
   if (lines.length <= 1) return [];
   const header = lines[0].split(",").map(s => s.trim());
+
   const idxWord = header.indexOf("word");
   const idxMeaning = header.indexOf("meaning");
   const idxLevel = header.indexOf("level");
+
   if (idxWord < 0 || idxMeaning < 0) throw new Error("CSVヘッダに word,meaning が必要です");
 
   const out = [];
@@ -89,50 +104,89 @@ function parseCSV(text) {
   return out;
 }
 
-async function loadVocabCSV() {
+async function _loadVocabCSV() {
   try {
     const res = await fetch("./vocab.csv", { cache: "no-store" });
     if (!res.ok) throw new Error("vocab.csv fetch failed: " + res.status);
     const text = await res.text();
     const list = parseCSV(text);
+
     if (list.length >= 4) {
       mock.vocab = list;
       console.log("[api] vocab loaded from CSV:", list.length);
+    } else {
+      console.warn("[api] vocab.csv too small (need >=4). keep fallback:", list.length);
     }
   } catch (e) {
-    console.warn("[api] vocab.csv load skipped:", e?.message || e);
+    console.warn("[api] vocab.csv load skipped:", e && e.message ? e.message : e);
   }
 }
-window.vocabReady = (async () => { await loadVocabCSV(); })();
 
-// ===== MOCKの4択生成（意味から作る）=====
-function makeChoicesFromVocab(vocabList, correctItem) {
+// 他JSが待てるようにしておく
+window.vocabReady = (async () => { await _loadVocabCSV(); })();
+
+// ===== choices generator（正解位置の偏り防止）=====
+window.__LAST_MOCK_CORRECT = null;
+window.__LAST_PROD_CORRECT = null;
+
+function makeChoices(vocabList, correctItem) {
   const base = vocabList.slice();
-  const others = shuffle(base.filter(v => v.word !== correctItem.word)).slice(0, 3);
-  const meanings = shuffle([correctItem.meaning, ...others.map(o => o.meaning)]);
+  const others = base
+    .filter(v => v.word !== correctItem.word)
+    .sort(() => Math.random() - 0.5)
+    .slice(0, 3);
+
+  const meanings = [correctItem.meaning, ...others.map(o => o.meaning)];
+  const shuffledMeanings = shuffle(meanings);
 
   const labels = ["A", "B", "C", "D"];
-  const correctLabel = labels[meanings.indexOf(correctItem.meaning)];
-  window.__LAST_MOCK_CORRECT = correctLabel;
+  let shuffledLabels = shuffle(labels);
+
+  // 直近3問の正解ラベル連続を避ける（可能な時だけ）
+  const recent = new Set(pickState.recentCorrectLabels);
+  const correctIndex = shuffledMeanings.indexOf(correctItem.meaning);
+
+  if (correctIndex >= 0 && recent.size > 0) {
+    for (let tries = 0; tries < 10; tries++) {
+      const candidateLabel = shuffledLabels[correctIndex];
+      if (!recent.has(candidateLabel)) break;
+      shuffledLabels = shuffle(labels);
+    }
+  }
+
+  const map = {};
+  for (let i = 0; i < 4; i++) {
+    map[shuffledLabels[i]] = shuffledMeanings[i];
+  }
+
+  const correctLabel = shuffledLabels[correctIndex];
+  rememberCorrectLabel(correctLabel);
 
   return {
-    choice_a: meanings[0],
-    choice_b: meanings[1],
-    choice_c: meanings[2],
-    choice_d: meanings[3],
+    choice_a: map.A,
+    choice_b: map.B,
+    choice_c: map.C,
+    choice_d: map.D,
     correctLabel,
   };
 }
 
+// =========================
+// API 本体（window.api）
+// =========================
 const api = {
   isMock() { return !!window.USE_MOCK; },
 
+  // ---- Auth ----
   async signIn(loginId, password) {
     if (window.USE_MOCK) return { ok: true, message: "（モック：ログイン不要）" };
+
     const client = await ensureClientReady();
     const email = (window.toEmail || toEmail)(loginId);
+
     const { error } = await client.auth.signInWithPassword({ email, password });
     if (error) return { ok: false, message: error.message };
+
     return { ok: true, message: "ログイン成功" };
   },
 
@@ -153,18 +207,21 @@ const api = {
     return getISOWeekId(new Date());
   },
 
-  // ===== 出題 =====
+  // ---- Question ----
   async fetchLatestQuestion() {
-    // vocabReadyはMOCKだけで使う
-    if (window.vocabReady) { try { await window.vocabReady; } catch {} }
+    // CSV反映を待つ（MOCKの語彙が4個固定になるのを避ける）
+    if (window.vocabReady) {
+      try { await window.vocabReady; } catch { /* ignore */ }
+    }
 
-    // ---- MOCK：CSVから出題 ----
     if (window.USE_MOCK) {
       const pool = (mock.vocab || []).slice();
       if (pool.length < 4) throw new Error("vocabが少なすぎます（最低4件）");
 
       const v = pickAvoidRecent(pool, (x) => x.word);
-      const r = makeChoicesFromVocab(pool, v);
+      const r = makeChoices(pool, v);
+
+      window.__LAST_MOCK_CORRECT = r.correctLabel;
 
       return {
         id: "mock-" + Date.now(),
@@ -175,41 +232,23 @@ const api = {
         choice_c: r.choice_c,
         choice_d: r.choice_d,
       };
-   async submitRun(score, maxCombo) {
-    if (window.USE_MOCK) return { ok: true };
-
-    const client = await ensureClientReady();
-    const uid = await this.getMyUserId();
-    if (!uid) throw { message: "未ログインです。ログインしてから再開してください。" };
-
-    const weekId = this.getWeekIdNow();
-
-    const { error } = await client.rpc("submit_run", {
-      p_week_id: weekId,
-      p_score: Number(score || 0),
-      p_max_combo: Number(maxCombo || 0),
-    });
-
-    if (error) throw error;
-    return { ok: true };
-  },
     }
 
-    // ---- PROD：questionsテーブルから出題（送信と整合） ----
+    // prod（questionsテーブルからランダム）
     const client = await ensureClientReady();
-
     const { data, error } = await client
       .from("questions")
-      .select("id, word, prompt, choice_a, choice_b, choice_c, choice_d, correct_choice")
+      .select("id, word, prompt, choice_a, choice_b, choice_c, choice_d, correct_choice, is_active")
       .eq("is_active", true)
-      .limit(300);
+      .order("created_at", { ascending: false })
+      .limit(200);
 
     if (error) throw error;
     if (!data || data.length === 0) return null;
 
     const q = pickAvoidRecent(data, (x) => x.word);
+    window.__LAST_PROD_CORRECT = String(q.correct_choice || "").trim().toUpperCase();
 
-    // quiz.jsが期待する形
     return {
       id: q.id,
       word: q.word,
@@ -221,62 +260,95 @@ const api = {
     };
   },
 
-  // ===== ランキング用RPC =====
+  // ---- Attempt (1問ごと) ----
+  async submitAttempt(questionId, chosen) {
+    const weekId = this.getWeekIdNow();
+
+    if (window.USE_MOCK) {
+      const correct = window.__LAST_MOCK_CORRECT;
+      const ok = String(chosen).toUpperCase() === String(correct).toUpperCase();
+      return [{
+        is_correct: ok,
+        points: ok ? 10 : 0,
+        out_week_id: weekId,
+      }];
+    }
+
+    const client = await ensureClientReady();
+
+    const { data: sess } = await client.auth.getSession();
+    const uid = sess?.session?.user?.id ?? null;
+    if (!uid) throw { message: "未ログインです。スタート画面でログインしてから再開してください。" };
+
+    const { data, error } = await client.rpc("submit_attempt", {
+      p_question_id: questionId,
+      p_chosen_choice: String(chosen),
+      p_client_ms: Date.now(),      // bigint想定でもOK
+      p_quiz_session_id: null,
+    });
+
+    if (error) throw error;
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) throw { message: "submit_attempt の返り値が空です" };
+
+    return [{
+      is_correct: !!row.is_correct,
+      points: Number(row.points || 0),
+      out_week_id: String(row.out_week_id || weekId),
+    }];
+  },
+
+  // ---- Run (1回プレイの結果) ----
+  // ※DB側にsubmit_runがあるなら使う。無いなら「黙ってスキップ」してアプリは動くようにする。
+  async submitRun(payload) {
+    if (window.USE_MOCK) {
+      return { ok: true, mode: "mock" };
+    }
+
+    const client = await ensureClientReady();
+
+    try {
+      const { data, error } = await client.rpc("submit_run", payload || {});
+      if (error) throw error;
+      return data ?? { ok: true };
+    } catch (e) {
+      console.warn("[api] submit_run skipped (rpc missing or failed):", e);
+      return { ok: false, skipped: true };
+    }
+  },
+
+  // ---- Ranking RPC ----
   async fetchWeekOptions() {
     if (window.USE_MOCK) return [];
     const client = await ensureClientReady();
+
     const { data, error } = await client.rpc("get_week_options");
     if (error) throw error;
+
     return (data || []).map(x => x.week_id).filter(Boolean);
   },
 
   async fetchPersonalWeeklyTop(weekId) {
     if (window.USE_MOCK) return [];
     const client = await ensureClientReady();
+
     const { data, error } = await client.rpc("get_weekly_top10", { p_week_id: weekId });
     if (error) throw error;
+
     return data || [];
   },
 
   async fetchMyWeeklyRank(weekId) {
     if (window.USE_MOCK) return null;
     const client = await ensureClientReady();
+
     const { data, error } = await client.rpc("get_my_weekly_rank", { p_week_id: weekId });
     if (error) throw error;
+
     return Array.isArray(data) ? data[0] : data;
-  },
-
-  // ===== 送信 =====
-  async submitAttempt(questionId, chosen) {
-    const weekId = this.getWeekIdNow();
-
-    if (window.USE_MOCK) {
-      const ok = String(chosen) === String(window.__LAST_MOCK_CORRECT);
-      return [{ is_correct: ok, points: ok ? 10 : 0, out_week_id: weekId }];
-    }
-
-    const client = await ensureClientReady();
-    const { data: sess } = await client.auth.getSession();
-    const uid = sess?.session?.user?.id;
-    if (!uid) throw { message: "未ログインです。スタート画面でログインしてから再開してください。" };
-
-    const { data, error } = await client.rpc("submit_attempt", {
-      p_question_id: questionId,           // ★ここがDBのUUIDじゃないと落ちる
-      p_chosen_choice: String(chosen),
-      p_client_ms: Date.now(),
-      p_quiz_session_id: null,
-    });
-    if (error) throw error;
-
-    const row = Array.isArray(data) ? data[0] : data;
-    return [{
-      is_correct: !!row?.is_correct,
-      points: Number(row?.points || 0),
-      out_week_id: String(row?.out_week_id || weekId),
-    }];
   },
 };
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", mock.vocab.length);
-
