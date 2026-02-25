@@ -1,20 +1,34 @@
 // docs/js/ranking.js
 console.log("[ranking] loaded! (safe-init + auto-wire)");
 
-/* global api */
-
 (function () {
   "use strict";
 
-  const $ = (id) => document.getElementById(id);
-  const setText = (id, text) => { const el = $(id); if (el) el.textContent = String(text ?? ""); };
-
-  // ✅ USE_MOCK が未定義でも window.USE_MOCK を見に行く
-  function isMock() {
-    try { return !!(window.USE_MOCK); } catch { return false; }
+  // ========= DOM helpers =========
+  function $(id) { return document.getElementById(id); }
+  function setText(id, text, cls = "") {
+    const el = $(id);
+    if (!el) return;
+    if (cls) el.className = cls;
+    el.textContent = String(text ?? "");
   }
 
-  // ===== week_id（YYYY-Www）=====
+  // ========= safe getters =========
+  function isMockMode() {
+    // USE_MOCK が未定義で落ちるのを防ぐ
+    return !!window.USE_MOCK;
+  }
+
+  async function waitForApi(timeoutMs = 5000) {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      if (window.api) return window.api;
+      await new Promise(r => setTimeout(r, 50));
+    }
+    throw new Error("api が見つかりません（api.js が読めていない/エラーで止まっている可能性）");
+  }
+
+  // ========= week_id =========
   function getISOWeekId(d = new Date()) {
     const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
     const dayNum = date.getUTCDay() || 7;
@@ -26,9 +40,46 @@ console.log("[ranking] loaded! (safe-init + auto-wire)");
     return `${yyyy}-W${ww}`;
   }
 
-  // ===== local fallback =====
+  // ========= local fallback =========
   const KEY = "vocabTA_v1";
-  function loadDB() { try { return JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { return {}; } }
+
+  function loadDB() {
+    try { return JSON.parse(localStorage.getItem(KEY) || "{}"); }
+    catch { return {}; }
+  }
+  function saveDB(db) {
+    localStorage.setItem(KEY, JSON.stringify(db));
+  }
+  function ensureUser(db, userId) {
+    db.users = db.users || {};
+    if (!db.users[userId]) db.users[userId] = { nickname: `user-${userId}`, grade: 0, class_no: 0 };
+  }
+  function ensureWeekly(db, weekId) {
+    db.weekly = db.weekly || {};
+    db.weekly[weekId] = db.weekly[weekId] || {};
+  }
+  function ensureTotal(db, userId) {
+    db.total = db.total || {};
+    db.total[userId] = db.total[userId] || { points: 0, correct: 0, wrong: 0 };
+  }
+
+  // quiz側から使う可能性がある（MOCK用の記録）
+  async function recordAttempt({ userId, weekId, is_correct, points }) {
+    const db = loadDB();
+    ensureUser(db, userId);
+    ensureWeekly(db, weekId);
+    ensureTotal(db, userId);
+
+    const w = (db.weekly[weekId][userId] ||= { points: 0, correct: 0, wrong: 0 });
+    if (is_correct) { w.points += Number(points || 0); w.correct += 1; }
+    else { w.wrong += 1; }
+
+    const t = db.total[userId];
+    if (is_correct) { t.points += Number(points || 0); t.correct += 1; }
+    else { t.wrong += 1; }
+
+    saveDB(db);
+  }
 
   function toArrayWeekly(db, weekId) {
     const m = (db.weekly && db.weekly[weekId]) ? db.weekly[weekId] : {};
@@ -75,7 +126,7 @@ console.log("[ranking] loaded! (safe-init + auto-wire)");
       `スコア：<b>${me.points}</b>点（○${me.correct} / ×${me.wrong}）`;
   }
 
-  // ===== supabase render =====
+  // ========= supabase render =========
   function renderTop10Supabase(list) {
     const box = $("weeklyTop");
     if (!box) return;
@@ -108,20 +159,30 @@ console.log("[ranking] loaded! (safe-init + auto-wire)");
       `順位：<b>${me.rank}</b>位　スコア：<b>${me.points}</b>点（○${me.correct} / ×${me.wrong}）`;
   }
 
+  // ========= weekSelect =========
   async function loadWeekOptions() {
     const sel = $("weekSelect");
     if (!sel) return;
 
+    const api = await waitForApi();
+
     let weeks = [];
-    try {
-      if (!isMock()) weeks = await api.fetchWeekOptions();
-      else weeks = Object.keys(loadDB().weekly || {});
-    } catch {
-      weeks = Object.keys(loadDB().weekly || {});
+    if (!isMockMode() && api.fetchWeekOptions) {
+      try {
+        weeks = await api.fetchWeekOptions();
+      } catch (e) {
+        console.warn("[ranking] fetchWeekOptions failed -> local fallback", e);
+      }
+    }
+
+    if (!weeks || weeks.length === 0) {
+      const db = loadDB();
+      weeks = Object.keys(db.weekly || {});
     }
 
     const now = getISOWeekId();
     if (!weeks.includes(now)) weeks.unshift(now);
+
     weeks = Array.from(new Set(weeks)).sort().reverse();
 
     sel.innerHTML = "";
@@ -133,14 +194,17 @@ console.log("[ranking] loaded! (safe-init + auto-wire)");
     });
   }
 
+  // ========= main =========
   async function loadRankings() {
-    setText("rankMsg", "読み込み中…");
+    setText("rankMsg", "読み込み中…", "msg");
 
     const sel = $("weekSelect");
     const weekId = sel?.value || getISOWeekId();
 
-    // ✅ supabase優先（prod）
-    if (!isMock()) {
+    const api = await waitForApi();
+
+    // ---- prod: supabase優先 ----
+    if (!isMockMode() && api.fetchPersonalWeeklyTop && api.fetchMyWeeklyRank) {
       try {
         const top = await api.fetchPersonalWeeklyTop(weekId);
         renderTop10Supabase(top);
@@ -148,48 +212,69 @@ console.log("[ranking] loaded! (safe-init + auto-wire)");
         const me = await api.fetchMyWeeklyRank(weekId);
         renderMyRankSupabase(me);
 
-        setText("rankMsg", `OK（${weekId} / prod）`);
+        setText("rankMsg", `OK（${weekId}）`, "msg");
         return;
       } catch (e) {
         console.warn("[ranking] supabase failed -> fallback local:", e);
-        setText("rankMsg", `prod失敗→localへ（${weekId}）`);
       }
     }
 
-    // ✅ local fallback
+    // ---- fallback: local ----
     const db = loadDB();
     const usersMap = db.users || {};
     const weeklyList = toArrayWeekly(db, weekId);
 
     renderTop10Local(weeklyList, usersMap);
-    const myId = await api.getMyUserId(); // mockならu1
+
+    let myId = "u1";
+    try { myId = await api.getMyUserId(); } catch { /* ignore */ }
+
     renderMyRankLocal(weeklyList, usersMap, myId);
 
-    setText("rankMsg", `OK（${weekId} / local）`);
+    setText("rankMsg", `OK（${weekId} / local）`, "msg");
   }
 
-  // ✅ 画面に要素がある時だけ初期化
+  // ========= auto-wire =========
   async function initRankingUI() {
-    const pane = $("rankPane");
-    const sel = $("weekSelect");
-    const btn = $("rankReloadBtn");
-    if (!pane || !sel || !btn) {
-      console.log("[ranking] no ranking DOM -> skip init");
-      return;
+    // rankPane がない画面では何もしない
+    if (!$("rankPane")) return;
+
+    try {
+      await loadWeekOptions();
+      await loadRankings();
+
+      $("rankReloadBtn")?.addEventListener("click", () => loadRankings());
+      $("weekSelect")?.addEventListener("change", () => loadRankings());
+
+      // 結果画面が表示されたタイミングでも更新したい
+      // （retry→結果→ランキング更新が漏れないように）
+      const resultPane = $("resultPane");
+      if (resultPane) {
+        const obs = new MutationObserver(() => {
+          // hidden が外れたら読み込み
+          const hidden = resultPane.classList.contains("hidden");
+          if (!hidden) {
+            loadWeekOptions().then(loadRankings).catch(() => null);
+          }
+        });
+        obs.observe(resultPane, { attributes: true, attributeFilter: ["class"] });
+      }
+    } catch (e) {
+      console.warn("[ranking] init failed:", e);
+      setText("rankMsg", "ランキング初期化失敗（コンソール確認）", "msg");
     }
-
-    btn.addEventListener("click", () => loadRankings());
-    sel.addEventListener("change", () => loadRankings());
-
-    await loadWeekOptions();
-    await loadRankings();
   }
 
+  // 公開（他JSからも使える）
   window.loadWeekOptions = loadWeekOptions;
   window.loadRankings = loadRankings;
+  window.__recordAttempt = recordAttempt;
   window.initRankingUI = initRankingUI;
 
-  window.addEventListener("DOMContentLoaded", () => {
-    initRankingUI().catch((e) => console.warn("[ranking] init failed:", e));
-  });
+  // DOM準備後に初期化
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initRankingUI);
+  } else {
+    initRankingUI();
+  }
 })();
