@@ -2,8 +2,8 @@
 "use strict";
 
 // ✅ 更新のたびにここだけ変える
-const VERSION = "20260225-1";
-const CACHE_NAME = `vocab-ta-${VERSION1}`;
+const VERSION = "20260225-2";
+const CACHE_NAME = `vocab-ta-${VERSION2}`;
 
 const ASSETS = [
   "./",
@@ -97,4 +97,5 @@ self.addEventListener("fetch", (event) => {
     return fresh;
   })());
 });
+
 
