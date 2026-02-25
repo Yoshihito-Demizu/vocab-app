@@ -1,11 +1,10 @@
 // docs/sw.js
 "use strict";
 
-// ✅ 更新のたびにここだけ変える（必ず変更！）
-const VERSION = "20260225-2";
-const CACHE_NAME = `vocab-ta-${VERSION2}`;
+// ✅ 更新のたびにここだけ変える
+const VERSION = "20260225-1";
+const CACHE_NAME = `vocab-ta-${VERSION}`;
 
-// キャッシュしたい最低限
 const ASSETS = [
   "./",
   "./index.html",
@@ -20,6 +19,11 @@ const ASSETS = [
   "./icons/icon-512.png",
   "./icons/start-bg.jpg",
 ];
+
+// ✅ これがないと「更新しますか？」→押しても反映されないことがある
+self.addEventListener("message", (event) => {
+  if (event?.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -38,13 +42,6 @@ self.addEventListener("activate", (event) => {
   })());
 });
 
-// ✅ ここが重要：index.html側の postMessage({type:"SKIP_WAITING"}) を受け取る
-self.addEventListener("message", (event) => {
-  if (event?.data?.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
-});
-
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
@@ -54,7 +51,7 @@ self.addEventListener("fetch", (event) => {
   const accept = req.headers.get("accept") || "";
   const isHTML = req.mode === "navigate" || accept.includes("text/html");
 
-  // ✅ HTMLはネット優先（更新反映）
+  // HTMLはネット優先
   if (isHTML) {
     event.respondWith((async () => {
       try {
@@ -62,14 +59,14 @@ self.addEventListener("fetch", (event) => {
         const cache = await caches.open(CACHE_NAME);
         cache.put(req, fresh.clone()).catch(() => null);
         return fresh;
-      } catch (e) {
+      } catch {
         return (await caches.match(req)) || (await caches.match("./index.html"));
       }
     })());
     return;
   }
 
-  // ✅ JS/CSS/CSV はネット優先
+  // JS/CSS/CSV/manifest はネット優先
   const isAsset =
     url.pathname.endsWith(".js") ||
     url.pathname.endsWith(".css") ||
@@ -83,7 +80,7 @@ self.addEventListener("fetch", (event) => {
         const cache = await caches.open(CACHE_NAME);
         cache.put(req, fresh.clone()).catch(() => null);
         return fresh;
-      } catch (e) {
+      } catch {
         return (await caches.match(req)) || fetch(req);
       }
     })());
@@ -100,7 +97,3 @@ self.addEventListener("fetch", (event) => {
     return fresh;
   })());
 });
-
-
-
-
