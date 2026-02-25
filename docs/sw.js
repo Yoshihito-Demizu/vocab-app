@@ -3,7 +3,7 @@
 
 // ✅ 更新のたびにここだけ変える
 const VERSION = "20260225-1";
-const CACHE_NAME = `vocab-ta-${VERSION}`;
+const CACHE_NAME = `vocab-ta-${VERSION1}`;
 
 const ASSETS = [
   "./",
@@ -97,3 +97,4 @@ self.addEventListener("fetch", (event) => {
     return fresh;
   })());
 });
+
