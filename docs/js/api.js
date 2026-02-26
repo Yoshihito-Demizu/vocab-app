@@ -299,24 +299,31 @@ const api = {
     }];
   },
 
-  // ---- Run (1回プレイの結果) ----
-  // ※DB側にsubmit_runがあるなら使う。無いなら「黙ってスキップ」してアプリは動くようにする。
-  async submitRun(payload) {
-    if (window.USE_MOCK) {
-      return { ok: true, mode: "mock" };
-    }
+ // api.js 内（api = {...} の中に入れる想定）
+async submitRun(score, maxCombo) {
+  const weekId = this.getWeekIdNow();
 
-    const client = await ensureClientReady();
+  if (window.USE_MOCK) {
+    // mockは保存しない（必要ならlocal保存にする）
+    return { ok: true, skipped: true, week_id: weekId };
+  }
 
-    try {
-      const { data, error } = await client.rpc("submit_run", payload || {});
-      if (error) throw error;
-      return data ?? { ok: true };
-    } catch (e) {
-      console.warn("[api] submit_run skipped (rpc missing or failed):", e);
-      return { ok: false, skipped: true };
-    }
-  },
+  const client = await ensureClientReady();
+
+  // ★ここが重要：rpc に「引数オブジェクト」を渡す
+  const { data, error } = await client.rpc("submit_run", {
+    p_week_id: weekId,
+    p_score: Number(score) || 0,
+    p_max_combo: Number(maxCombo) || 0,
+  });
+
+  if (error) {
+    console.warn("[api] submit_run failed:", error);
+    return { ok: false, error };
+  }
+
+  return { ok: true, data };
+},
 
   // ---- Ranking RPC ----
   async fetchWeekOptions() {
@@ -368,3 +375,4 @@ console.log(
   "fallback vocab size =",
   mock.vocab.length
 );
+
