@@ -349,6 +349,22 @@ const api = {
     return Array.isArray(data) ? data[0] : data;
   },
 };
+// ===== ranking.js 互換（関数名ズレ吸収）=====
+// ranking.js が api.fetchWeeklyTop を呼んでも動くようにする
+api.fetchWeeklyTop = async function (weekId) {
+  return this.fetchPersonalWeeklyTop(weekId);
+};
 
+api.fetchWeeklyTop10 = async function (weekId) {
+  return this.fetchPersonalWeeklyTop(weekId);
+};
+
+// ===== 公開 =====
 window.api = api;
-console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", mock.vocab.length);
+
+console.log(
+  "[api] loaded. USE_MOCK =",
+  window.USE_MOCK,
+  "fallback vocab size =",
+  mock.vocab.length
+);
