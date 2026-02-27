@@ -5,7 +5,7 @@
 const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
 
 // ★ここは「英数字だけの本物anon key」を入れる（日本語/全角/改行が混ざると壊れる）
-const SUPABASE_ANON_KEY_RAW = "YOUR_REAL_ANON_KEY_HERE";
+const SUPABASE_ANON_KEY_RAW = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuY3pha25kemJxdmF1b3ZveWJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyMjQxNzgsImV4cCI6MjA4NDgwMDE3OH0.IRszAYwh3XPqWvl6fCApjEPTuOm9x647cqzPCgmgYUA";
 
 // 改行/空白/見えない文字を除去
 const SUPABASE_ANON_KEY = String(SUPABASE_ANON_KEY_RAW).replace(/\s+/g, "");
@@ -92,3 +92,4 @@ window.clientReady = (async () => {
   window.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   console.log("[config] Supabase client created =", !!window.client);
 })();
+
