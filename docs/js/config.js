@@ -1,60 +1,48 @@
 // docs/js/config.js
 "use strict";
 
-/*
-  ✅ ここだけ自分の値にする
-  - SUPABASE_URL
-  - SUPABASE_ANON_KEY_RAW（本物の anon key）
-*/
+// ===== Supabase =====
 const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
-const SUPABASE_ANON_KEY_RAW = "ここに本物のanon key（eyJ...）を貼る";
 
-// コピペ混入（改行/空白/見えない文字）を強制除去
-const SUPABASE_ANON_KEY = String(SUPABASE_ANON_KEY_RAW || "").replace(/\s+/g, "");
+// ★ここは「英数字だけの本物anon key」を入れる（日本語/全角/改行が混ざると壊れる）
+const SUPABASE_ANON_KEY_RAW = "YOUR_REAL_ANON_KEY_HERE";
 
-// デバッグ用（必要なくなったら消してOK）
+// 改行/空白/見えない文字を除去
+const SUPABASE_ANON_KEY = String(SUPABASE_ANON_KEY_RAW).replace(/\s+/g, "");
+
+// いまのキー長をデバッグ確認したい時だけ（本番では消してOK）
 window.__DEBUG_SUPABASE_KEY = SUPABASE_ANON_KEY;
 
-// loginId -> email 化（必ず定義して「toEmail is not defined」を根絶）
-window.toEmail = (loginId) => `${String(loginId || "").trim()}@demo.local`;
+// loginId をメール化（プロジェクト側の運用に合わせる）
+window.toEmail = (loginId) => `${loginId}@demo.local`;
 
-// =====================
-// MODE 決定（URL優先 / 次にlocalStorage / 最後にmock）
-// 重要：切替は localStorage に頼らず、URL書き換えで確実化する
-// =====================
-function safeGetLS(key) {
-  try { return localStorage.getItem(key); } catch { return null; }
-}
-function safeSetLS(key, val) {
-  try { localStorage.setItem(key, val); } catch { /* ignore */ }
-}
-
+// ===== モード決定 =====
+// 優先：URL > localStorage > default(mock)
 function getMode() {
   const p = new URLSearchParams(location.search);
   const q = (p.get("mode") || "").toLowerCase();
   if (q === "mock" || q === "prod") return q;
 
-  const saved = (safeGetLS("vocab_mode") || "").toLowerCase();
+  const saved = (localStorage.getItem("vocab_mode") || "").toLowerCase();
   if (saved === "mock" || saved === "prod") return saved;
 
   return "mock";
 }
 
 function setMode(mode) {
-  safeSetLS("vocab_mode", mode);
+  localStorage.setItem("vocab_mode", mode);
 }
 
-const MODE = getMode();
+let MODE = getMode();
 setMode(MODE);
 window.USE_MOCK = (MODE === "mock");
 
 console.log("[config] MODE =", MODE);
 
-// =====================
-// Supabase SDK 動的ロード
-// =====================
+// ===== SDK 読み込み =====
 async function loadSupabaseSDK() {
   if (window.supabase?.createClient) return true;
+
   return new Promise((resolve) => {
     const s = document.createElement("script");
     s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
@@ -64,17 +52,27 @@ async function loadSupabaseSDK() {
   });
 }
 
-// clientReady（api.jsが待てる）
+// ===== clientReady（api.jsが待てるように）=====
 window.client = null;
 
 window.clientReady = (async () => {
   if (window.USE_MOCK) {
+    console.log("[config] MODE=mock -> supabase not used.");
     window.client = null;
     return;
   }
 
-  // キー未設定は安全にMOCKへ
-  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.length < 80 || !SUPABASE_ANON_KEY.startsWith("ey")) {
+  // キーが空 or 仮文字列なら mockに落とす
+  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === "YOUR_REAL_ANON_KEY_HERE") {
+    console.warn("[config] anon key not set -> MODE forced mock.");
+    window.USE_MOCK = true;
+    window.client = null;
+    return;
+  }
+
+  // 変な文字が入ってると supabase が落ちやすい（headersエラーになる）
+  // “base64urlっぽいか”を軽くチェック
+  if (!/^[A-Za-z0-9._-]+$/.test(SUPABASE_ANON_KEY)) {
     console.warn("[config] anon key looks invalid -> MODE forced mock.");
     window.USE_MOCK = true;
     window.client = null;
@@ -94,40 +92,3 @@ window.clientReady = (async () => {
   window.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   console.log("[config] Supabase client created =", !!window.client);
 })();
-
-// =====================
-// 右上バッジ（クリックでURLを書き換えて確実に切替）
-// =====================
-window.addEventListener("DOMContentLoaded", () => {
-  const badge = document.createElement("div");
-  const refreshText = () => badge.textContent = window.USE_MOCK ? "MODE: MOCK" : "MODE: PROD";
-  refreshText();
-
-  badge.style.position = "fixed";
-  badge.style.top = "10px";
-  badge.style.right = "10px";
-  badge.style.zIndex = "99999";
-  badge.style.padding = "6px 10px";
-  badge.style.borderRadius = "999px";
-  badge.style.fontWeight = "900";
-  badge.style.fontSize = "12px";
-  badge.style.border = "1px solid rgba(255,255,255,.18)";
-  badge.style.background = window.USE_MOCK ? "rgba(0,211,138,.18)" : "rgba(255,59,48,.18)";
-  badge.style.color = "white";
-  badge.style.backdropFilter = "blur(6px)";
-  badge.style.cursor = "pointer";
-  badge.title = "クリックで切替（MOCK/PROD）";
-
-  badge.addEventListener("click", () => {
-    const next = window.USE_MOCK ? "prod" : "mock";
-    setMode(next);
-
-    // ✅ localStorageが効かない/キャッシュが強い環境でも確実に切り替わるよう、URLで切替
-    const url = new URL(location.href);
-    url.searchParams.set("mode", next);
-    url.searchParams.set("t", String(Date.now())); // キャッシュバスター
-    location.href = url.toString();
-  });
-
-  document.body.appendChild(badge);
-});
