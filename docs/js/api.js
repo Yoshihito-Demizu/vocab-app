@@ -2,7 +2,7 @@
 /* global USE_MOCK, toEmail */
 "use strict";
 
-// ===== MOCK vocab（最低4件の保険）=====
+// ===== MOCK vocab（vocab.csvがあれば上書きされる）=====
 const mock = {
   vocab: [
     { word: "憂慮", meaning: "心配して気にかけること", level: 1 },
@@ -12,6 +12,7 @@ const mock = {
   ],
 };
 
+// ===== 出題の連続防止 =====
 const pickState = {
   recentWords: [],
   recentCorrectLabels: [],
@@ -46,8 +47,6 @@ function shuffle(arr) {
   return a;
 }
 
-window.__LAST_MOCK_CORRECT = null;
-
 // ===== client 準備待ち =====
 async function ensureClientReady() {
   if (window.USE_MOCK) return null;
@@ -72,16 +71,14 @@ function getISOWeekId(d) {
   return `${yyyy}-W${ww}`;
 }
 
-// ===== CSV loader（vocab.csv）=====
+// ===== CSV loader（MOCK vocab を増やす）=====
 function parseCSV(text) {
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
   if (lines.length <= 1) return [];
   const header = lines[0].split(",").map(s => s.trim());
-
   const idxWord = header.indexOf("word");
   const idxMeaning = header.indexOf("meaning");
   const idxLevel = header.indexOf("level");
-
   if (idxWord < 0 || idxMeaning < 0) throw new Error("CSVヘッダに word,meaning が必要です");
 
   const out = [];
@@ -115,7 +112,7 @@ async function _loadVocabCSV() {
 }
 window.vocabReady = (async () => { await _loadVocabCSV(); })();
 
-// ===== choices generator（正解位置偏り防止 + 直近ラベル回避）=====
+// ===== choices generator（正解位置の偏り防止）=====
 function makeChoices(vocabList, correctItem) {
   const base = vocabList.slice();
   const others = base
@@ -131,7 +128,6 @@ function makeChoices(vocabList, correctItem) {
 
   const recent = new Set(pickState.recentCorrectLabels);
   const correctIndex = shuffledMeanings.indexOf(correctItem.meaning);
-
   if (correctIndex >= 0 && recent.size > 0) {
     for (let tries = 0; tries < 10; tries++) {
       const candidateLabel = shuffledLabels[correctIndex];
@@ -147,28 +143,23 @@ function makeChoices(vocabList, correctItem) {
   rememberCorrectLabel(correctLabel);
 
   return {
-    choice_a: map.A,
-    choice_b: map.B,
-    choice_c: map.C,
-    choice_d: map.D,
+    choice_a: map.A, choice_b: map.B, choice_c: map.C, choice_d: map.D,
     correctLabel,
   };
 }
 
-// ===== API =====
+window.__LAST_MOCK_CORRECT = null;
+
+// ===== API 本体 =====
 const api = {
   isMock() { return !!window.USE_MOCK; },
 
-  getWeekIdNow() {
-    return getISOWeekId(new Date());
-  },
+  getWeekIdNow() { return getISOWeekId(new Date()); },
 
   async signIn(loginId, password) {
-    if (window.USE_MOCK) return { ok: true, message: "（MOCK：ログイン不要）" };
-
+    if (window.USE_MOCK) return { ok: true, message: "（モック：ログイン不要）" };
     const client = await ensureClientReady();
     const email = (window.toEmail || toEmail)(loginId);
-
     const { error } = await client.auth.signInWithPassword({ email, password });
     if (error) return { ok: false, message: error.message };
     return { ok: true, message: "ログイン成功" };
@@ -184,25 +175,46 @@ const api = {
     if (window.USE_MOCK) return "u1";
     const client = await ensureClientReady();
     const { data } = await client.auth.getSession();
-    return (data && data.session && data.session.user && data.session.user.id) ? data.session.user.id : null;
+    return data?.session?.user?.id || null;
   },
 
-  // ✅ 出題：A方針（CSVからランダム）…prodでも同じ方式でOK
+  // ===== 出題（mock: CSV/配列からランダム、prod: questionsテーブルがあるなら後で）=====
   async fetchLatestQuestion() {
-    if (window.vocabReady) {
-      try { await window.vocabReady; } catch { /* ignore */ }
+    if (window.vocabReady) { try { await window.vocabReady; } catch {} }
+
+    // まずは mock 優先（あなたの運用上「安全」）
+    if (window.USE_MOCK) {
+      const pool = (mock.vocab || []).slice();
+      if (pool.length < 4) throw new Error("vocabが少なすぎます（最低4件）");
+
+      const v = pickAvoidRecent(pool, (x) => x.word);
+      const r = makeChoices(mock.vocab, v);
+      window.__LAST_MOCK_CORRECT = r.correctLabel;
+
+      return {
+        id: "mock-" + Date.now(),
+        word: v.word,
+        prompt: "意味として正しいものは？",
+        choice_a: r.choice_a,
+        choice_b: r.choice_b,
+        choice_c: r.choice_c,
+        choice_d: r.choice_d,
+      };
     }
 
+    // prodは（今は）CSV出題でもOKなら、ここでmock同様に出しても良い
+    // ただし「送信だけprod」みたいな運用にしづらいので、まずはmock運用推奨
     const pool = (mock.vocab || []).slice();
     if (pool.length < 4) throw new Error("vocabが少なすぎます（最低4件）");
 
     const v = pickAvoidRecent(pool, (x) => x.word);
-    const r = makeChoices(pool, v);
+    const r = makeChoices(mock.vocab, v);
 
+    // prodでは正解ラベルを保持（quiz.js側が判定するなら不要だが、念のため）
     window.__LAST_MOCK_CORRECT = r.correctLabel;
 
     return {
-      id: "vocab-" + Date.now(),
+      id: "csv-" + Date.now(),
       word: v.word,
       prompt: "意味として正しいものは？",
       choice_a: r.choice_a,
@@ -212,77 +224,91 @@ const api = {
     };
   },
 
-  // ===== ランキング用：週の選択肢（runsから作る：RPC不要で堅牢）=====
+  // ===== ランキング用 =====
   async fetchWeekOptions() {
-    if (window.USE_MOCK) return [];
-
+    if (window.USE_MOCK) return [this.getWeekIdNow()];
     const client = await ensureClientReady();
-    const { data, error } = await client
-      .from("runs")
-      .select("week_id")
-      .order("week_id", { ascending: false })
-      .limit(200);
-
+    const { data, error } = await client.rpc("get_week_options");
     if (error) throw error;
-
-    const weeks = [];
-    const seen = new Set();
-    for (const row of (data || [])) {
-      const w = row.week_id;
-      if (w && !seen.has(w)) {
-        seen.add(w);
-        weeks.push(w);
-      }
-    }
+    const weeks = (data || []).map(x => x.week_id).filter(Boolean);
+    if (!weeks.includes(this.getWeekIdNow())) weeks.unshift(this.getWeekIdNow());
     return weeks;
   },
 
-  // ===== ランキング：Top10（SQL関数 get_weekly_top10 を呼ぶ）=====
   async fetchWeeklyTop(weekId) {
     if (window.USE_MOCK) return [];
-
     const client = await ensureClientReady();
     const { data, error } = await client.rpc("get_weekly_top10", { p_week_id: weekId });
     if (error) throw error;
     return data || [];
   },
 
-  // ===== ランキング：自分の順位（SQL関数 get_my_weekly_rank を呼ぶ）=====
   async fetchMyWeeklyRank(weekId) {
     if (window.USE_MOCK) return null;
-
     const client = await ensureClientReady();
     const { data, error } = await client.rpc("get_my_weekly_rank", { p_week_id: weekId });
     if (error) throw error;
-    return Array.isArray(data) ? data[0] : data;
+    return Array.isArray(data) ? (data[0] || null) : (data || null);
   },
 
-  // ✅ 重要：submit_run RPCは使わない（404で詰まるので）
-  // runs テーブルに直接 INSERT する
+  async fetchPersonalWeeklyTop(weekId) {
+    // 「自分の最高」だけ取りたい時用（既存互換）
+    if (window.USE_MOCK) return [];
+    const client = await ensureClientReady();
+    const { data, error } = await client.rpc("get_my_weekly_rank", { p_week_id: weekId });
+    if (error) throw error;
+    const row = Array.isArray(data) ? (data[0] || null) : (data || null);
+    return row ? [row] : [];
+  },
+
+  // ===== 送信系（ここが “not a function” を潰す）=====
+  // quiz.jsが submitAttempt を呼んでも submitRun を呼んでも動くようにする
+
+  async submitAttempt(score, maxCombo) {
+    // 旧名互換：submitAttempt → submitRun
+    return await this.submitRun(score, maxCombo);
+  },
+
   async submitRun(score, maxCombo) {
     const weekId = this.getWeekIdNow();
 
     if (window.USE_MOCK) {
-      return { ok: true, weekId, inserted: false, mock: true };
+      // mockでは runs に保存しない（必要ならlocalStorageで擬似保存に拡張可）
+      return { ok: true, skipped: true, mock: true, week_id: weekId, score, max_combo: maxCombo };
     }
 
     const client = await ensureClientReady();
-
     const { data: sess } = await client.auth.getSession();
-    const uid = sess && sess.session && sess.session.user ? sess.session.user.id : null;
-    if (!uid) return { ok: false, message: "未ログインです" };
+    const uid = sess?.session?.user?.id || null;
+    if (!uid) return { ok: false, message: "未ログインです（ログインしてから送信してください）" };
 
-    const payload = {
-      user_id: uid,
-      week_id: weekId,
-      score: Number(score) || 0,
-      max_combo: Number(maxCombo) || 0,
-    };
+    // まずRPC submit_run を試す（あるならそれが本命）
+    try {
+      const { data, error } = await client.rpc("submit_run", {
+        p_week_id: weekId,
+        p_score: Number(score) || 0,
+        p_max_combo: Number(maxCombo) || 0,
+      });
+      if (error) throw error;
+      return { ok: true, via: "rpc", data };
+    } catch (e) {
+      // RPCが無い/404 のとき：runsへ直接insert（RLSが許している場合のみ成功）
+      console.warn("[api] submit_run rpc failed -> try insert runs:", e);
 
-    const { error } = await client.from("runs").insert(payload);
-    if (error) return { ok: false, message: error.message, error };
-
-    return { ok: true, weekId, inserted: true };
+      try {
+        const { error: insErr } = await client.from("runs").insert([{
+          user_id: uid,
+          week_id: weekId,
+          score: Number(score) || 0,
+          max_combo: Number(maxCombo) || 0,
+        }]);
+        if (insErr) throw insErr;
+        return { ok: true, via: "insert" };
+      } catch (e2) {
+        console.warn("[api] insert runs failed:", e2);
+        return { ok: false, message: (e2 && e2.message) ? e2.message : "送信失敗" };
+      }
+    }
   },
 };
 
