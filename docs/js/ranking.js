@@ -1,154 +1,115 @@
-// docs/js/ranking.js
-/* global api */
 "use strict";
 
-console.log("[ranking] loaded! (safe-init + api-only)");
+/**
+ * ranking.js
+ * - 結果画面のランキングUIのみを面倒見る
+ * - api.fetchWeeklyTop / api.fetchMyWeeklyRank / api.fetchWeekOptions を使う
+ * - 失敗時の表示をちゃんと出す
+ */
 
-function $(id) { return document.getElementById(id); }
+console.log("[ranking] loaded! (safe-init + api-aligned)");
 
-const els = {
-  weekSelect: $("weekSelect"),
-  reloadBtn: $("rankReloadBtn"),
-  msg: $("rankMsg"),
-  weeklyTop: $("weeklyTop"),
-  myRank: $("myRank"),
-};
+const $ = (id) => document.getElementById(id);
 
-function setMsg(text) {
-  if (els.msg) els.msg.textContent = text;
+function fmtRow(i, row) {
+  const name = row.nickname || row.user_id || "-";
+  const pts = row.points ?? row.best_score ?? row.score ?? 0;
+  const combo = row.best_combo ?? row.max_combo ?? 0;
+  return `${i + 1}. ${name} — ${pts}点（COMBO ${combo}）`;
 }
 
-function escapeHtml(s) {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+async function loadRankings(selectedWeekId) {
+  const weekSelect = $("weekSelect");
+  const weeklyTop = $("weeklyTop");
+  const myRank = $("myRank");
+  const rankMsg = $("rankMsg");
 
-function renderTop10(rows) {
-  if (!els.weeklyTop) return;
-  if (!rows || rows.length === 0) {
-    els.weeklyTop.textContent = "（まだデータなし）";
-    return;
-  }
+  if (!weekSelect || !weeklyTop || !myRank || !rankMsg) return;
 
-  const lines = rows.slice(0, 10).map((r, i) => {
-    const name = escapeHtml(r.nickname ?? r.user_id ?? "");
-    const pts = Number(r.points ?? r.best_score ?? r.score ?? 0);
-    const combo = Number(r.best_combo ?? r.max_combo ?? 0);
-    return `${i + 1}. ${name} — ${pts}点（COMBO:${combo}）`;
-  });
+  weeklyTop.textContent = "loading...";
+  myRank.textContent = "loading...";
+  rankMsg.textContent = "loading...";
 
-  els.weeklyTop.textContent = lines.join("\n");
-  els.weeklyTop.style.whiteSpace = "pre-line";
-}
-
-function renderMe(row) {
-  if (!els.myRank) return;
-  if (!row) {
-    els.myRank.textContent = "（まだデータなし）";
-    return;
-  }
-  const rank = row.rank ?? row.rnk ?? "—";
-  const pts = Number(row.points ?? row.best_score ?? row.score ?? 0);
-  const combo = Number(row.best_combo ?? row.max_combo ?? 0);
-  els.myRank.textContent = `順位：${rank}位　スコア：${pts}点（COMBO:${combo}）`;
-}
-
-async function getWeekOptionsSafe() {
-  // api.jsに関数があるならそれを使う（MOCK/PRODもそこで吸収）
-  if (api && typeof api.fetchWeekOptions === "function") {
-    return await api.fetchWeekOptions();
-  }
-
-  // ない場合：今週だけ入れておく
-  if (api && typeof api.getWeekIdNow === "function") {
-    return [api.getWeekIdNow()];
-  }
-  return [];
-}
-
-async function loadRankings(weekId) {
   try {
-    setMsg("loading...");
+    const weekId = selectedWeekId || weekSelect.value || api.getWeekIdNow();
+
+    if (window.USE_MOCK) {
+      // mockではDBが無いので、ランキングは空でOK
+      rankMsg.textContent = "MOCK（ランキングは空）";
+      weeklyTop.textContent = "（まだデータなし）";
+      myRank.textContent = "（まだデータなし）";
+      return;
+    }
 
     // Top10
-    let top = [];
-    if (api && typeof api.fetchWeeklyTop === "function") {
-      top = await api.fetchWeeklyTop(weekId);
-    } else if (api && typeof api.fetchPersonalWeeklyTop === "function") {
-      // 旧名互換（念のため）
-      top = await api.fetchPersonalWeeklyTop(weekId);
+    const top = await api.fetchWeeklyTop(weekId);
+    if (!top.length) {
+      weeklyTop.textContent = "（まだデータなし）";
     } else {
-      throw new Error("api.fetchWeeklyTop が見つからない（api.js差し替え漏れ）");
+      weeklyTop.textContent = top.map((r, i) => fmtRow(i, r)).join("\n");
     }
-    renderTop10(top);
 
-    // 自分
-    let me = null;
-    if (api && typeof api.fetchMyWeeklyRank === "function") {
-      me = await api.fetchMyWeeklyRank(weekId);
+    // My rank
+    const mine = await api.fetchMyWeeklyRank(weekId);
+    if (!mine) {
+      myRank.textContent = "（まだデータなし）";
+    } else {
+      const pts = mine.points ?? 0;
+      const rnk = mine.rank ?? "-";
+      myRank.textContent = `順位：${rnk}位　スコア：${pts}点`;
     }
-    renderMe(me);
 
-    setMsg(`OK（${weekId}）`);
+    rankMsg.textContent = `OK（${weekId}）`;
   } catch (e) {
     console.warn("[ranking] loadRankings failed:", e);
-    renderTop10([]);
-    renderMe(null);
-    setMsg("（取得失敗）");
-
-    // ありがちな原因を一言だけ表示（長文は出さない）
-    // e が Object の場合があるので message を拾える範囲で拾う
-    const msg = (e && (e.message || e.error_description || e.details || e.hint)) ? (e.message || e.error_description || e.details || e.hint) : "";
-    if (msg && els.weeklyTop) {
-      els.weeklyTop.textContent = `（取得失敗）\n${msg}`;
-      els.weeklyTop.style.whiteSpace = "pre-line";
-    }
+    const msg = (e && (e.message || e.details || e.code)) ? String(e.message || e.details || e.code) : String(e);
+    $("rankMsg").textContent = "取得失敗";
+    $("weeklyTop").textContent = `（取得失敗）\n${msg}`;
+    $("myRank").textContent = "（取得失敗）";
   }
 }
 
 async function initRankingUI() {
+  const weekSelect = $("weekSelect");
+  const reloadBtn = $("rankReloadBtn");
+
+  if (!weekSelect || !reloadBtn) return;
+
   try {
-    // 要素が無いページでは何もしない
-    if (!els.weekSelect || !els.reloadBtn) return;
+    // 週候補を埋める
+    const weeks = await api.fetchWeekOptions();
+    const now = api.getWeekIdNow();
 
-    const weeks = await getWeekOptionsSafe();
-    const now = (api && typeof api.getWeekIdNow === "function") ? api.getWeekIdNow() : "";
+    weekSelect.innerHTML = "";
+    const sorted = [...weeks].sort().reverse();
+    const use = sorted.length ? sorted : [now];
 
-    // selectを埋める
-    els.weekSelect.innerHTML = "";
-    const list = (weeks && weeks.length) ? weeks : (now ? [now] : []);
-    for (const w of list) {
+    for (const w of use) {
       const opt = document.createElement("option");
       opt.value = w;
       opt.textContent = w;
-      els.weekSelect.appendChild(opt);
+      if (w === now) opt.selected = true;
+      weekSelect.appendChild(opt);
     }
 
-    // 初期選択
-    if (now) els.weekSelect.value = now;
+    reloadBtn.addEventListener("click", () => loadRankings(weekSelect.value));
+    weekSelect.addEventListener("change", () => loadRankings(weekSelect.value));
 
-    // イベント
-    els.reloadBtn.addEventListener("click", () => {
-      loadRankings(els.weekSelect.value || now);
-    });
-    els.weekSelect.addEventListener("change", () => {
-      loadRankings(els.weekSelect.value || now);
-    });
-
-    // 初回
-    await loadRankings(els.weekSelect.value || now);
+    // 初回ロード
+    await loadRankings(weekSelect.value || now);
   } catch (e) {
     console.warn("[ranking] init failed:", e);
-    setMsg("（ランキング初期化失敗）");
+    const rankMsg = $("rankMsg");
+    if (rankMsg) rankMsg.textContent = "ランキング初期化失敗";
   }
 }
 
-window.initRankingUI = initRankingUI;
-
 document.addEventListener("DOMContentLoaded", () => {
-  // api.js の読み込み順が正しければここで api は生きてる
-  if (!window.api) console.warn("[ranking] api is missing at DOMContentLoaded");
-  initRankingUI();
+  // apiが来るまで少し待つ（script順が正しくても、clientReadyの都合で念のため）
+  const tick = setInterval(() => {
+    if (window.api) {
+      clearInterval(tick);
+      initRankingUI();
+    }
+  }, 50);
 });
