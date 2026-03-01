@@ -1,95 +1,108 @@
-// docs/js/config.js
 "use strict";
 
-// ===== Supabase =====
+/**
+ * config.js
+ * - mode=mock|prod を URL or localStorage から決定
+ * - window.USE_MOCK を必ず定義
+ * - Supabase SDK を動的ロードし、window.client / window.clientReady を提供
+ * - SWキャッシュで切替が反映されない対策として、モード切替はURLを書き換えて reload
+ */
+
+// ====== Supabase（あなたの値に置換） ======
 const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
+const SUPABASE_ANON_KEY = "ここにanonkey（長いeyJ...）"; // ←必ず本物
 
-// ★ここは「英数字だけの本物anon key」を入れる（日本語/全角/改行が混ざると壊れる）
-const SUPABASE_ANON_KEY_RAW = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuY3pha25kemJxdmF1b3ZveWJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyMjQxNzgsImV4cCI6MjA4NDgwMDE3OH0.IRszAYwh3XPqWvl6fCApjEPTuOm9x647cqzPCgmgYUA";
-
-// 改行/空白/見えない文字を除去
-const SUPABASE_ANON_KEY = String(SUPABASE_ANON_KEY_RAW).replace(/\s+/g, "");
-
-// いまのキー長をデバッグ確認したい時だけ（本番では消してOK）
-window.__DEBUG_SUPABASE_KEY = SUPABASE_ANON_KEY;
-
-// loginId をメール化（プロジェクト側の運用に合わせる）
-window.toEmail = (loginId) => `${loginId}@demo.local`;
-
-// ===== モード決定 =====
-// 優先：URL > localStorage > default(mock)
-function getMode() {
-  const p = new URLSearchParams(location.search);
-  const q = (p.get("mode") || "").toLowerCase();
-  if (q === "mock" || q === "prod") return q;
-
-  const saved = (localStorage.getItem("vocab_mode") || "").toLowerCase();
-  if (saved === "mock" || saved === "prod") return saved;
-
-  return "mock";
+// ====== localStorage 安全ラッパ ======
+function safeLSGet(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function safeLSSet(key, val) {
+  try { localStorage.setItem(key, val); } catch {}
 }
 
-function setMode(mode) {
-  localStorage.setItem("vocab_mode", mode);
-}
+// ====== モード決定 ======
+const params = new URLSearchParams(location.search);
+const urlMode = (params.get("mode") || "").toLowerCase();
 
-let MODE = getMode();
-setMode(MODE);
-window.USE_MOCK = (MODE === "mock");
+let MODE = urlMode || safeLSGet("vocab_mode") || "mock";
+if (MODE !== "mock" && MODE !== "prod") MODE = "mock";
+safeLSSet("vocab_mode", MODE);
 
-console.log("[config] MODE =", MODE);
+// 必ず定義（ranking.js/api.js がこれを参照）
+window.MODE = MODE;
+window.USE_MOCK = MODE === "mock";
 
-// ===== SDK 読み込み =====
-async function loadSupabaseSDK() {
-  if (window.supabase?.createClient) return true;
+// ====== 画面右上のMODE表示（クリックで切替） ======
+(function mountModeBadge() {
+  // index.html に MODEバッジ要素が無くても動くように、勝手に付ける
+  const badge = document.createElement("div");
+  badge.id = "modeBadge";
+  badge.textContent = `MODE: ${MODE.toUpperCase()}`;
+  badge.style.position = "fixed";
+  badge.style.right = "12px";
+  badge.style.top = "12px";
+  badge.style.zIndex = "9999";
+  badge.style.padding = "8px 12px";
+  badge.style.borderRadius = "999px";
+  badge.style.fontWeight = "900";
+  badge.style.fontSize = "12px";
+  badge.style.cursor = "pointer";
+  badge.style.userSelect = "none";
+  badge.style.border = "1px solid rgba(255,255,255,.18)";
+  badge.style.background = MODE === "prod" ? "rgba(180,30,30,.55)" : "rgba(30,120,180,.45)";
+  badge.style.color = "white";
+  badge.title = "クリックで MODE 切替（mock/prod）";
 
-  return new Promise((resolve) => {
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-    s.onload = () => resolve(!!window.supabase?.createClient);
-    s.onerror = () => resolve(false);
-    document.head.appendChild(s);
+  badge.addEventListener("click", () => {
+    const next = (window.MODE === "prod") ? "mock" : "prod";
+    safeLSSet("vocab_mode", next);
+
+    // SWキャッシュ対策：URLにmodeとtを付けて強制リロード
+    const u = new URL(location.href);
+    u.searchParams.set("mode", next);
+    u.searchParams.set("t", String(Date.now()));
+    location.href = u.toString();
   });
-}
 
-// ===== clientReady（api.jsが待てるように）=====
-window.client = null;
-
-window.clientReady = (async () => {
-  if (window.USE_MOCK) {
-    console.log("[config] MODE=mock -> supabase not used.");
-    window.client = null;
-    return;
-  }
-
-  // キーが空 or 仮文字列なら mockに落とす
-  if (!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY === "YOUR_REAL_ANON_KEY_HERE") {
-    console.warn("[config] anon key not set -> MODE forced mock.");
-    window.USE_MOCK = true;
-    window.client = null;
-    return;
-  }
-
-  // 変な文字が入ってると supabase が落ちやすい（headersエラーになる）
-  // “base64urlっぽいか”を軽くチェック
-  if (!/^[A-Za-z0-9._-]+$/.test(SUPABASE_ANON_KEY)) {
-    console.warn("[config] anon key looks invalid -> MODE forced mock.");
-    window.USE_MOCK = true;
-    window.client = null;
-    return;
-  }
-
-  const ok = await loadSupabaseSDK();
-  console.log("[config] Supabase SDK loaded =", ok);
-
-  if (!ok) {
-    console.warn("[config] SDK load failed -> MODE forced mock.");
-    window.USE_MOCK = true;
-    window.client = null;
-    return;
-  }
-
-  window.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  console.log("[config] Supabase client created =", !!window.client);
+  document.body.appendChild(badge);
 })();
 
+console.log("[config] MODE =", MODE, "USE_MOCK =", window.USE_MOCK);
+
+// ====== Supabase client 準備 ======
+window.client = null;
+
+// clientReady: api.js が await できるようにする
+let _resolveClientReady;
+window.clientReady = new Promise((resolve) => { _resolveClientReady = resolve; });
+
+// mock なら即 resolve
+if (window.USE_MOCK) {
+  _resolveClientReady(null);
+} else {
+  // prod でキーが空っぽなら mock 扱い（ただし MODE は表示の通り prod のままにする）
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.length < 50) {
+    console.warn("[config] Supabase key/url missing -> fallback to mock behavior.");
+    window.client = null;
+    _resolveClientReady(null);
+  } else {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+    s.onload = () => {
+      const ok = !!window.supabase?.createClient;
+      console.log("[config] Supabase SDK loaded =", ok);
+      if (!ok) {
+        _resolveClientReady(null);
+        return;
+      }
+      window.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      console.log("[config] Supabase client created =", !!window.client);
+      _resolveClientReady(window.client);
+    };
+    s.onerror = () => {
+      console.warn("[config] Supabase SDK load failed -> fallback mock behavior.");
+      _resolveClientReady(null);
+    };
+    document.head.appendChild(s);
+  }
+}
