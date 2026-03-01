@@ -161,7 +161,21 @@ const api = {
   },
 
   getWeekIdNow() { return getISOWeekId(new Date()); },
+　async fetchWeeklyTop(weekId) {
+  if (window.USE_MOCK) return [];
+  const client = await ensureClientReady();
+  const { data, error } = await client.rpc("get_weekly_top10", { p_week_id: weekId });
+  if (error) throw error;
+  return data || [];
+},
 
+　async fetchMyWeeklyRank(weekId) {
+  if (window.USE_MOCK) return null;
+  const client = await ensureClientReady();
+  const { data, error } = await client.rpc("get_my_weekly_rank", { p_week_id: weekId });
+  if (error) throw error;
+  return Array.isArray(data) ? data[0] : data;
+},
   async fetchLatestQuestion() {
     if (window.vocabReady) { try { await window.vocabReady; } catch {} }
 
@@ -260,3 +274,4 @@ const api = {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", mock.vocab.length);
+
