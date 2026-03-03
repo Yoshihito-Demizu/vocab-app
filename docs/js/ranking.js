@@ -1,154 +1,129 @@
-// docs/js/ranking.js
-/* global api */
 "use strict";
 
-console.log("[ranking] loaded! (safe-init + api-only)");
+/**
+ * ranking.js
+ * - 結果画面のランキングUIのみ
+ * - main.js の関数設計（loadWeekOptions/loadRankings）に合わせる
+ * - $ の衝突を避ける
+ */
 
-function $(id) { return document.getElementById(id); }
+console.log("[ranking] loaded! (safe-init + api-aligned)");
 
-const els = {
-  weekSelect: $("weekSelect"),
-  reloadBtn: $("rankReloadBtn"),
-  msg: $("rankMsg"),
-  weeklyTop: $("weeklyTop"),
-  myRank: $("myRank"),
-};
+function byId2(id){ return document.getElementById(id); }
 
-function setMsg(text) {
-  if (els.msg) els.msg.textContent = text;
+function fmtRow(i, row) {
+  const name = row.nickname || row.user_id || "-";
+  const pts = row.points ?? row.best_score ?? row.score ?? 0;
+  const combo = row.best_combo ?? row.max_combo ?? 0;
+  return `${i + 1}. ${name} — ${pts}点（COMBO ${combo}）`;
 }
 
-function escapeHtml(s) {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+// ===== 週の選択肢を入れる =====
+async function loadWeekOptions(){
+  const weekSelect = byId2("weekSelect");
+  if (!weekSelect) return;
 
-function renderTop10(rows) {
-  if (!els.weeklyTop) return;
-  if (!rows || rows.length === 0) {
-    els.weeklyTop.textContent = "（まだデータなし）";
-    return;
-  }
+  try{
+    const now = api.getWeekIdNow();
 
-  const lines = rows.slice(0, 10).map((r, i) => {
-    const name = escapeHtml(r.nickname ?? r.user_id ?? "");
-    const pts = Number(r.points ?? r.best_score ?? r.score ?? 0);
-    const combo = Number(r.best_combo ?? r.max_combo ?? 0);
-    return `${i + 1}. ${name} — ${pts}点（COMBO:${combo}）`;
-  });
+    // MOCKなら今週だけ入れて終了（ランキングも空でOK）
+    if (window.USE_MOCK) {
+      weekSelect.innerHTML = "";
+      const opt = document.createElement("option");
+      opt.value = now;
+      opt.textContent = now;
+      opt.selected = true;
+      weekSelect.appendChild(opt);
 
-  els.weeklyTop.textContent = lines.join("\n");
-  els.weeklyTop.style.whiteSpace = "pre-line";
-}
-
-function renderMe(row) {
-  if (!els.myRank) return;
-  if (!row) {
-    els.myRank.textContent = "（まだデータなし）";
-    return;
-  }
-  const rank = row.rank ?? row.rnk ?? "—";
-  const pts = Number(row.points ?? row.best_score ?? row.score ?? 0);
-  const combo = Number(row.best_combo ?? row.max_combo ?? 0);
-  els.myRank.textContent = `順位：${rank}位　スコア：${pts}点（COMBO:${combo}）`;
-}
-
-async function getWeekOptionsSafe() {
-  // api.jsに関数があるならそれを使う（MOCK/PRODもそこで吸収）
-  if (api && typeof api.fetchWeekOptions === "function") {
-    return await api.fetchWeekOptions();
-  }
-
-  // ない場合：今週だけ入れておく
-  if (api && typeof api.getWeekIdNow === "function") {
-    return [api.getWeekIdNow()];
-  }
-  return [];
-}
-
-async function loadRankings(weekId) {
-  try {
-    setMsg("loading...");
-
-    // Top10
-    let top = [];
-    if (api && typeof api.fetchWeeklyTop === "function") {
-      top = await api.fetchWeeklyTop(weekId);
-    } else if (api && typeof api.fetchPersonalWeeklyTop === "function") {
-      // 旧名互換（念のため）
-      top = await api.fetchPersonalWeeklyTop(weekId);
-    } else {
-      throw new Error("api.fetchWeeklyTop が見つからない（api.js差し替え漏れ）");
+      const rankMsg = byId2("rankMsg");
+      if (rankMsg) rankMsg.textContent = "MOCK";
+      return;
     }
-    renderTop10(top);
 
-    // 自分
-    let me = null;
-    if (api && typeof api.fetchMyWeeklyRank === "function") {
-      me = await api.fetchMyWeeklyRank(weekId);
-    }
-    renderMe(me);
+    const weeks = await api.fetchWeekOptions();
+    const sorted = [...weeks].sort().reverse();
+    const use = sorted.length ? sorted : [now];
 
-    setMsg(`OK（${weekId}）`);
-  } catch (e) {
-    console.warn("[ranking] loadRankings failed:", e);
-    renderTop10([]);
-    renderMe(null);
-    setMsg("（取得失敗）");
-
-    // ありがちな原因を一言だけ表示（長文は出さない）
-    // e が Object の場合があるので message を拾える範囲で拾う
-    const msg = (e && (e.message || e.error_description || e.details || e.hint)) ? (e.message || e.error_description || e.details || e.hint) : "";
-    if (msg && els.weeklyTop) {
-      els.weeklyTop.textContent = `（取得失敗）\n${msg}`;
-      els.weeklyTop.style.whiteSpace = "pre-line";
-    }
-  }
-}
-
-async function initRankingUI() {
-  try {
-    // 要素が無いページでは何もしない
-    if (!els.weekSelect || !els.reloadBtn) return;
-
-    const weeks = await getWeekOptionsSafe();
-    const now = (api && typeof api.getWeekIdNow === "function") ? api.getWeekIdNow() : "";
-
-    // selectを埋める
-    els.weekSelect.innerHTML = "";
-    const list = (weeks && weeks.length) ? weeks : (now ? [now] : []);
-    for (const w of list) {
+    weekSelect.innerHTML = "";
+    for (const w of use) {
       const opt = document.createElement("option");
       opt.value = w;
       opt.textContent = w;
-      els.weekSelect.appendChild(opt);
+      if (w === now) opt.selected = true;
+      weekSelect.appendChild(opt);
     }
-
-    // 初期選択
-    if (now) els.weekSelect.value = now;
-
-    // イベント
-    els.reloadBtn.addEventListener("click", () => {
-      loadRankings(els.weekSelect.value || now);
-    });
-    els.weekSelect.addEventListener("change", () => {
-      loadRankings(els.weekSelect.value || now);
-    });
-
-    // 初回
-    await loadRankings(els.weekSelect.value || now);
-  } catch (e) {
-    console.warn("[ranking] init failed:", e);
-    setMsg("（ランキング初期化失敗）");
+  } catch(e){
+    console.warn("[ranking] loadWeekOptions failed:", e);
+    // とりあえず今週だけ入れる
+    const now = api.getWeekIdNow?.() || "";
+    const weekSelect = byId2("weekSelect");
+    if (weekSelect) {
+      weekSelect.innerHTML = "";
+      const opt = document.createElement("option");
+      opt.value = now;
+      opt.textContent = now || "week";
+      opt.selected = true;
+      weekSelect.appendChild(opt);
+    }
   }
 }
 
-window.initRankingUI = initRankingUI;
+// ===== ランキングを描画 =====
+async function loadRankings(){
+  const weekSelect = byId2("weekSelect");
+  const weeklyTop = byId2("weeklyTop");
+  const myRank = byId2("myRank");
+  const rankMsg = byId2("rankMsg");
 
+  if (!weekSelect || !weeklyTop || !myRank || !rankMsg) return;
+
+  weeklyTop.textContent = "loading...";
+  myRank.textContent = "loading...";
+  rankMsg.textContent = "loading...";
+
+  try{
+    const weekId = weekSelect.value || api.getWeekIdNow();
+
+    if (window.USE_MOCK) {
+      rankMsg.textContent = `MOCK（${weekId}）`;
+      weeklyTop.textContent = "（まだデータなし）";
+      myRank.textContent = "（まだデータなし）";
+      return;
+    }
+
+    const top = await api.fetchWeeklyTop(weekId);
+    weeklyTop.textContent = top.length
+      ? top.map((r, i) => fmtRow(i, r)).join("\n")
+      : "（まだデータなし）";
+
+    const mine = await api.fetchMyWeeklyRank(weekId);
+    myRank.textContent = mine
+      ? `順位：${mine.rank ?? "-"}位　スコア：${mine.points ?? 0}点`
+      : "（まだデータなし）";
+
+    rankMsg.textContent = `OK（${weekId}）`;
+  } catch(e){
+    console.warn("[ranking] loadRankings failed:", e);
+    const msg = (e && (e.message || e.details || e.code))
+      ? String(e.message || e.details || e.code)
+      : String(e);
+
+    rankMsg.textContent = "取得失敗";
+    weeklyTop.textContent = `（取得失敗）\n${msg}`;
+    myRank.textContent = "（取得失敗）";
+  }
+}
+
+// main.js から呼べるように公開
+window.loadWeekOptions = loadWeekOptions;
+window.loadRankings = loadRankings;
+
+// ページ読み込みで一応初期化（main.js でも呼ばれるので二重でもOK）
 document.addEventListener("DOMContentLoaded", () => {
-  // api.js の読み込み順が正しければここで api は生きてる
-  if (!window.api) console.warn("[ranking] api is missing at DOMContentLoaded");
-  initRankingUI();
+  const tick = setInterval(async () => {
+    if (!window.api) return;
+    clearInterval(tick);
+    await loadWeekOptions();
+    await loadRankings();
+  }, 50);
 });
