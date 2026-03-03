@@ -3,241 +3,206 @@ console.log("[quiz] loaded! (best-score+combo-tuning)");
 
 /* global api */
 
+const $ = (id) => document.getElementById(id);
+
+const els = {
+  startPane: $("startPane"),
+  battlePane: $("battlePane"),
+  resultPane: $("resultPane"),
+
+  timeLeft: $("timeLeft"),
+  scoreNow: $("scoreNow"),
+  comboNow: $("comboNow"),
+
+  q: $("q"),
+  choices: $("choices"),
+
+  finalScore: $("finalScore"),
+  finalCombo: $("finalCombo"),
+
+  overlay: $("overlay"),
+  overlayPanel: document.querySelector("#overlay .panel"),
+};
+
+const GAME_SECONDS = 60;
+
+// ===== 状態 =====
 let timer = null;
-let timeLeft = 60;   // ✅ 60秒
+let endAt = 0;
 let score = 0;
 let combo = 0;
 let maxCombo = 0;
-let currentQuestion = null;
-let playing = false;
+let locked = false;
+let currentQ = null;
 
-function q$(id) { return document.getElementById(id); }
-function show(id) { q$(id)?.classList.remove("hidden"); }
-function hide(id) { q$(id)?.classList.add("hidden"); }
-function setText(id, v) { const el = q$(id); if (el) el.textContent = String(v); }
-
-// =====================
-// ✅ スコア調整（ここだけ触ればOK）
-// =====================
-// ベース点（DBから返るpointsが10前提でもOK）
-const BASE_POINTS = 10;
-
-// コンボボーナス：
-// - 伸びるほど加点は増える
-// - でも暴れすぎないように上限を置く
-// 例：combo=1→0, 5→2, 10→4, 20→7, 30→9 みたいなイメージ
-const COMBO_FACTOR = 0.35;     // ← ここを上げると「差」が出やすい
-const COMBO_CAP = 12;          // ← 60秒で暴れすぎ防止
-
-function calcComboBonus(c) {
-  // c=0のとき0。cが増えるほどゆるやかに増える
-  // 直線より「ちょい鈍い」：sqrt
-  const raw = Math.floor(Math.sqrt(Math.max(0, c)) / 1.6 + (c * COMBO_FACTOR));
-  return Math.min(COMBO_CAP, Math.max(0, raw));
+// ===== 演出（最小）=====
+function showOverlay(text, cls) {
+  if (!els.overlay || !els.overlayPanel) return;
+  els.overlay.classList.remove("hidden");
+  els.overlayPanel.className = "panel " + (cls || "");
+  els.overlayPanel.textContent = text;
+}
+function hideOverlay() {
+  if (!els.overlay) return;
+  els.overlay.classList.add("hidden");
 }
 
-// =====================
-// Audio（簡易）
-// =====================
-let AC = null, master = null;
-function ensureAudio() {
-  if (AC) return;
-  const Ctx = window.AudioContext || window.webkitAudioContext;
-  AC = new Ctx();
-  master = AC.createGain();
-  master.gain.value = 0.25;
-  master.connect(AC.destination);
-}
-async function unlockAudio() {
-  ensureAudio();
-  if (AC.state !== "running") await AC.resume();
-}
-function beep({ freq=440, dur=0.12, type="square", gain=0.12 }) {
-  if (!AC || !master) return;
-  const o = AC.createOscillator();
-  const g = AC.createGain();
-  o.type = type;
-  o.frequency.value = freq;
-  g.gain.value = 0.0001;
-  g.gain.linearRampToValueAtTime(gain, AC.currentTime + 0.01);
-  g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
-  o.connect(g); g.connect(master);
-  o.start(); o.stop(AC.currentTime + dur + 0.02);
-}
-function sfxCorrect(){ beep({ freq:880, dur:0.08, gain:0.18 }); setTimeout(()=>beep({ freq:1175, dur:0.10, gain:0.16 }), 90); }
-function sfxWrong(){ beep({ freq:160, dur:0.22, type:"sawtooth", gain:0.22 }); }
-function sfxCount(n){ beep({ freq:n===3?440:n===2?523:659, dur:0.12, gain:0.16 }); }
-function sfxGo(){ beep({ freq:988, dur:0.10, gain:0.18 }); setTimeout(()=>beep({ freq:1319, dur:0.12, gain:0.16 }), 90); }
-
-// =====================
-// Overlay
-// =====================
-function overlayShow(text, kind="") {
-  const ov = q$("overlay");
-  const panel = ov?.querySelector(".panel");
-  if (!ov || !panel) return;
-  panel.textContent = String(text ?? "");
-  panel.className = "panel" + (kind ? " " + kind : "");
-  ov.classList.remove("hidden");
-}
-function overlayHide(){ q$("overlay")?.classList.add("hidden"); }
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-async function flashyCountdown() {
-  overlayShow("3", "count"); sfxCount(3); await sleep(900);
-  overlayShow("2", "count"); sfxCount(2); await sleep(900);
-  overlayShow("1", "count"); sfxCount(1); await sleep(900);
-  overlayShow("GO!", "go");  sfxGo();      await sleep(700);
-  overlayHide();
+function showPane(which) {
+  els.startPane?.classList.add("hidden");
+  els.battlePane?.classList.add("hidden");
+  els.resultPane?.classList.add("hidden");
+  which?.classList.remove("hidden");
 }
 
-// =====================
-// 問題
-// =====================
-async function loadQuestion() {
-  const q = await api.fetchLatestQuestion();
-  if (!q) throw new Error("問題が見つかりません（questionsが空 / is_active=false など）");
-  currentQuestion = q;
+// ===== 描画 =====
+function renderHUD() {
+  if (els.scoreNow) els.scoreNow.textContent = String(score);
+  if (els.comboNow) els.comboNow.textContent = String(combo);
+}
+function renderTime() {
+  const t = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+  if (els.timeLeft) els.timeLeft.textContent = String(t);
+  if (t <= 0) endGame();
+}
 
-  const qBox = q$("q");
-  const cBox = q$("choices");
-  if (!qBox || !cBox) return;
+function renderQuestion(q) {
+  if (!q) return;
 
-  qBox.innerHTML = `<h3>${q.word}</h3><div class="prompt">${q.prompt}</div>`;
-  cBox.innerHTML = "";
+  els.q.innerHTML = `
+    <h3 style="margin:0 0 6px;">${escapeHTML(q.word)}</h3>
+    <div class="prompt">${escapeHTML(q.prompt || "")}</div>
+  `;
 
-  [
-    ["A", q.choice_a],
-    ["B", q.choice_b],
-    ["C", q.choice_c],
-    ["D", q.choice_d],
-  ].forEach(([k, txt]) => {
-    const b = document.createElement("button");
-    b.textContent = `${k}: ${txt}`;
-    b.addEventListener("click", () => answer(k), { passive: true });
-    cBox.appendChild(b);
+  const btn = (label, text) => `
+    <button data-choice="${label}">
+      <div style="font-size:12px;opacity:.75;margin-bottom:6px;">${label}</div>
+      <div>${escapeHTML(text || "")}</div>
+    </button>
+  `;
+
+  els.choices.innerHTML =
+    btn("A", q.choice_a) + btn("B", q.choice_b) + btn("C", q.choice_c) + btn("D", q.choice_d);
+
+  els.choices.querySelectorAll("button").forEach((b) => {
+    b.addEventListener("click", () => onChoose(b.getAttribute("data-choice")));
   });
 }
 
-let lock = false;
+function escapeHTML(s) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
-async function answer(chosen) {
-  if (!playing || !currentQuestion || lock) return;
-  lock = true;
-
+// ===== 問題ロード =====
+async function loadQuestion() {
+  if (locked) return;
+  locked = true;
   try {
-    const rows = await api.submitAttempt(currentQuestion.id, chosen);
-    const r = rows?.[0];
-    if (!r) throw new Error("submitAttempt の返り値が空です");
-
-    if (r.is_correct) {
-      // ✅ ここが「差」を出す本体
-      const comboBonus = calcComboBonus(combo);
-      score += Number(r.points ?? BASE_POINTS) + comboBonus;
-      combo += 1;
-      maxCombo = Math.max(maxCombo, combo);
-      overlayShow("⭕", "ok");
-      sfxCorrect();
-    } else {
-      combo = 0;
-      overlayShow("❌", "ng");
-      sfxWrong();
+    if (!api || typeof api.fetchLatestQuestion !== "function") {
+      throw new Error("api.fetchLatestQuestion が見つかりません（api.js差し替え確認）");
     }
-
-    setText("scoreNow", score);
-    setText("comboNow", combo);
-
-    await sleep(520);
-    overlayHide();
-    await loadQuestion();
-  } catch (e) {
-    const msg = e?.message || "送信に失敗しました。";
-    overlayShow(msg, "warn");
-    await sleep(1100);
-    overlayHide();
-    endGame(true);
+    currentQ = await api.fetchLatestQuestion();
+    renderQuestion(currentQ);
   } finally {
-    lock = false;
+    locked = false;
   }
 }
 
-async function startGame() {
+// ===== 回答 =====
+async function onChoose(label) {
+  if (locked) return;
+  locked = true;
   try {
-    await unlockAudio();
+    const res = await api.submitAttempt(currentQ?.id, label);
+    const row = Array.isArray(res) ? res[0] : res;
 
-    // ✅ 本番はログイン必須
-    if (!api.isMock()) {
-      const uid = await api.getMyUserId();
-      if (!uid) {
-        overlayShow("未ログインです。\n先にログインしてね", "warn");
-        await sleep(1100);
-        overlayHide();
-        return;
-      }
+    const isCorrect = !!row?.is_correct;
+
+    if (isCorrect) {
+      combo += 1;
+      maxCombo = Math.max(maxCombo, combo);
+
+      // ✅ コンボボーナス（調整しやすい形）
+      // 例：基本10点 + combo*2（上限なし、好みで上限付けてもOK）
+      score += 10 + combo * 2;
+
+      showOverlay("OK!", "ok");
+      setTimeout(hideOverlay, 180);
+    } else {
+      combo = 0;
+      showOverlay("NG!", "ng");
+      setTimeout(hideOverlay, 220);
     }
 
-    if (playing) return;
-    playing = true;
+    renderHUD();
+    await loadQuestion();
+  } catch (e) {
+    console.warn("[quiz] submitAttempt failed:", e);
+    showOverlay("通信エラー", "warn");
+    setTimeout(hideOverlay, 600);
+  } finally {
+    locked = false;
+  }
+}
 
-    hide("startPane");
-    hide("resultPane");
-    show("battlePane");
-
-    timeLeft = 60;  // ✅
+// ===== ゲーム制御 =====
+async function startGame() {
+  try {
     score = 0;
     combo = 0;
     maxCombo = 0;
+    currentQ = null;
+    locked = false;
 
-    setText("timeLeft", timeLeft);
-    setText("scoreNow", score);
-    setText("comboNow", combo);
+    showPane(els.battlePane);
 
-    await flashyCountdown();
+    endAt = Date.now() + GAME_SECONDS * 1000;
+    renderHUD();
+    renderTime();
+
+    if (timer) clearInterval(timer);
+    timer = setInterval(renderTime, 250);
+
     await loadQuestion();
-
-    clearInterval(timer);
-    timer = setInterval(() => {
-      timeLeft--;
-      setText("timeLeft", timeLeft);
-      if (timeLeft <= 0) endGame(false);
-    }, 1000);
-
   } catch (e) {
     console.warn("[startGame] failed:", e);
-    overlayShow("開始に失敗（設定/ログイン確認）", "warn");
-    await sleep(1100);
-    overlayHide();
+    showOverlay("開始できません", "warn");
+    setTimeout(hideOverlay, 800);
+    showPane(els.startPane);
   }
 }
 
-async function endGame(forceToStart) {
-  playing = false;
-  clearInterval(timer);
+async function endGame() {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
 
-  hide("battlePane");
+  showPane(els.resultPane);
 
-  // 結果表示
-  show("resultPane");
-  setText("finalScore", score);
-  setText("finalCombo", maxCombo);
+  if (els.finalScore) els.finalScore.textContent = String(score);
+  if (els.finalCombo) els.finalCombo.textContent = String(maxCombo);
 
-  // ✅ 本番だけ「1プレイ結果」を保存（ランキングはMAXで出す）
-  if (!forceToStart && !api.isMock()) {
-    try {
-      await api.submitRun(score, maxCombo);
-      // 結果画面でランキング更新（あれば）
-      window.loadWeekOptions?.();
-      window.loadRankings?.();
-    } catch (e) {
-      console.warn("[endGame] submitRun failed:", e);
+  // ✅ 1プレイ結果を保存（本番のみ）
+  try {
+    if (api && typeof api.submitRun === "function") {
+      const r = await api.submitRun(score, maxCombo);
+      if (!r?.ok) console.warn("[endGame] submitRun not ok:", r);
     }
+  } catch (e) {
+    console.warn("[endGame] submitRun failed:", e);
   }
 
-  if (forceToStart) {
-    hide("resultPane");
-    show("startPane");
-  }
+  // 結果画面表示後にランキング更新（main.js が設定してる想定）
+  try {
+    if (typeof window.onResultShown === "function") await window.onResultShown();
+  } catch {}
 }
 
+// グローバルに公開（main.jsが呼ぶ）
 window.startGame = startGame;
 window.endGame = endGame;
