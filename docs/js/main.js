@@ -3,15 +3,16 @@ console.log("[main] loaded! (buttons+login+ranking)");
 
 /* global api */
 
-function $(id){ return document.getElementById(id); }
+// $ は衝突しやすいので使わない
+function byId(id){ return document.getElementById(id); }
 
 function setLoginMsg(t){
-  const el = $("loginMsg");
+  const el = byId("loginMsg");
   if (el) el.textContent = t || "";
 }
 
 async function refreshLoginBox(){
-  const box = $("loginBox");
+  const box = byId("loginBox");
   if (!box) return;
 
   if (api?.isMock?.()) {
@@ -27,7 +28,6 @@ async function refreshLoginBox(){
 // ===== ランキングを読み込む（存在しない時は何もしない）=====
 async function refreshRanking(){
   try{
-    // ranking.js が読み込まれていない / DOMが無い なら静かに終わる
     if (typeof window.loadWeekOptions !== "function") return;
     if (typeof window.loadRankings !== "function") return;
 
@@ -35,32 +35,31 @@ async function refreshRanking(){
     await window.loadRankings();
   } catch(e){
     console.warn("[main] refreshRanking failed:", e);
-    // rankMsg があるなら一言だけ
-    const msg = $("rankMsg");
+    const msg = byId("rankMsg");
     if (msg) msg.textContent = "ランキング取得に失敗";
   }
 }
 
 // ===== ボタン =====
-$("startBtn")?.addEventListener("click", () => window.startGame?.());
-$("retryBtn")?.addEventListener("click", () => window.startGame?.());
-$("stopBtn")?.addEventListener("click", () => window.endGame?.());
+byId("startBtn")?.addEventListener("click", () => window.startGame?.());
+byId("retryBtn")?.addEventListener("click", () => window.startGame?.());
+byId("stopBtn")?.addEventListener("click", () => window.endGame?.());
 
 // ランキングの更新ボタン
-$("rankReloadBtn")?.addEventListener("click", async () => {
+byId("rankReloadBtn")?.addEventListener("click", async () => {
   await refreshRanking();
 });
 
 // 週を変えたら自動更新
-$("weekSelect")?.addEventListener("change", async () => {
+byId("weekSelect")?.addEventListener("change", async () => {
   if (typeof window.loadRankings === "function") await window.loadRankings();
 });
 
 // ===== ログイン =====
-$("loginBtn")?.addEventListener("click", async () => {
+byId("loginBtn")?.addEventListener("click", async () => {
   try{
-    const loginId = $("loginId")?.value || "";
-    const pw = $("loginPw")?.value || "";
+    const loginId = byId("loginId")?.value || "";
+    const pw = byId("loginPw")?.value || "";
     if (!loginId || !pw) { setLoginMsg("ログインIDとパスワードを入れてね"); return; }
     const res = await api.signIn(loginId, pw);
     setLoginMsg(res.message || "");
@@ -70,7 +69,7 @@ $("loginBtn")?.addEventListener("click", async () => {
   }
 });
 
-$("logoutBtn")?.addEventListener("click", async () => {
+byId("logoutBtn")?.addEventListener("click", async () => {
   try{
     await api.signOut();
     setLoginMsg("ログアウトしました");
@@ -83,13 +82,9 @@ $("logoutBtn")?.addEventListener("click", async () => {
 // ===== 初期化 =====
 (async () => {
   await refreshLoginBox();
-
-  // ページ起動時に結果画面が表示されている場合もあるので、ここで一度試す
-  //（rankPaneが無ければ何もしない）
   await refreshRanking();
 
-  // ✅ 結果画面が表示されたタイミングでも更新できるように
-  // quiz.js 側から window.onResultShown() を呼べるようにする
+  // quiz.js 側が window.onResultShown() を呼ぶ想定
   window.onResultShown = async () => {
     await refreshRanking();
   };
