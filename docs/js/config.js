@@ -1,108 +1,76 @@
 "use strict";
 
 /**
- * config.js
- * - mode=mock|prod を URL or localStorage から決定
- * - window.USE_MOCK を必ず定義
- * - Supabase SDK を動的ロードし、window.client / window.clientReady を提供
- * - SWキャッシュで切替が反映されない対策として、モード切替はURLを書き換えて reload
+ * docs/js/config.js
+ * - mode=prod/mock を決定
+ * - SupabaseのURL/KEYが無い・不正なら強制mock
+ * - window.USE_MOCK と window.clientReady の整合を100%取る
  */
 
-// ====== Supabase（あなたの値に置換） ======
+// ===== Supabase =====
 const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
-const SUPABASE_ANON_KEY = "ここにanonkey（長いeyJ...）"; // ←必ず本物
+const SUPABASE_ANON_KEY = "ここにanonkey（長いeyJ...）"; // ←必ず本物に置き換え
 
-// ====== localStorage 安全ラッパ ======
-function safeLSGet(key) {
-  try { return localStorage.getItem(key); } catch { return null; }
-}
-function safeLSSet(key, val) {
-  try { localStorage.setItem(key, val); } catch {}
-}
-
-// ====== モード決定 ======
+// ===== モード決定 =====
 const params = new URLSearchParams(location.search);
 const urlMode = (params.get("mode") || "").toLowerCase();
 
-let MODE = urlMode || safeLSGet("vocab_mode") || "mock";
+let MODE = urlMode || localStorage.getItem("vocab_mode") || "mock";
 if (MODE !== "mock" && MODE !== "prod") MODE = "mock";
-safeLSSet("vocab_mode", MODE);
 
-// 必ず定義（ranking.js/api.js がこれを参照）
-window.MODE = MODE;
-window.USE_MOCK = MODE === "mock";
+// ===== KEY/URLの検査 =====
+const key = (SUPABASE_ANON_KEY || "").trim();
+const url = (SUPABASE_URL || "").trim();
 
-// ====== 画面右上のMODE表示（クリックで切替） ======
-(function mountModeBadge() {
-  // index.html に MODEバッジ要素が無くても動くように、勝手に付ける
-  const badge = document.createElement("div");
-  badge.id = "modeBadge";
-  badge.textContent = `MODE: ${MODE.toUpperCase()}`;
-  badge.style.position = "fixed";
-  badge.style.right = "12px";
-  badge.style.top = "12px";
-  badge.style.zIndex = "9999";
-  badge.style.padding = "8px 12px";
-  badge.style.borderRadius = "999px";
-  badge.style.fontWeight = "900";
-  badge.style.fontSize = "12px";
-  badge.style.cursor = "pointer";
-  badge.style.userSelect = "none";
-  badge.style.border = "1px solid rgba(255,255,255,.18)";
-  badge.style.background = MODE === "prod" ? "rgba(180,30,30,.55)" : "rgba(30,120,180,.45)";
-  badge.style.color = "white";
-  badge.title = "クリックで MODE 切替（mock/prod）";
+// ざっくり検査：未設定/短すぎ/日本語が混じってる/プレースホルダっぽい
+const looksMissing = !url || !key;
+const looksPlaceholder = key.includes("ここに") || key.includes("あなたの") || key.includes("anon") && key.length < 80;
+const hasNonAscii = /[^\x00-\x7F]/.test(key); // 日本語など
+const looksInvalid = looksMissing || looksPlaceholder || hasNonAscii || key.length < 80;
 
-  badge.addEventListener("click", () => {
-    const next = (window.MODE === "prod") ? "mock" : "prod";
-    safeLSSet("vocab_mode", next);
+// prod指定でも鍵がダメならmockへ強制
+if (MODE === "prod" && looksInvalid) {
+  console.warn("[config] Supabase key/url missing -> MODE forced mock.");
+  MODE = "mock";
+}
 
-    // SWキャッシュ対策：URLにmodeとtを付けて強制リロード
-    const u = new URL(location.href);
-    u.searchParams.set("mode", next);
-    u.searchParams.set("t", String(Date.now()));
-    location.href = u.toString();
-  });
+// ここで確定
+localStorage.setItem("vocab_mode", MODE);
+window.USE_MOCK = (MODE === "mock");
 
-  document.body.appendChild(badge);
-})();
+// デバッグ用（長さだけ）
+window.__DEBUG_SUPABASE_KEY = key;
 
 console.log("[config] MODE =", MODE, "USE_MOCK =", window.USE_MOCK);
 
-// ====== Supabase client 準備 ======
+// ===== Supabase読み込み & clientReady =====
 window.client = null;
 
-// clientReady: api.js が await できるようにする
-let _resolveClientReady;
-window.clientReady = new Promise((resolve) => { _resolveClientReady = resolve; });
+// 「clientが使える状態」になるのを待つPromise（mockなら即resolve）
+window.clientReady = new Promise((resolve) => {
+  if (window.USE_MOCK) return resolve(null);
 
-// mock なら即 resolve
-if (window.USE_MOCK) {
-  _resolveClientReady(null);
-} else {
-  // prod でキーが空っぽなら mock 扱い（ただし MODE は表示の通り prod のままにする）
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.length < 50) {
-    console.warn("[config] Supabase key/url missing -> fallback to mock behavior.");
-    window.client = null;
-    _resolveClientReady(null);
-  } else {
-    const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
-    s.onload = () => {
-      const ok = !!window.supabase?.createClient;
-      console.log("[config] Supabase SDK loaded =", ok);
-      if (!ok) {
-        _resolveClientReady(null);
-        return;
-      }
-      window.client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      console.log("[config] Supabase client created =", !!window.client);
-      _resolveClientReady(window.client);
-    };
-    s.onerror = () => {
-      console.warn("[config] Supabase SDK load failed -> fallback mock behavior.");
-      _resolveClientReady(null);
-    };
-    document.head.appendChild(s);
-  }
-}
+  // SDKを動的ロード
+  const s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+  s.onload = () => {
+    try {
+      console.log("[config] Supabase SDK loaded = true");
+      window.client = window.supabase.createClient(url, key);
+      console.log("[config] Supabase client created = true");
+      resolve(window.client);
+    } catch (e) {
+      console.warn("[config] Supabase client create failed -> fallback mock:", e);
+      window.USE_MOCK = true;
+      localStorage.setItem("vocab_mode", "mock");
+      resolve(null);
+    }
+  };
+  s.onerror = (e) => {
+    console.warn("[config] Supabase SDK load failed -> fallback mock:", e);
+    window.USE_MOCK = true;
+    localStorage.setItem("vocab_mode", "mock");
+    resolve(null);
+  };
+  document.head.appendChild(s);
+});
