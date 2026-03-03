@@ -9,7 +9,7 @@
 
 // ===== Supabase =====
 const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
-const SUPABASE_ANON_KEY = "ここにanonkey（長いeyJ...）"; // ←必ず本物に置き換え
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuY3pha25kemJxdmF1b3ZveWJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyMjQxNzgsImV4cCI6MjA4NDgwMDE3OH0.IRszAYwh3XPqWvl6fCApjEPTuOm9x647cqzPCgmgYUA"; // ←必ず本物に置き換え
 
 // ===== モード決定 =====
 const params = new URLSearchParams(location.search);
@@ -74,3 +74,4 @@ window.clientReady = new Promise((resolve) => {
   };
   document.head.appendChild(s);
 });
+
