@@ -5,28 +5,27 @@ console.log("[quiz] loaded! (next-question-fix + 60s + best-score)");
 "use strict";
 
 // ===== DOM helper（$は使わない：main.js と衝突することがある）=====
-const byId = (id) => document.getElementById(id);
-
+const qById = (id) => document.getElementById(id);
 // ===== panes =====
-const startPane  = byId("startPane");
-const battlePane = byId("battlePane");
-const resultPane = byId("resultPane");
+const startPane  = qById("startPane");
+const battlePane = qById("battlePane");
+const resultPane = qById("resultPane");
 
 // ===== HUD =====
-const timeLeftEl = byId("timeLeft");
-const scoreNowEl = byId("scoreNow");
-const comboNowEl = byId("comboNow");
+const timeLeftEl = qById("timeLeft");
+const scoreNowEl = qById("scoreNow");
+const comboNowEl = qById("comboNow");
 
 // ===== question UI =====
-const qEl = byId("q");
-const choicesEl = byId("choices");
+const qEl =qById ("q");
+const choicesEl = qById("choices");
 
 // ===== result UI =====
-const finalScoreEl = byId("finalScore");
-const finalComboEl = byId("finalCombo");
+const finalScoreEl = qById("finalScore");
+const finalComboEl = qById("finalCombo");
 
 // ===== overlay =====
-const overlay = byId("overlay");
+const overlay = qById("overlay");
 const overlayPanel = overlay ? overlay.querySelector(".panel") : null;
 
 // ===== config =====
@@ -284,3 +283,4 @@ function escapeHTML(s) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+
