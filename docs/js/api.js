@@ -6,8 +6,9 @@
  * 方針：
  * - 出題は「常に vocab.csv（なければ内蔵fallback）」からランダム
  * - prodでも questions テーブルは使わない（問題が出ない事故を防ぐ）
- * - スコア送信は runs テーブルへ insert（submit_run RPC は不要）
+ * - スコア送信は runs テーブルへ insert（まずは従来どおり）
  * - ランキング取得は RPC（get_week_options / get_weekly_top10 / get_my_weekly_rank）を使う
+ * - B方式：ログインIDから class_code を抽出して user_profile に保存（main.js が呼ぶ）
  */
 
 const fallbackVocab = [
@@ -198,6 +199,30 @@ const api = {
     return data?.session?.user?.id || null;
   },
 
+  // ✅ プロフィールを保存（class_code固定・nicknameは任意）
+  async upsertProfile({ nickname, classCode }) {
+    if (window.USE_MOCK) return { ok: true, via: "mock" };
+
+    const client = await ensureClientReady();
+    const { data: sess, error: sessErr } = await client.auth.getSession();
+    if (sessErr) return { ok: false, error: sessErr };
+    const uid = sess?.session?.user?.id;
+    if (!uid) return { ok: false, error: { message: "未ログイン" } };
+
+    if (!classCode) return { ok: false, error: { message: "class_code が空" } };
+
+    const payload = {
+      user_id: uid,
+      class_code: String(classCode),
+      nickname: nickname ? String(nickname) : null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await client.from("user_profile").upsert(payload);
+    if (error) return { ok: false, error };
+    return { ok: true, via: "upsert" };
+  },
+
   // ✅ 問題取得（prodでも CSV から）
   async fetchLatestQuestion() {
     if (window.vocabReady) {
@@ -232,7 +257,6 @@ const api = {
     const correct = state.lastCorrectLabel;
     const ok = String(chosenLabel).toUpperCase() === String(correct).toUpperCase();
 
-    // ここは「1問10点」にしておく（最終スコアは quiz.js で計算して submitRun）
     return [
       {
         is_correct: ok,
@@ -242,7 +266,7 @@ const api = {
     ];
   },
 
-  // ✅ 1プレイの結果を保存（runsへ直接insert：RPC不要）
+  // ✅ 1プレイの結果を保存（従来どおり insert）
   async submitRun(score, maxCombo) {
     if (window.USE_MOCK) return { ok: true, via: "mock" };
 
@@ -254,7 +278,6 @@ const api = {
 
     const weekId = this.getWeekIdNow();
 
-    // runs(user_id, week_id, score, max_combo) を想定
     const { error } = await client.from("runs").insert([
       {
         user_id: uid,
@@ -298,29 +321,6 @@ const api = {
     return await this.fetchWeeklyTop(weekId);
   },
 };
-  // ✅ プロフィールを保存（class_code固定・nicknameは任意）
-  async upsertProfile({ nickname, classCode }) {
-    if (window.USE_MOCK) return { ok: true, via: "mock" };
 
-    const client = await ensureClientReady();
-    const { data: sess, error: sessErr } = await client.auth.getSession();
-    if (sessErr) return { ok: false, error: sessErr };
-    const uid = sess?.session?.user?.id;
-    if (!uid) return { ok: false, error: { message: "未ログイン" } };
-
-    if (!classCode) return { ok: false, error: { message: "class_code が空" } };
-
-    const payload = {
-      user_id: uid,
-      class_code: String(classCode),
-      nickname: nickname ? String(nickname) : null,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error } = await client.from("user_profile").upsert(payload);
-    if (error) return { ok: false, error };
-    return { ok: true, via: "upsert" };
-  },
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", (state.vocab || []).length);
-
