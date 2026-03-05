@@ -18,7 +18,7 @@ console.log("[main] loaded! (buttons+login+ranking+B-id-classcode)");
     const s = String(loginId || "").trim().toLowerCase();
 
     // 2-3-k9f2 / 12-1-zz9x みたいなのを許可
-    const m = s.match(/^(\d{1,2}-\d{1,2})-([a-z0-9]{4,8})$/);
+    const m = s.match(/^(\d{1,2}-\d{1,2}-\d{1,2})-([a-z0-9]{4})$/);
     if (!m) return null;
 
     const classCode = m[1]; // "2-3"
@@ -146,3 +146,4 @@ console.log("[main] loaded! (buttons+login+ranking+B-id-classcode)");
     };
   })();
 })();
+
