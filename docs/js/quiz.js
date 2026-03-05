@@ -2,7 +2,7 @@
 /* global api */
 "use strict";
 
-console.log("[quiz] loaded! (fx + 60s + next-question-fix + best-score)");
+console.log("[quiz] loaded! (maru-batsu + normal-countdown + 60s + next-question-fix + best-score)");
 
 // ===== DOM =====
 const $ = (id) => document.getElementById(id);
@@ -45,6 +45,10 @@ let seenQuestionIds = new Set();
 
 // ===== settings =====
 const GAME_SECONDS = 60;
+
+// カウントダウン速度（ここだけ好みで変えられる）
+const COUNT_MS = 600;   // 3,2,1 の1つあたり
+const GO_MS = 700;      // GO表示
 
 // ===== helpers =====
 function showPane(name) {
@@ -95,7 +99,7 @@ async function showOverlay(type, text, ms) {
   els.overlay.classList.remove("hidden");
   els.overlayPanel.className = "panel " + (type || "");
   els.overlayPanel.textContent = text || "";
-  await new Promise((r) => setTimeout(r, ms || 240));
+  await new Promise((r) => setTimeout(r, ms || 400));
   els.overlay.classList.add("hidden");
 }
 
@@ -174,8 +178,6 @@ async function loadQuestion() {
 }
 
 // ✅ 正解ラベル取得（mock/prod両方対応）
-// mock: window.__LAST_MOCK_CORRECT
-// prod: window.__LAST_PROD_CORRECT
 function getCorrectLabel() {
   const a = clampLabel(window.__LAST_MOCK_CORRECT);
   const b = clampLabel(window.__LAST_PROD_CORRECT);
@@ -192,49 +194,39 @@ async function answer(choiceLabel) {
     const qid = currentQ ? currentQ.id : null;
     if (!qid) throw new Error("question missing");
 
-    // submitAttempt（mock/prod吸収）
     const res = await api.submitAttempt(qid, chosen);
-
-    // res は [{is_correct, points, out_week_id}] の想定
     const row = Array.isArray(res) ? res[0] : res;
+
     const isCorrect = !!(row && row.is_correct);
     const pts = Number(row && row.points ? row.points : 0);
 
-    // ✅ 正解/不正解演出
     const correctLabel = getCorrectLabel();
-    if (correctLabel) {
-      markButtons(correctLabel, chosen);
-    }
+    if (correctLabel) markButtons(correctLabel, chosen);
 
     if (isCorrect) {
       combo += 1;
       maxCombo = Math.max(maxCombo, combo);
       score += pts;
-
       setText(els.scoreNow, score);
       setText(els.comboNow, combo);
 
-      await showOverlay("ok", "OK!", 220);
+      // ✅ 〇
+      await showOverlay("ok", "〇", 450);
     } else {
       combo = 0;
       score += pts;
-
       setText(els.scoreNow, score);
       setText(els.comboNow, combo);
 
-      await showOverlay("ng", "NG!", 260);
+      // ✅ ×
+      await showOverlay("ng", "×", 520);
     }
 
-    // 次の問題へ
     await loadQuestion();
   } catch (e) {
     console.warn("[quiz] answer failed:", e);
-    await showOverlay("warn", "送信エラー\n（次へ）", 420);
-
-    // とりあえず続行（止めない）
-    try {
-      await loadQuestion();
-    } catch {}
+    await showOverlay("warn", "送信エラー", 700);
+    try { await loadQuestion(); } catch {}
   } finally {
     answering = false;
   }
@@ -247,7 +239,6 @@ async function startGame() {
     playing = true;
     answering = false;
 
-    // ✅ 毎回リセット
     score = 0;
     combo = 0;
     maxCombo = 0;
@@ -262,10 +253,13 @@ async function startGame() {
     msLeft = GAME_SECONDS * 1000;
     startTimer();
 
-    await showOverlay("count", "3", 220);
-    await showOverlay("count", "2", 220);
-    await showOverlay("count", "1", 220);
-    await showOverlay("go", "GO!", 260);
+    // ✅ 普通の速さのカウントダウン
+    await showOverlay("count", "3", COUNT_MS);
+    await showOverlay("count", "2", COUNT_MS);
+    await showOverlay("count", "1", COUNT_MS);
+
+    // GOは控えめ（要らなければ消してOK）
+    await showOverlay("go", "START", GO_MS);
 
     await loadQuestion();
   } catch (e) {
@@ -288,12 +282,11 @@ async function endGame() {
 
   showPane("result");
 
-  // 結果画面が出たタイミングでランキング更新（main.js が拾う）
   if (typeof window.onResultShown === "function") {
     try { await window.onResultShown(); } catch {}
   }
 
-  // ✅ 最高得点ランキング用：runsへ保存（存在すれば）
+  // 最高得点ランキング用
   try {
     if (api && typeof api.submitRun === "function") {
       await api.submitRun(score, maxCombo);
@@ -303,6 +296,5 @@ async function endGame() {
   }
 }
 
-// ===== expose =====
 window.startGame = startGame;
 window.endGame = endGame;
