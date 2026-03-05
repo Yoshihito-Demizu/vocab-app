@@ -75,3 +75,11 @@ window.clientReady = new Promise((resolve) => {
   document.head.appendChild(s);
 });
 
+// ===== loginId -> email 変換（B方式用）=====
+// 例: "2-3-01-k9f2" -> "2-3-01-k9f2@app.local"
+window.toEmail = function toEmail(loginId) {
+  const s = String(loginId || "").trim().toLowerCase();
+  // emailのlocal-partに使える程度に掃除（英数と - _ のみ残す）
+  const safe = s.replace(/[^a-z0-9\-_]/g, "-");
+  return `${safe}@app.local`;
+};
