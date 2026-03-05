@@ -1,109 +1,102 @@
-// docs/sw.js
+/* docs/sw.js */
 "use strict";
 
-// ✅ 更新のたびにここだけ変える
-const VERSION = "20260305-1";
-const CACHE_NAME = `vocab-ta-${VERSION1}`;
+/**
+ * 学校運用向け：更新を最優先
+ * - index.html / js/* はキャッシュしない（常にネット優先）
+ * - 画像やアイコンだけキャッシュして体感を軽くする
+ */
 
-const ASSETS = [
-  "./",
-  "./index.html",
-  "./manifest.webmanifest",
-  "./vocab.csv",
-  "./js/config.js",
-  "./js/api.js",
-  "./js/ranking.js",
-  "./js/quiz.js",
-  "./js/main.js",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/start-bg.jpg",
+const CACHE_VERSION = "vocab-ta-2026-03-05a";
+const ASSET_CACHE = `${CACHE_VERSION}-assets`;
+
+// 画像/アイコンなど「キャッシュしてOK」な拡張子
+const CACHE_OK_EXT = [
+  ".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".ico",
+  ".woff", ".woff2", ".ttf", ".otf"
 ];
 
-// ✅ これがないと「更新しますか？」→押しても反映されないことがある
-self.addEventListener("message", (event) => {
-  if (event?.data?.type === "SKIP_WAITING") self.skipWaiting();
-});
-
 self.addEventListener("install", (event) => {
+  // すぐ新SWを有効化できるようにする（待機しない）
   self.skipWaiting();
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(ASSETS))
-      .catch(() => null)
-  );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil((async () => {
+    // 古いキャッシュ掃除
     const keys = await caches.keys();
-    await Promise.all(keys.map((k) => (k === CACHE_NAME ? null : caches.delete(k))));
+    await Promise.all(keys.map((k) => {
+      if (!k.startsWith(CACHE_VERSION)) return caches.delete(k);
+    }));
     await self.clients.claim();
   })());
 });
+
+// ページ側から「今すぐ切替」を指示できる
+self.addEventListener("message", (event) => {
+  if (event?.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
+
+function isCacheOkRequest(reqUrl) {
+  const path = reqUrl.pathname.toLowerCase();
+  return CACHE_OK_EXT.some(ext => path.endsWith(ext));
+}
+
+function isNoCachePath(reqUrl) {
+  const path = reqUrl.pathname.toLowerCase();
+  // ここをキャッシュすると “古いコード” が残って事故るので常にネット
+  if (path.endsWith("/") || path.endsWith("/index.html")) return true;
+  if (path.endsWith(".html")) return true;
+  if (path.includes("/js/")) return true;
+  if (path.endsWith(".webmanifest")) return true;
+  return false;
+}
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  if (url.origin !== location.origin) return;
+  // 他ドメインは触らない
+  if (url.origin !== self.location.origin) return;
 
-  const accept = req.headers.get("accept") || "";
-  const isHTML = req.mode === "navigate" || accept.includes("text/html");
-
-  // HTMLはネット優先
-  if (isHTML) {
+  // HTML / JS / manifest は「必ずネット優先（キャッシュしない）」
+  if (req.mode === "navigate" || isNoCachePath(url)) {
     event.respondWith((async () => {
       try {
-        const fresh = await fetch(req, { cache: "no-store" });
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(req, fresh.clone()).catch(() => null);
-        return fresh;
-      } catch {
-        return (await caches.match(req)) || (await caches.match("./index.html"));
+        // cache:'no-store' でブラウザ側キャッシュも避ける
+        return await fetch(req, { cache: "no-store" });
+      } catch (e) {
+        // 万一オフラインなら最後にキャッシュから拾う（あれば）
+        const cached = await caches.match(req);
+        if (cached) return cached;
+        throw e;
       }
     })());
     return;
   }
 
-  // JS/CSS/CSV/manifest はネット優先
-  const isAsset =
-    url.pathname.endsWith(".js") ||
-    url.pathname.endsWith(".css") ||
-    url.pathname.endsWith(".csv") ||
-    url.pathname.endsWith(".webmanifest");
-
-  if (isAsset) {
+  // 画像などはキャッシュ優先（軽くする）
+  if (isCacheOkRequest(url)) {
     event.respondWith((async () => {
-      try {
-        const fresh = await fetch(req, { cache: "no-store" });
-        const cache = await caches.open(CACHE_NAME);
-        cache.put(req, fresh.clone()).catch(() => null);
-        return fresh;
-      } catch {
-        return (await caches.match(req)) || fetch(req);
-      }
+      const cache = await caches.open(ASSET_CACHE);
+      const cached = await cache.match(req);
+      if (cached) return cached;
+
+      const res = await fetch(req);
+      if (res && res.ok) cache.put(req, res.clone());
+      return res;
     })());
     return;
   }
 
-  // 画像などはキャッシュ優先
+  // それ以外はネット優先（軽めに安全側）
   event.respondWith((async () => {
-    const cached = await caches.match(req);
-    if (cached) return cached;
-    const fresh = await fetch(req);
-    const cache = await caches.open(CACHE_NAME);
-    cache.put(req, fresh.clone()).catch(() => null);
-    return fresh;
+    try {
+      return await fetch(req);
+    } catch (e) {
+      const cached = await caches.match(req);
+      if (cached) return cached;
+      throw e;
+    }
   })());
 });
-
-
-
-
-
-
-
-
-
-
