@@ -298,6 +298,29 @@ const api = {
     return await this.fetchWeeklyTop(weekId);
   },
 };
+  // ✅ プロフィールを保存（class_code固定・nicknameは任意）
+  async upsertProfile({ nickname, classCode }) {
+    if (window.USE_MOCK) return { ok: true, via: "mock" };
 
+    const client = await ensureClientReady();
+    const { data: sess, error: sessErr } = await client.auth.getSession();
+    if (sessErr) return { ok: false, error: sessErr };
+    const uid = sess?.session?.user?.id;
+    if (!uid) return { ok: false, error: { message: "未ログイン" } };
+
+    if (!classCode) return { ok: false, error: { message: "class_code が空" } };
+
+    const payload = {
+      user_id: uid,
+      class_code: String(classCode),
+      nickname: nickname ? String(nickname) : null,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await client.from("user_profile").upsert(payload);
+    if (error) return { ok: false, error };
+    return { ok: true, via: "upsert" };
+  },
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", (state.vocab || []).length);
+
