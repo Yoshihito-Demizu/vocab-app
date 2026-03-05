@@ -21,7 +21,7 @@ console.log("[main] loaded! (buttons+login+ranking+B-id-classcode)");
     const m = s.match(/^(\d{1,2}-\d{1,2}-\d{1,2})-([a-z0-9]{4})$/);
     if (!m) return null;
 
-    const classCode = m[1]; // "2-3"
+    const classCode = m[1].split("-").slice(0,2).join("-");
     const rand = m[2];
 
     // 念のため classCode を再検査
@@ -146,4 +146,5 @@ console.log("[main] loaded! (buttons+login+ranking+B-id-classcode)");
     };
   })();
 })();
+
 
