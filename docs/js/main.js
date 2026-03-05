@@ -2,9 +2,8 @@
 /* global api */
 "use strict";
 
-console.log("[main] loaded! (buttons+login+ranking)");
+console.log("[main] loaded! (buttons+login+ranking+B-id-classcode)");
 
-// ✅ グローバル汚染しない（$ / byId を二重宣言しない）
 (() => {
   const byId = (id) => document.getElementById(id);
 
@@ -12,6 +11,25 @@ console.log("[main] loaded! (buttons+login+ranking)");
     const el = byId("loginMsg");
     if (el) el.textContent = t || "";
   };
+
+  // ===== B方式：loginId から class_code を抽出 =====
+  // 形式: "2-3-k9f2" -> classCode="2-3"
+  function parseClassCodeFromLoginId(loginId) {
+    const s = String(loginId || "").trim().toLowerCase();
+
+    // 2-3-k9f2 / 12-1-zz9x みたいなのを許可
+    const m = s.match(/^(\d{1,2}-\d{1,2})-([a-z0-9]{4,8})$/);
+    if (!m) return null;
+
+    const classCode = m[1]; // "2-3"
+    const rand = m[2];
+
+    // 念のため classCode を再検査
+    if (!/^\d{1,2}-\d{1,2}$/.test(classCode)) return null;
+    if (!/^[a-z0-9]{4,8}$/.test(rand)) return null;
+
+    return classCode;
+  }
 
   const refreshLoginBox = async () => {
     const box = byId("loginBox");
@@ -67,12 +85,38 @@ console.log("[main] loaded! (buttons+login+ranking)");
     try {
       const loginId = byId("loginId")?.value || "";
       const pw = byId("loginPw")?.value || "";
+
       if (!loginId || !pw) {
         setLoginMsg("ログインIDとパスワードを入れてね");
         return;
       }
+
+      // ✅ B方式チェック：IDフォーマットが違うなら弾く（荒らし対策）
+      const classCode = parseClassCodeFromLoginId(loginId);
+      if (!classCode) {
+        setLoginMsg("ログインID形式が違います（例：2-3-k9f2）");
+        return;
+      }
+
       const res = await api.signIn(loginId, pw);
-      setLoginMsg(res?.message || "ログイン完了");
+      if (!res?.ok) {
+        setLoginMsg(res?.message || "ログイン失敗");
+        return;
+      }
+
+      // ✅ ログイン成功後：class_code を自動保存（入力無し）
+      try {
+        // nicknameは任意。空ならnull。
+        const nickname = loginId; // とりあえずID表示（嫌なら後で変更可能）
+        const up = await api.upsertProfile({ nickname, classCode });
+        if (!up?.ok) {
+          console.warn("[main] upsertProfile failed:", up?.error || up);
+        }
+      } catch (e) {
+        console.warn("[main] upsertProfile exception:", e);
+      }
+
+      setLoginMsg("ログイン成功");
       await refreshLoginBox();
       await refreshRanking();
     } catch (e) {
@@ -96,7 +140,7 @@ console.log("[main] loaded! (buttons+login+ranking)");
     await refreshLoginBox();
     await refreshRanking();
 
-    // ✅ quiz.js が結果画面表示タイミングで呼べるように
+    // quiz.js が結果画面表示タイミングで呼べるように
     window.onResultShown = async () => {
       await refreshRanking();
     };
