@@ -2,7 +2,7 @@
 /* global api */
 "use strict";
 
-console.log("[quiz] loaded! (next-question-fix + 60s + best-score)");
+console.log("[quiz] loaded! (fx + 60s + next-question-fix + best-score)");
 
 // ===== DOM =====
 const $ = (id) => document.getElementById(id);
@@ -23,6 +23,9 @@ const els = {
 
   finalScore: $("finalScore"),
   finalCombo: $("finalCombo"),
+
+  overlay: $("overlay"),
+  overlayPanel: $("overlay") ? $("overlay").querySelector(".panel") : null,
 };
 
 // ===== state =====
@@ -73,10 +76,49 @@ function startTimer() {
     const sec = Math.max(0, Math.ceil(msLeft / 1000));
     setText(els.timeLeft, sec);
 
-    if (msLeft <= 0) {
-      endGame();
-    }
+    if (msLeft <= 0) endGame();
   }, 100);
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+// ===== FX (overlay) =====
+async function showOverlay(type, text, ms) {
+  if (!els.overlay || !els.overlayPanel) return;
+  els.overlay.classList.remove("hidden");
+  els.overlayPanel.className = "panel " + (type || "");
+  els.overlayPanel.textContent = text || "";
+  await new Promise((r) => setTimeout(r, ms || 240));
+  els.overlay.classList.add("hidden");
+}
+
+function markButtons(correctLabel, chosenLabel) {
+  if (!els.choices) return;
+  const btns = Array.from(els.choices.querySelectorAll("button"));
+  for (const b of btns) {
+    const lbl = clampLabel(b.dataset.choice);
+    b.style.outline = "none";
+    b.style.filter = "none";
+    b.style.opacity = "1";
+
+    if (lbl === correctLabel) {
+      b.style.outline = "3px solid rgba(0,211,138,.95)";
+    }
+    if (lbl === chosenLabel && chosenLabel !== correctLabel) {
+      b.style.outline = "3px solid rgba(255,77,125,.95)";
+      b.style.opacity = "0.92";
+    }
+    if (chosenLabel && lbl !== chosenLabel && lbl !== correctLabel) {
+      b.style.opacity = "0.65";
+    }
+  }
 }
 
 // ===== UI render =====
@@ -107,15 +149,6 @@ function renderQuestion(q) {
   }
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 // ===== core =====
 async function loadQuestion() {
   if (!playing) return;
@@ -140,16 +173,26 @@ async function loadQuestion() {
   renderQuestion(q);
 }
 
+// ✅ 正解ラベル取得（mock/prod両方対応）
+// mock: window.__LAST_MOCK_CORRECT
+// prod: window.__LAST_PROD_CORRECT
+function getCorrectLabel() {
+  const a = clampLabel(window.__LAST_MOCK_CORRECT);
+  const b = clampLabel(window.__LAST_PROD_CORRECT);
+  return a || b || "";
+}
+
 async function answer(choiceLabel) {
   if (!playing || answering) return;
   answering = true;
 
+  const chosen = clampLabel(choiceLabel);
+
   try {
-    const chosen = clampLabel(choiceLabel);
     const qid = currentQ ? currentQ.id : null;
     if (!qid) throw new Error("question missing");
 
-    // ✅ 送信（mock/prodの中身は api.js 側で吸収）
+    // submitAttempt（mock/prod吸収）
     const res = await api.submitAttempt(qid, chosen);
 
     // res は [{is_correct, points, out_week_id}] の想定
@@ -157,24 +200,38 @@ async function answer(choiceLabel) {
     const isCorrect = !!(row && row.is_correct);
     const pts = Number(row && row.points ? row.points : 0);
 
+    // ✅ 正解/不正解演出
+    const correctLabel = getCorrectLabel();
+    if (correctLabel) {
+      markButtons(correctLabel, chosen);
+    }
+
     if (isCorrect) {
       combo += 1;
       maxCombo = Math.max(maxCombo, combo);
       score += pts;
+
+      setText(els.scoreNow, score);
+      setText(els.comboNow, combo);
+
+      await showOverlay("ok", "OK!", 220);
     } else {
       combo = 0;
-      // ptsが0でもOK
       score += pts;
-    }
 
-    setText(els.scoreNow, score);
-    setText(els.comboNow, combo);
+      setText(els.scoreNow, score);
+      setText(els.comboNow, combo);
+
+      await showOverlay("ng", "NG!", 260);
+    }
 
     // 次の問題へ
     await loadQuestion();
   } catch (e) {
     console.warn("[quiz] answer failed:", e);
-    // とりあえずプレイは続ける（止めたくない）
+    await showOverlay("warn", "送信エラー\n（次へ）", 420);
+
+    // とりあえず続行（止めない）
     try {
       await loadQuestion();
     } catch {}
@@ -185,13 +242,12 @@ async function answer(choiceLabel) {
 
 async function startGame() {
   try {
-    // ✅ 連打/二重開始防止
     if (playing) return;
 
     playing = true;
     answering = false;
 
-    // ✅ ここで毎回リセット
+    // ✅ 毎回リセット
     score = 0;
     combo = 0;
     maxCombo = 0;
@@ -205,6 +261,11 @@ async function startGame() {
 
     msLeft = GAME_SECONDS * 1000;
     startTimer();
+
+    await showOverlay("count", "3", 220);
+    await showOverlay("count", "2", 220);
+    await showOverlay("count", "1", 220);
+    await showOverlay("go", "GO!", 260);
 
     await loadQuestion();
   } catch (e) {
@@ -227,13 +288,12 @@ async function endGame() {
 
   showPane("result");
 
-  // ✅ 結果画面が出たタイミングでランキング更新（main.js が拾う）
+  // 結果画面が出たタイミングでランキング更新（main.js が拾う）
   if (typeof window.onResultShown === "function") {
     try { await window.onResultShown(); } catch {}
   }
 
-  // ✅ 最高得点ランキング用：runs へ保存（あれば）
-  // api.submitRun があれば呼ぶ。なければ無視。
+  // ✅ 最高得点ランキング用：runsへ保存（存在すれば）
   try {
     if (api && typeof api.submitRun === "function") {
       await api.submitRun(score, maxCombo);
