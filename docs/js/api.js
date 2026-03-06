@@ -315,7 +315,16 @@ const api = {
     if (error) throw error;
     return Array.isArray(data) ? data[0] : data;
   },
-
+  async fetchClassWeeklyRanking(weekId, limit = 20) {
+    if (window.USE_MOCK) return [];
+    const client = await ensureClientReady();
+    const { data, error } = await client.rpc("get_class_weekly_ranking", {
+      p_week_id: weekId,
+      p_limit: limit,
+    });
+    if (error) throw error;
+    return data || [];
+  },
   // 互換（あなたが試してた関数名）
   async fetchPersonalWeeklyTop(weekId) {
     return await this.fetchWeeklyTop(weekId);
@@ -324,3 +333,4 @@ const api = {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", (state.vocab || []).length);
+
