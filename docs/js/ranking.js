@@ -2,12 +2,13 @@
 
 /**
  * ranking.js
- * - 結果画面のランキングUIのみ
+ * - 結果画面のランキングUI
+ * - 個人Top10 + 自分 + クラス対抗（平均）
  * - main.js の関数設計（loadWeekOptions/loadRankings）に合わせる
  * - $ の衝突を避ける
  */
 
-console.log("[ranking] loaded! (safe-init + api-aligned)");
+console.log("[ranking] loaded! (safe-init + api-aligned + class-average)");
 
 function byId2(id){ return document.getElementById(id); }
 
@@ -26,7 +27,7 @@ async function loadWeekOptions(){
   try{
     const now = api.getWeekIdNow();
 
-    // MOCKなら今週だけ入れて終了（ランキングも空でOK）
+    // MOCKなら今週だけ入れて終了
     if (window.USE_MOCK) {
       weekSelect.innerHTML = "";
       const opt = document.createElement("option");
@@ -54,7 +55,7 @@ async function loadWeekOptions(){
     }
   } catch(e){
     console.warn("[ranking] loadWeekOptions failed:", e);
-    // とりあえず今週だけ入れる
+
     const now = api.getWeekIdNow?.() || "";
     const weekSelect = byId2("weekSelect");
     if (weekSelect) {
@@ -74,12 +75,14 @@ async function loadRankings(){
   const weeklyTop = byId2("weeklyTop");
   const myRank = byId2("myRank");
   const rankMsg = byId2("rankMsg");
+  const classRank = byId2("classRank");
 
   if (!weekSelect || !weeklyTop || !myRank || !rankMsg) return;
 
   weeklyTop.textContent = "loading...";
   myRank.textContent = "loading...";
   rankMsg.textContent = "loading...";
+  if (classRank) classRank.textContent = "loading...";
 
   try{
     const weekId = weekSelect.value || api.getWeekIdNow();
@@ -88,18 +91,31 @@ async function loadRankings(){
       rankMsg.textContent = `MOCK（${weekId}）`;
       weeklyTop.textContent = "（まだデータなし）";
       myRank.textContent = "（まだデータなし）";
+      if (classRank) classRank.textContent = "（まだデータなし）";
       return;
     }
 
+    // 個人Top10
     const top = await api.fetchWeeklyTop(weekId);
     weeklyTop.textContent = top.length
       ? top.map((r, i) => fmtRow(i, r)).join("\n")
       : "（まだデータなし）";
 
+    // 自分の順位
     const mine = await api.fetchMyWeeklyRank(weekId);
     myRank.textContent = mine
       ? `順位：${mine.rank ?? "-"}位　スコア：${mine.points ?? 0}点`
       : "（まだデータなし）";
+
+    // クラス対抗（平均）
+    if (classRank) {
+      const cr = await api.fetchClassWeeklyRanking(weekId, 20);
+      classRank.textContent = cr.length
+        ? cr.map((r, i) =>
+            `${i + 1}. ${r.class_code} — 平均${r.avg_score}点（${r.players}人 / 最高${r.best_score}）`
+          ).join("\n")
+        : "（まだデータなし）";
+    }
 
     rankMsg.textContent = `OK（${weekId}）`;
   } catch(e){
@@ -111,6 +127,7 @@ async function loadRankings(){
     rankMsg.textContent = "取得失敗";
     weeklyTop.textContent = `（取得失敗）\n${msg}`;
     myRank.textContent = "（取得失敗）";
+    if (classRank) classRank.textContent = "（取得失敗）";
   }
 }
 
@@ -118,7 +135,7 @@ async function loadRankings(){
 window.loadWeekOptions = loadWeekOptions;
 window.loadRankings = loadRankings;
 
-// ページ読み込みで一応初期化（main.js でも呼ばれるので二重でもOK）
+// ページ読み込みで一応初期化
 document.addEventListener("DOMContentLoaded", () => {
   const tick = setInterval(async () => {
     if (!window.api) return;
