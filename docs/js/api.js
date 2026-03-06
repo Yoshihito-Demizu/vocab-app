@@ -266,31 +266,29 @@ const api = {
     ];
   },
 
-  // ✅ 1プレイの結果を保存（従来どおり insert）
-  async submitRun(score, maxCombo) {
+   async submitRun(score, maxCombo) {
     if (window.USE_MOCK) return { ok: true, via: "mock" };
 
     const client = await ensureClientReady();
     const { data: sess, error: sessErr } = await client.auth.getSession();
     if (sessErr) return { ok: false, error: sessErr };
+
     const uid = sess?.session?.user?.id;
     if (!uid) return { ok: false, error: { message: "未ログイン" } };
 
     const weekId = this.getWeekIdNow();
 
-    const { error } = await client.from("runs").insert([
-      {
-        user_id: uid,
-        week_id: weekId,
-        score: Number(score) || 0,
-        max_combo: Number(maxCombo) || 0,
-      },
-    ]);
+    const { data, error } = await client.rpc("submit_secure_run", {
+      p_week_id: weekId,
+      p_score: Number(score) || 0,
+      p_max_combo: Number(maxCombo) || 0,
+    });
 
     if (error) return { ok: false, error };
-    return { ok: true, via: "insert" };
-  },
+    if (!data?.ok) return { ok: false, error: { message: data?.error || "submit failed" } };
 
+    return { ok: true, via: "rpc" };
+  },
   // ===== ランキング系（RPC）=====
   async fetchWeekOptions() {
     if (window.USE_MOCK) return [];
@@ -333,4 +331,5 @@ const api = {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", (state.vocab || []).length);
+
 
