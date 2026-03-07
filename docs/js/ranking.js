@@ -76,7 +76,19 @@ async function loadRankings(){
   const myRank = byId2("myRank");
   const rankMsg = byId2("rankMsg");
   const classRank = byId2("classRank");
+　const goal = byId2("classGoal");
 
+if (goal && cr.length) {
+  const myClass = cr[0]?.class_code;
+  const avg = cr.find(r => r.class_code === myClass)?.avg_score || 0;
+
+  const gold = 70 - avg;
+  const silver = 50 - avg;
+  const bronze = 30 - avg;
+
+  goal.textContent =
+    `今週の目標：銅まで ${bronze.toFixed(1)} / 銀まで ${silver.toFixed(1)} / 金まで ${gold.toFixed(1)} 点`;
+}
   if (!weekSelect || !weeklyTop || !myRank || !rankMsg) return;
 
   weeklyTop.textContent = "loading...";
@@ -144,3 +156,4 @@ document.addEventListener("DOMContentLoaded", () => {
     await loadRankings();
   }, 50);
 });
+
