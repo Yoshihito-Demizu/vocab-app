@@ -4,13 +4,16 @@
  * ranking.js
  * - 結果画面のランキングUI
  * - 個人Top10 + 自分 + クラス対抗（平均）
+ * - 目標表示つき
  * - main.js の関数設計（loadWeekOptions/loadRankings）に合わせる
  * - $ の衝突を避ける
  */
 
 console.log("[ranking] loaded! (safe-init + api-aligned + class-average)");
 
-function byId2(id){ return document.getElementById(id); }
+function byId2(id) {
+  return document.getElementById(id);
+}
 
 function fmtRow(i, row) {
   const name = row.nickname || row.user_id || "-";
@@ -20,14 +23,13 @@ function fmtRow(i, row) {
 }
 
 // ===== 週の選択肢を入れる =====
-async function loadWeekOptions(){
+async function loadWeekOptions() {
   const weekSelect = byId2("weekSelect");
   if (!weekSelect) return;
 
-  try{
+  try {
     const now = api.getWeekIdNow();
 
-    // MOCKなら今週だけ入れて終了
     if (window.USE_MOCK) {
       weekSelect.innerHTML = "";
       const opt = document.createElement("option");
@@ -53,50 +55,37 @@ async function loadWeekOptions(){
       if (w === now) opt.selected = true;
       weekSelect.appendChild(opt);
     }
-  } catch(e){
+  } catch (e) {
     console.warn("[ranking] loadWeekOptions failed:", e);
 
     const now = api.getWeekIdNow?.() || "";
-    const weekSelect = byId2("weekSelect");
-    if (weekSelect) {
-      weekSelect.innerHTML = "";
-      const opt = document.createElement("option");
-      opt.value = now;
-      opt.textContent = now || "week";
-      opt.selected = true;
-      weekSelect.appendChild(opt);
-    }
+    weekSelect.innerHTML = "";
+    const opt = document.createElement("option");
+    opt.value = now;
+    opt.textContent = now || "week";
+    opt.selected = true;
+    weekSelect.appendChild(opt);
   }
 }
 
 // ===== ランキングを描画 =====
-async function loadRankings(){
+async function loadRankings() {
   const weekSelect = byId2("weekSelect");
   const weeklyTop = byId2("weeklyTop");
   const myRank = byId2("myRank");
   const rankMsg = byId2("rankMsg");
   const classRank = byId2("classRank");
-　const goal = byId2("classGoal");
+  const classGoal = byId2("classGoal");
 
-if (goal && cr.length) {
-  const myClass = cr[0]?.class_code;
-  const avg = cr.find(r => r.class_code === myClass)?.avg_score || 0;
-
-  const gold = 70 - avg;
-  const silver = 50 - avg;
-  const bronze = 30 - avg;
-
-  goal.textContent =
-    `今週の目標：銅まで ${bronze.toFixed(1)} / 銀まで ${silver.toFixed(1)} / 金まで ${gold.toFixed(1)} 点`;
-}
   if (!weekSelect || !weeklyTop || !myRank || !rankMsg) return;
 
   weeklyTop.textContent = "loading...";
   myRank.textContent = "loading...";
   rankMsg.textContent = "loading...";
   if (classRank) classRank.textContent = "loading...";
+  if (classGoal) classGoal.textContent = "今週の目標：平均30点で銅 / 50点で銀 / 70点で金";
 
-  try{
+  try {
     const weekId = weekSelect.value || api.getWeekIdNow();
 
     if (window.USE_MOCK) {
@@ -120,26 +109,35 @@ if (goal && cr.length) {
       : "（まだデータなし）";
 
     // クラス対抗（平均）
-    if (classRank) {
-      const cr = await api.fetchClassWeeklyRanking(weekId, 20);
-      classRank.textContent = cr.length
-        ? cr.map((r, i) =>
+    let classRows = [];
+    if (classRank && typeof api.fetchClassWeeklyRanking === "function") {
+      classRows = await api.fetchClassWeeklyRanking(weekId, 20);
+      classRank.textContent = classRows.length
+        ? classRows.map((r, i) =>
             `${i + 1}. ${r.class_code} — 平均${r.avg_score}点（${r.players}人 / 最高${r.best_score}）`
           ).join("\n")
         : "（まだデータなし）";
     }
 
+    // 目標表示（固定文）
+    if (classGoal) {
+      classGoal.textContent = "今週の目標：平均30点で銅 / 50点で銀 / 70点で金";
+    }
+
     rankMsg.textContent = `OK（${weekId}）`;
-  } catch(e){
+  } catch (e) {
     console.warn("[ranking] loadRankings failed:", e);
+
     const msg = (e && (e.message || e.details || e.code))
       ? String(e.message || e.details || e.code)
       : String(e);
 
-    rankMsg.textContent = "取得失敗";
-    weeklyTop.textContent = `（取得失敗）\n${msg}`;
-    myRank.textContent = "（取得失敗）";
-    if (classRank) classRank.textContent = "（取得失敗）";
+    rankMsg.textContent = "ランキング取得に失敗";
+    weeklyTop.textContent = "（まだデータなし）";
+    myRank.textContent = "（まだデータなし）";
+    if (classRank) classRank.textContent = "（まだデータなし）";
+    if (classGoal) classGoal.textContent = "今週の目標：平均30点で銅 / 50点で銀 / 70点で金";
+    console.warn("[ranking] detail:", msg);
   }
 }
 
@@ -156,4 +154,3 @@ document.addEventListener("DOMContentLoaded", () => {
     await loadRankings();
   }, 50);
 });
-
