@@ -6,10 +6,10 @@
  * - 自分の順位
  * - クラス対抗（平均）
  * - 目標表示
- * - Plain text風の進捗表示
+ * - Plain text風の進捗表示（説明つき・コンパクト版）
  */
 
-console.log("[ranking] loaded! (plain-text-style)");
+console.log("[ranking] loaded! (compact-pretty-goal)");
 
 function byId2(id) {
   return document.getElementById(id);
@@ -32,18 +32,18 @@ function fmtRowHtml(i, row) {
   return `
     <div style="
       display:grid;
-      grid-template-columns:34px 1fr auto;
+      grid-template-columns:30px 1fr auto;
       gap:8px;
       align-items:center;
-      padding:8px 10px;
-      border-radius:12px;
+      padding:7px 9px;
+      border-radius:10px;
       background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.07);
-      margin-bottom:6px;
+      border:1px solid rgba(255,255,255,.06);
+      margin-bottom:5px;
     ">
       <div style="
         font-weight:1000;
-        font-size:14px;
+        font-size:13px;
         text-align:center;
         color:#fff;
       ">${i + 1}</div>
@@ -52,14 +52,14 @@ function fmtRowHtml(i, row) {
         <div style="
           font-weight:900;
           font-size:13px;
-          line-height:1.15;
+          line-height:1.1;
           overflow:hidden;
           text-overflow:ellipsis;
           white-space:nowrap;
         ">${escapeHtml(String(name))}</div>
         <div style="
-          color:rgba(234,240,255,.66);
-          font-size:11px;
+          color:rgba(234,240,255,.62);
+          font-size:10px;
           font-weight:700;
           margin-top:2px;
         ">COMBO ${escapeHtml(String(combo))}</div>
@@ -67,7 +67,7 @@ function fmtRowHtml(i, row) {
 
       <div style="
         font-weight:1000;
-        font-size:15px;
+        font-size:14px;
         white-space:nowrap;
       ">${escapeHtml(String(pts))}点</div>
     </div>
@@ -81,19 +81,19 @@ function fmtClassRowHtml(i, row) {
 
   return `
     <div style="
-      padding:8px 10px;
-      border-radius:12px;
+      padding:7px 9px;
+      border-radius:10px;
       background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.07);
-      margin-bottom:6px;
-      line-height:1.25;
+      border:1px solid rgba(255,255,255,.06);
+      margin-bottom:5px;
+      line-height:1.2;
     ">
       <div style="font-weight:1000; font-size:13px; margin-bottom:2px;">
         ${i + 1}. ${escapeHtml(String(row.class_code || "-"))}
       </div>
       <div style="
-        color:rgba(234,240,255,.70);
-        font-size:12px;
+        color:rgba(234,240,255,.68);
+        font-size:11px;
         font-weight:700;
       ">
         平均${escapeHtml(String(avg))}点 / ${escapeHtml(String(players))}人 / 最高${escapeHtml(String(best))}点
@@ -106,7 +106,7 @@ function makePlainBar(current, target, width = 12) {
   const ratio = Math.max(0, Math.min(1, current / target));
   const filled = Math.round(ratio * width);
   const empty = width - filled;
-  return `[${"█".repeat(filled)}${"░".repeat(empty)}]`;
+  return `${"█".repeat(filled)}${"░".repeat(empty)}`;
 }
 
 function makeGoalLine(icon, label, current, target) {
@@ -116,21 +116,25 @@ function makeGoalLine(icon, label, current, target) {
   return `
     <div style="
       display:grid;
-      grid-template-columns:28px 52px 52px 1fr;
+      grid-template-columns:20px 28px 72px 1fr;
       gap:8px;
       align-items:center;
-      font-size:13px;
-      font-weight:900;
-      line-height:1.2;
+      font-size:12px;
+      line-height:1.1;
       margin-bottom:6px;
     ">
       <div>${icon}</div>
-      <div>${label}</div>
-      <div style="text-align:right;">${remain}</div>
+      <div style="font-weight:900;">${label}</div>
+      <div style="
+        color:rgba(234,240,255,.88);
+        font-weight:900;
+        white-space:nowrap;
+      ">あと ${remain}</div>
       <div style="
         font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-        letter-spacing:.02em;
+        letter-spacing:.04em;
         white-space:nowrap;
+        color:rgba(255,255,255,.92);
       ">${bar}</div>
     </div>
   `;
@@ -184,9 +188,9 @@ async function loadRankings() {
     if (myRank) {
       if (mine) {
         myRank.innerHTML = `
-          <div style="font-size:13px; color:rgba(234,240,255,.66); font-weight:800;">現在の順位</div>
-          <div style="font-size:30px; font-weight:1000; line-height:1; margin:6px 0 8px;">${escapeHtml(String(mine.rank ?? "-"))}位</div>
-          <div style="font-size:17px; font-weight:900;">${escapeHtml(String(mine.points ?? 0))}点</div>
+          <div style="font-size:12px; color:rgba(234,240,255,.62); font-weight:800;">現在の順位</div>
+          <div style="font-size:28px; font-weight:1000; line-height:1; margin:4px 0 6px;">${escapeHtml(String(mine.rank ?? "-"))}位</div>
+          <div style="font-size:16px; font-weight:900;">${escapeHtml(String(mine.points ?? 0))}点</div>
         `;
       } else {
         myRank.innerHTML = `<div class="msg">（まだデータなし）</div>`;
@@ -210,24 +214,37 @@ async function loadRankings() {
 
         classGoal.innerHTML = `
           <div style="
-            margin-bottom:8px;
-            font-weight:1000;
-            font-size:14px;
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            gap:8px;
-          ">
-            <span>今週の目標</span>
-            <span style="font-size:12px; color:rgba(234,240,255,.66);">平均 ${escapeHtml(avg.toFixed(1))}点</span>
-          </div>
-
-          <div style="
             background:rgba(255,255,255,.04);
-            border:1px solid rgba(255,255,255,.07);
-            border-radius:12px;
-            padding:10px 12px;
+            border:1px solid rgba(255,255,255,.06);
+            border-radius:10px;
+            padding:9px 10px;
+            margin-bottom:8px;
           ">
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:8px;
+              margin-bottom:8px;
+            ">
+              <div style="font-size:13px; font-weight:1000;">今週の目標</div>
+              <div style="font-size:11px; color:rgba(234,240,255,.64); font-weight:800;">
+                このバーはクラス平均が目標点にどれだけ近いか
+              </div>
+            </div>
+
+            <div style="
+              display:flex;
+              justify-content:space-between;
+              align-items:center;
+              gap:8px;
+              font-size:12px;
+              margin-bottom:8px;
+            ">
+              <div style="color:rgba(234,240,255,.70); font-weight:800;">現在のクラス平均</div>
+              <div style="font-weight:1000;">${escapeHtml(avg.toFixed(1))}点</div>
+            </div>
+
             ${makeGoalLine("🥉", "銅", avg, 30)}
             ${makeGoalLine("🥈", "銀", avg, 50)}
             ${makeGoalLine("🥇", "金", avg, 70)}
@@ -236,6 +253,7 @@ async function loadRankings() {
       } else {
         classGoal.innerHTML = `
           <div class="msg" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">
+現在のクラス平均に対する進み具合
 🥉 銅  30点
 🥈 銀  50点
 🥇 金  70点
@@ -257,6 +275,7 @@ async function loadRankings() {
     if (classGoal) {
       classGoal.innerHTML = `
         <div class="msg" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">
+現在のクラス平均に対する進み具合
 🥉 銅  30点
 🥈 銀  50点
 🥇 金  70点
