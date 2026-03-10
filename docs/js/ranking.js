@@ -7,31 +7,65 @@
  * - クラス対抗（平均）
  * - 目標表示
  * - 進捗バー
+ * - 見やすい結果画面向け
  */
 
-console.log("[ranking] loaded! (class-goal + progress-bar)");
+console.log("[ranking] loaded! (result-refresh)");
 
 function byId2(id) {
   return document.getElementById(id);
 }
 
-function fmtRow(i, row) {
+function fmtRowHtml(i, row) {
   const name = row.nickname || row.user_id || "-";
   const pts = row.points ?? row.score ?? 0;
   const combo = row.max_combo ?? 0;
-  return `${i + 1}. ${name} — ${pts}点（COMBO ${combo}）`;
+
+  return `
+    <div class="rankRow">
+      <div class="rankNo">${i + 1}</div>
+      <div>
+        <div class="rankName">${escapeHtml(String(name))}</div>
+        <div class="rankMeta">COMBO ${escapeHtml(String(combo))}</div>
+      </div>
+      <div class="rankScore">${escapeHtml(String(pts))}点</div>
+    </div>
+  `;
+}
+
+function fmtClassRowHtml(i, row) {
+  const avg = row.avg_score ?? 0;
+  const players = row.players ?? 0;
+  const best = row.best_score ?? 0;
+  return `
+    <div class="classRankRow">
+      <div style="font-weight:1000; margin-bottom:2px;">${i + 1}. ${escapeHtml(String(row.class_code || "-"))}</div>
+      <div style="color:var(--muted); font-size:13px;">
+        平均${escapeHtml(String(avg))}点 / ${escapeHtml(String(players))}人 / 最高${escapeHtml(String(best))}点
+      </div>
+    </div>
+  `;
 }
 
 function makeBar(current, target) {
   const ratio = Math.max(0, Math.min(1, current / target));
   const width = Math.round(ratio * 100);
   return `
-    <div style="margin:6px 0 10px;">
+    <div style="margin:6px 0 4px;">
       <div style="height:10px; background:rgba(255,255,255,.10); border-radius:999px; overflow:hidden;">
-        <div style="height:100%; width:${width}%; background:rgba(255,255,255,.75);"></div>
+        <div style="height:100%; width:${width}%; background:rgba(255,255,255,.78);"></div>
       </div>
     </div>
   `;
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 async function loadWeekOptions() {
@@ -40,7 +74,6 @@ async function loadWeekOptions() {
 
   try {
     const now = api.getWeekIdNow();
-
     const weeks = await api.fetchWeekOptions();
     const sorted = [...weeks].sort().reverse();
     const use = sorted.length ? sorted : [now];
@@ -72,37 +105,36 @@ async function loadRankings() {
   try {
     const weekId = weekSelect.value || api.getWeekIdNow();
 
-    // Top10
     const top = await api.fetchWeeklyTop(weekId);
     if (weeklyTop) {
-      weeklyTop.textContent = top.length
-        ? top.map((r, i) => fmtRow(i, r)).join("\n")
-        : "（まだデータなし）";
+      weeklyTop.innerHTML = top.length
+        ? top.map((r, i) => fmtRowHtml(i, r)).join("")
+        : `<div class="msg">（まだデータなし）</div>`;
     }
 
-    // 自分
     const mine = await api.fetchMyWeeklyRank(weekId);
     if (myRank) {
-      myRank.textContent = mine
-        ? `順位：${mine.rank ?? "-"}位　スコア：${mine.points ?? 0}点`
-        : "（まだデータなし）";
+      if (mine) {
+        myRank.innerHTML = `
+          <div class="youRankBig">${escapeHtml(String(mine.rank ?? "-"))}位</div>
+          <div class="youScore">${escapeHtml(String(mine.points ?? 0))}点</div>
+        `;
+      } else {
+        myRank.innerHTML = `<div class="msg">（まだデータなし）</div>`;
+      }
     }
 
-    // クラス対抗
     let classRows = [];
     if (typeof api.fetchClassWeeklyRanking === "function") {
       classRows = await api.fetchClassWeeklyRanking(weekId, 20);
     }
 
     if (classRank) {
-      classRank.textContent = classRows.length
-        ? classRows.map((r, i) =>
-            `${i + 1}. ${r.class_code} — 平均${r.avg_score}点（${r.players}人 / 最高${r.best_score}）`
-          ).join("\n")
-        : "（まだデータなし）";
+      classRank.innerHTML = classRows.length
+        ? classRows.map((r, i) => fmtClassRowHtml(i, r)).join("")
+        : `<div class="msg">（まだデータなし）</div>`;
     }
 
-    // 目標＋進捗バー
     if (classGoal) {
       if (classRows.length) {
         const avg = Number(classRows[0].avg_score) || 0;
@@ -118,26 +150,23 @@ async function loadRankings() {
         classGoal.innerHTML = `
           <div style="margin-bottom:8px; font-weight:900;">今週の目標</div>
 
-          <div style="background:#3b2a1a; padding:8px 10px; border-radius:10px; margin-bottom:8px;">
-            <div>🥉 銅まで ${bronzeRemain}</div>
+          <div style="background:#3b2a1a; padding:10px 12px; border-radius:14px; margin-bottom:8px; border:1px solid rgba(255,255,255,.08);">
+            <div style="font-weight:900;">🥉 銅まで ${bronzeRemain}</div>
             ${makeBar(avg, bronzeTarget)}
           </div>
 
-          <div style="background:#2f2f38; padding:8px 10px; border-radius:10px; margin-bottom:8px;">
-            <div>🥈 銀まで ${silverRemain}</div>
+          <div style="background:#2f2f38; padding:10px 12px; border-radius:14px; margin-bottom:8px; border:1px solid rgba(255,255,255,.08);">
+            <div style="font-weight:900;">🥈 銀まで ${silverRemain}</div>
             ${makeBar(avg, silverTarget)}
           </div>
 
-          <div style="background:#3b3412; padding:8px 10px; border-radius:10px;">
-            <div>🥇 金まで ${goldRemain}</div>
+          <div style="background:#3b3412; padding:10px 12px; border-radius:14px; border:1px solid rgba(255,255,255,.08);">
+            <div style="font-weight:900;">🥇 金まで ${goldRemain}</div>
             ${makeBar(avg, goldTarget)}
           </div>
         `;
       } else {
-        classGoal.innerHTML = `
-          <div style="margin-bottom:8px; font-weight:900;">今週の目標</div>
-          <div class="msg">平均30点で銅 / 50点で銀 / 70点で金</div>
-        `;
+        classGoal.innerHTML = `<div class="msg">平均30点で銅 / 50点で銀 / 70点で金</div>`;
       }
     }
 
@@ -148,12 +177,10 @@ async function loadRankings() {
     console.warn("[ranking] loadRankings failed:", e);
 
     if (rankMsg) rankMsg.textContent = "ランキング取得に失敗";
-    if (weeklyTop) weeklyTop.textContent = "（まだデータなし）";
-    if (myRank) myRank.textContent = "（まだデータなし）";
-    if (classRank) classRank.textContent = "（まだデータなし）";
-    if (classGoal) {
-      classGoal.innerHTML = `<div class="msg">平均30点で銅 / 50点で銀 / 70点で金</div>`;
-    }
+    if (weeklyTop) weeklyTop.innerHTML = `<div class="msg">（まだデータなし）</div>`;
+    if (myRank) myRank.innerHTML = `<div class="msg">（まだデータなし）</div>`;
+    if (classRank) classRank.innerHTML = `<div class="msg">（まだデータなし）</div>`;
+    if (classGoal) classGoal.innerHTML = `<div class="msg">平均30点で銅 / 50点で銀 / 70点で金</div>`;
   }
 }
 
