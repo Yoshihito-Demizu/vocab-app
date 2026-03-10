@@ -5,58 +5,14 @@
  * - 個人Top10
  * - 自分の順位
  * - クラス対抗（平均）
- * - 目標表示
- * - 進捗バー
- * - 見やすい結果画面向け
+ * - 目標表示（コンパクト版）
+ * - 進捗バー（細バー）
  */
 
-console.log("[ranking] loaded! (result-refresh)");
+console.log("[ranking] loaded! (compact-style)");
 
 function byId2(id) {
   return document.getElementById(id);
-}
-
-function fmtRowHtml(i, row) {
-  const name = row.nickname || row.user_id || "-";
-  const pts = row.points ?? row.score ?? 0;
-  const combo = row.max_combo ?? 0;
-
-  return `
-    <div class="rankRow">
-      <div class="rankNo">${i + 1}</div>
-      <div>
-        <div class="rankName">${escapeHtml(String(name))}</div>
-        <div class="rankMeta">COMBO ${escapeHtml(String(combo))}</div>
-      </div>
-      <div class="rankScore">${escapeHtml(String(pts))}点</div>
-    </div>
-  `;
-}
-
-function fmtClassRowHtml(i, row) {
-  const avg = row.avg_score ?? 0;
-  const players = row.players ?? 0;
-  const best = row.best_score ?? 0;
-  return `
-    <div class="classRankRow">
-      <div style="font-weight:1000; margin-bottom:2px;">${i + 1}. ${escapeHtml(String(row.class_code || "-"))}</div>
-      <div style="color:var(--muted); font-size:13px;">
-        平均${escapeHtml(String(avg))}点 / ${escapeHtml(String(players))}人 / 最高${escapeHtml(String(best))}点
-      </div>
-    </div>
-  `;
-}
-
-function makeBar(current, target) {
-  const ratio = Math.max(0, Math.min(1, current / target));
-  const width = Math.round(ratio * 100);
-  return `
-    <div style="margin:6px 0 4px;">
-      <div style="height:10px; background:rgba(255,255,255,.10); border-radius:999px; overflow:hidden;">
-        <div style="height:100%; width:${width}%; background:rgba(255,255,255,.78);"></div>
-      </div>
-    </div>
-  `;
 }
 
 function escapeHtml(s) {
@@ -66,6 +22,119 @@ function escapeHtml(s) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function makeThinBar(current, target) {
+  const ratio = Math.max(0, Math.min(1, current / target));
+  const width = Math.round(ratio * 100);
+
+  return `
+    <div style="height:7px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden; margin-top:4px;">
+      <div style="height:100%; width:${width}%; background:linear-gradient(90deg, rgba(255,255,255,.95), rgba(255,255,255,.45)); border-radius:999px;"></div>
+    </div>
+  `;
+}
+
+function fmtRowHtml(i, row) {
+  const name = row.nickname || row.user_id || "-";
+  const pts = row.points ?? row.score ?? 0;
+  const combo = row.max_combo ?? 0;
+
+  return `
+    <div style="
+      display:grid;
+      grid-template-columns:34px 1fr auto;
+      gap:8px;
+      align-items:center;
+      padding:8px 10px;
+      border-radius:12px;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.07);
+      margin-bottom:6px;
+    ">
+      <div style="
+        font-weight:1000;
+        font-size:14px;
+        text-align:center;
+        color:#fff;
+      ">${i + 1}</div>
+
+      <div style="min-width:0;">
+        <div style="
+          font-weight:900;
+          font-size:13px;
+          line-height:1.15;
+          overflow:hidden;
+          text-overflow:ellipsis;
+          white-space:nowrap;
+        ">${escapeHtml(String(name))}</div>
+        <div style="
+          color:rgba(234,240,255,.66);
+          font-size:11px;
+          font-weight:700;
+          margin-top:2px;
+        ">COMBO ${escapeHtml(String(combo))}</div>
+      </div>
+
+      <div style="
+        font-weight:1000;
+        font-size:15px;
+        white-space:nowrap;
+      ">${escapeHtml(String(pts))}点</div>
+    </div>
+  `;
+}
+
+function fmtClassRowHtml(i, row) {
+  const avg = row.avg_score ?? 0;
+  const players = row.players ?? 0;
+  const best = row.best_score ?? 0;
+
+  return `
+    <div style="
+      padding:8px 10px;
+      border-radius:12px;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.07);
+      margin-bottom:6px;
+      line-height:1.25;
+    ">
+      <div style="font-weight:1000; font-size:13px; margin-bottom:2px;">
+        ${i + 1}. ${escapeHtml(String(row.class_code || "-"))}
+      </div>
+      <div style="
+        color:rgba(234,240,255,.70);
+        font-size:12px;
+        font-weight:700;
+      ">
+        平均${escapeHtml(String(avg))}点 / ${escapeHtml(String(players))}人 / 最高${escapeHtml(String(best))}点
+      </div>
+    </div>
+  `;
+}
+
+function makeGoalRow(icon, label, remain, current, target, toneBg) {
+  return `
+    <div style="
+      background:${toneBg};
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:12px;
+      padding:8px 10px;
+    ">
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:8px;
+        font-size:12px;
+        font-weight:900;
+      ">
+        <span>${icon} ${label}</span>
+        <span>あと ${remain}</span>
+      </div>
+      ${makeThinBar(current, target)}
+    </div>
+  `;
 }
 
 async function loadWeekOptions() {
@@ -105,6 +174,7 @@ async function loadRankings() {
   try {
     const weekId = weekSelect.value || api.getWeekIdNow();
 
+    // Top10
     const top = await api.fetchWeeklyTop(weekId);
     if (weeklyTop) {
       weeklyTop.innerHTML = top.length
@@ -112,18 +182,21 @@ async function loadRankings() {
         : `<div class="msg">（まだデータなし）</div>`;
     }
 
+    // 自分
     const mine = await api.fetchMyWeeklyRank(weekId);
     if (myRank) {
       if (mine) {
         myRank.innerHTML = `
-          <div class="youRankBig">${escapeHtml(String(mine.rank ?? "-"))}位</div>
-          <div class="youScore">${escapeHtml(String(mine.points ?? 0))}点</div>
+          <div style="font-size:13px; color:rgba(234,240,255,.66); font-weight:800;">現在の順位</div>
+          <div style="font-size:30px; font-weight:1000; line-height:1; margin:6px 0 8px;">${escapeHtml(String(mine.rank ?? "-"))}位</div>
+          <div style="font-size:17px; font-weight:900;">${escapeHtml(String(mine.points ?? 0))}点</div>
         `;
       } else {
         myRank.innerHTML = `<div class="msg">（まだデータなし）</div>`;
       }
     }
 
+    // クラス対抗
     let classRows = [];
     if (typeof api.fetchClassWeeklyRanking === "function") {
       classRows = await api.fetchClassWeeklyRanking(weekId, 20);
@@ -135,6 +208,7 @@ async function loadRankings() {
         : `<div class="msg">（まだデータなし）</div>`;
     }
 
+    // 目標表示（コンパクト）
     if (classGoal) {
       if (classRows.length) {
         const avg = Number(classRows[0].avg_score) || 0;
@@ -148,21 +222,27 @@ async function loadRankings() {
         const goldRemain = Math.max(0, goldTarget - avg).toFixed(1);
 
         classGoal.innerHTML = `
-          <div style="margin-bottom:8px; font-weight:900;">今週の目標</div>
-
-          <div style="background:#3b2a1a; padding:10px 12px; border-radius:14px; margin-bottom:8px; border:1px solid rgba(255,255,255,.08);">
-            <div style="font-weight:900;">🥉 銅まで ${bronzeRemain}</div>
-            ${makeBar(avg, bronzeTarget)}
+          <div style="
+            margin-bottom:8px;
+            font-weight:1000;
+            font-size:14px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:8px;
+          ">
+            <span>今週の目標</span>
+            <span style="font-size:12px; color:rgba(234,240,255,.66);">平均 ${escapeHtml(avg.toFixed(1))}点</span>
           </div>
 
-          <div style="background:#2f2f38; padding:10px 12px; border-radius:14px; margin-bottom:8px; border:1px solid rgba(255,255,255,.08);">
-            <div style="font-weight:900;">🥈 銀まで ${silverRemain}</div>
-            ${makeBar(avg, silverTarget)}
-          </div>
-
-          <div style="background:#3b3412; padding:10px 12px; border-radius:14px; border:1px solid rgba(255,255,255,.08);">
-            <div style="font-weight:900;">🥇 金まで ${goldRemain}</div>
-            ${makeBar(avg, goldTarget)}
+          <div style="
+            display:grid;
+            grid-template-columns:1fr;
+            gap:8px;
+          ">
+            ${makeGoalRow("🥉", "銅", bronzeRemain, avg, bronzeTarget, "rgba(97,63,33,.50)")}
+            ${makeGoalRow("🥈", "銀", silverRemain, avg, silverTarget, "rgba(74,74,90,.50)")}
+            ${makeGoalRow("🥇", "金", goldRemain, avg, goldTarget, "rgba(94,83,26,.50)")}
           </div>
         `;
       } else {
