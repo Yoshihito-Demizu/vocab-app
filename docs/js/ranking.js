@@ -5,11 +5,11 @@
  * - 個人Top10
  * - 自分の順位
  * - クラス対抗（平均）
- * - 目標表示（コンパクト版）
- * - 進捗バー（細バー）
+ * - 目標表示
+ * - Plain text風の進捗表示
  */
 
-console.log("[ranking] loaded! (compact-style)");
+console.log("[ranking] loaded! (plain-text-style)");
 
 function byId2(id) {
   return document.getElementById(id);
@@ -22,17 +22,6 @@ function escapeHtml(s) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-function makeThinBar(current, target) {
-  const ratio = Math.max(0, Math.min(1, current / target));
-  const width = Math.round(ratio * 100);
-
-  return `
-    <div style="height:7px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden; margin-top:4px;">
-      <div style="height:100%; width:${width}%; background:linear-gradient(90deg, rgba(255,255,255,.95), rgba(255,255,255,.45)); border-radius:999px;"></div>
-    </div>
-  `;
 }
 
 function fmtRowHtml(i, row) {
@@ -113,26 +102,36 @@ function fmtClassRowHtml(i, row) {
   `;
 }
 
-function makeGoalRow(icon, label, remain, current, target, toneBg) {
+function makePlainBar(current, target, width = 12) {
+  const ratio = Math.max(0, Math.min(1, current / target));
+  const filled = Math.round(ratio * width);
+  const empty = width - filled;
+  return `[${"█".repeat(filled)}${"░".repeat(empty)}]`;
+}
+
+function makeGoalLine(icon, label, current, target) {
+  const remain = Math.max(0, target - current).toFixed(1);
+  const bar = makePlainBar(current, target, 12);
+
   return `
     <div style="
-      background:${toneBg};
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:12px;
-      padding:8px 10px;
+      display:grid;
+      grid-template-columns:28px 52px 52px 1fr;
+      gap:8px;
+      align-items:center;
+      font-size:13px;
+      font-weight:900;
+      line-height:1.2;
+      margin-bottom:6px;
     ">
+      <div>${icon}</div>
+      <div>${label}</div>
+      <div style="text-align:right;">${remain}</div>
       <div style="
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        gap:8px;
-        font-size:12px;
-        font-weight:900;
-      ">
-        <span>${icon} ${label}</span>
-        <span>あと ${remain}</span>
-      </div>
-      ${makeThinBar(current, target)}
+        font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+        letter-spacing:.02em;
+        white-space:nowrap;
+      ">${bar}</div>
     </div>
   `;
 }
@@ -174,7 +173,6 @@ async function loadRankings() {
   try {
     const weekId = weekSelect.value || api.getWeekIdNow();
 
-    // Top10
     const top = await api.fetchWeeklyTop(weekId);
     if (weeklyTop) {
       weeklyTop.innerHTML = top.length
@@ -182,7 +180,6 @@ async function loadRankings() {
         : `<div class="msg">（まだデータなし）</div>`;
     }
 
-    // 自分
     const mine = await api.fetchMyWeeklyRank(weekId);
     if (myRank) {
       if (mine) {
@@ -196,7 +193,6 @@ async function loadRankings() {
       }
     }
 
-    // クラス対抗
     let classRows = [];
     if (typeof api.fetchClassWeeklyRanking === "function") {
       classRows = await api.fetchClassWeeklyRanking(weekId, 20);
@@ -208,18 +204,9 @@ async function loadRankings() {
         : `<div class="msg">（まだデータなし）</div>`;
     }
 
-    // 目標表示（コンパクト）
     if (classGoal) {
       if (classRows.length) {
         const avg = Number(classRows[0].avg_score) || 0;
-
-        const bronzeTarget = 30;
-        const silverTarget = 50;
-        const goldTarget = 70;
-
-        const bronzeRemain = Math.max(0, bronzeTarget - avg).toFixed(1);
-        const silverRemain = Math.max(0, silverTarget - avg).toFixed(1);
-        const goldRemain = Math.max(0, goldTarget - avg).toFixed(1);
 
         classGoal.innerHTML = `
           <div style="
@@ -236,17 +223,24 @@ async function loadRankings() {
           </div>
 
           <div style="
-            display:grid;
-            grid-template-columns:1fr;
-            gap:8px;
+            background:rgba(255,255,255,.04);
+            border:1px solid rgba(255,255,255,.07);
+            border-radius:12px;
+            padding:10px 12px;
           ">
-            ${makeGoalRow("🥉", "銅", bronzeRemain, avg, bronzeTarget, "rgba(97,63,33,.50)")}
-            ${makeGoalRow("🥈", "銀", silverRemain, avg, silverTarget, "rgba(74,74,90,.50)")}
-            ${makeGoalRow("🥇", "金", goldRemain, avg, goldTarget, "rgba(94,83,26,.50)")}
+            ${makeGoalLine("🥉", "銅", avg, 30)}
+            ${makeGoalLine("🥈", "銀", avg, 50)}
+            ${makeGoalLine("🥇", "金", avg, 70)}
           </div>
         `;
       } else {
-        classGoal.innerHTML = `<div class="msg">平均30点で銅 / 50点で銀 / 70点で金</div>`;
+        classGoal.innerHTML = `
+          <div class="msg" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">
+🥉 銅  30点
+🥈 銀  50点
+🥇 金  70点
+          </div>
+        `;
       }
     }
 
@@ -260,7 +254,15 @@ async function loadRankings() {
     if (weeklyTop) weeklyTop.innerHTML = `<div class="msg">（まだデータなし）</div>`;
     if (myRank) myRank.innerHTML = `<div class="msg">（まだデータなし）</div>`;
     if (classRank) classRank.innerHTML = `<div class="msg">（まだデータなし）</div>`;
-    if (classGoal) classGoal.innerHTML = `<div class="msg">平均30点で銅 / 50点で銀 / 70点で金</div>`;
+    if (classGoal) {
+      classGoal.innerHTML = `
+        <div class="msg" style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">
+🥉 銅  30点
+🥈 銀  50点
+🥇 金  70点
+        </div>
+      `;
+    }
   }
 }
 
