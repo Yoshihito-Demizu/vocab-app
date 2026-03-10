@@ -279,7 +279,8 @@ async function endGame() {
 
   setText(els.finalScore, score);
   setText(els.finalCombo, maxCombo);
-
+  const finalScoreCard = document.getElementById("finalScoreCard");
+  if (finalScoreCard) finalScoreCard.textContent = String(score);
   showPane("result");
 
   if (typeof window.onResultShown === "function") {
@@ -298,3 +299,4 @@ async function endGame() {
 
 window.startGame = startGame;
 window.endGame = endGame;
+
