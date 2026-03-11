@@ -2,22 +2,16 @@
 
 /**
  * docs/js/config.js
- * - 本番固定
- * - Supabase SDK を ./js/supabase.js から読む
- * - loginId -> email 変換
+ * - ID入力方式
+ * - Supabase clientのみ作る（Authは使わない）
  */
 
-// ===== Supabase =====
 const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuY3pha25kemJxdmF1b3ZveWJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyMjQxNzgsImV4cCI6MjA4NDgwMDE3OH0.IRszAYwh3XPqWvl6fCApjEPTuOm9x647cqzPCgmgYUA";
 
-// ===== 本番固定 =====
 window.USE_MOCK = false;
-localStorage.setItem("vocab_mode", "prod");
-
 console.log("[config] MODE = prod USE_MOCK = false");
 
-// ===== Supabase client =====
 window.client = null;
 
 window.clientReady = new Promise((resolve) => {
@@ -48,11 +42,3 @@ window.clientReady = new Promise((resolve) => {
 
   document.head.appendChild(s);
 });
-
-// ===== loginId -> email =====
-// 例: 2-3-01-k9f2 -> 2-3-01-k9f2@app.local
-window.toEmail = function toEmail(loginId) {
-  const s = String(loginId || "").trim().toLowerCase();
-  const safe = s.replace(/[^a-z0-9\-_]/g, "-");
-  return `${safe}@app.local`;
-};
