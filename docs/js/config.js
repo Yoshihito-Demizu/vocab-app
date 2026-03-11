@@ -2,9 +2,10 @@
 
 /**
  * docs/js/config.js
- * - prod/mock 決定
+ * - prod/mock を決定
  * - Supabase SDK を ./js/supabase.js から読む
  * - loginId -> email 変換
+ * - 本番キーが正しければ prod のまま動く
  */
 
 // ===== Supabase =====
@@ -24,7 +25,8 @@ const url = (SUPABASE_URL || "").trim();
 
 const looksMissing = !url || !key;
 const looksPlaceholder =
-  key.includes("ここに") ||
+  key.includes("ここを") ||
+  key.includes("ANON KEY") ||
   key.includes("あなたの") ||
   key.length < 80;
 const hasNonAscii = /[^\x00-\x7F]/.test(key);
@@ -89,4 +91,3 @@ window.toEmail = function toEmail(loginId) {
   const safe = s.replace(/[^a-z0-9\-_]/g, "-");
   return `${safe}@app.local`;
 };
-
