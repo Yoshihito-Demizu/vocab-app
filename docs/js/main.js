@@ -1,40 +1,141 @@
 "use strict";
 
-console.log("[main] loaded");
+/**
+ * docs/js/main.js
+ * - ボタン配線
+ * - ログイン / ログアウト
+ * - ランキング読み込み
+ * - nickname を「2-3-01」形式で保存
+ */
 
-const $ = id => document.getElementById(id);
+console.log("[main] loaded! (buttons+login+ranking+B-id-classcode)");
 
-function showPane(name){
+(() => {
+  const byId = (id) => document.getElementById(id);
 
-  ["startPane","battlePane","resultPane"]
-  .forEach(p=>$(p).classList.add("hidden"));
+  const setLoginMsg = (t) => {
+    const el = byId("loginMsg");
+    if (el) el.textContent = t || "";
+  };
 
-  $(name).classList.remove("hidden");
+  // 例: 2-3-01-k9f2 -> 2-3
+  function parseClassCodeFromLoginId(loginId) {
+    const s = String(loginId || "").trim().toLowerCase();
+    const m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
+    if (!m) return null;
+    return `${m[1]}-${m[2]}`;
+  }
 
-}
+  // 例: 2-3-01-k9f2 -> 2-3-01
+  function makeNicknameFromLoginId(loginId) {
+    const s = String(loginId || "").trim().toLowerCase();
+    const m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
+    if (!m) return s;
 
-async function startGame(){
+    const g = m[1];
+    const c = m[2];
+    const n = m[3].padStart(2, "0");
+    return `${g}-${c}-${n}`;
+  }
 
-  showPane("battlePane");
+  const refreshLoginBox = async () => {
+    const box = byId("loginBox");
+    if (!box) return;
 
-  window.startGame();
+    if (window.api?.isMock?.()) {
+      box.classList.add("hidden");
+      return;
+    }
 
-}
+    box.classList.remove("hidden");
 
-$("startBtn").onclick=startGame;
+    try {
+      const uid = await window.api.getMyUserId();
+      setLoginMsg(uid ? `ログイン中：${uid}` : "未ログイン（本番送信にはログインが必要）");
+    } catch {
+      setLoginMsg("未ログイン（本番送信にはログインが必要）");
+    }
+  };
 
-$("retryBtn").onclick=startGame;
+  const refreshRanking = async () => {
+    try {
+      if (typeof window.loadWeekOptions !== "function") return;
+      if (typeof window.loadRankings !== "function") return;
 
-$("stopBtn").onclick=window.endGame;
+      await window.loadWeekOptions();
+      await window.loadRankings();
+    } catch (e) {
+      console.warn("[main] refreshRanking failed:", e);
+      const msg = byId("rankMsg");
+      if (msg) msg.textContent = "ランキング取得に失敗";
+    }
+  };
 
-async function refreshRanking(){
+  byId("startBtn")?.addEventListener("click", () => window.startGame?.());
+  byId("retryBtn")?.addEventListener("click", () => window.startGame?.());
+  byId("stopBtn")?.addEventListener("click", () => window.endGame?.());
 
-  await loadWeekOptions();
+  byId("rankReloadBtn")?.addEventListener("click", async () => {
+    await refreshRanking();
+  });
 
-  await loadRankings();
+  byId("weekSelect")?.addEventListener("change", async () => {
+    if (typeof window.loadRankings === "function") {
+      await window.loadRankings();
+    }
+  });
 
-}
+  byId("loginBtn")?.addEventListener("click", async () => {
+    try {
+      const loginId = byId("loginId")?.value || "";
+      const pw = byId("loginPw")?.value || "";
 
-window.onResultShown=refreshRanking;
+      if (!loginId || !pw) {
+        setLoginMsg("ログインIDとパスワードを入れてください");
+        return;
+      }
 
-refreshRanking();
+      const res = await window.api.signIn(loginId, pw);
+      if (!res?.ok) {
+        setLoginMsg(res?.message || "ログイン失敗");
+        return;
+      }
+
+      const classCode = parseClassCodeFromLoginId(loginId);
+      const nickname = makeNicknameFromLoginId(loginId);
+
+      if (classCode) {
+        await window.api.upsertProfile({
+          nickname: nickname,
+          classCode: classCode,
+        });
+      }
+
+      setLoginMsg("ログイン成功");
+      await refreshLoginBox();
+      await refreshRanking();
+    } catch (e) {
+      setLoginMsg(e?.message || "ログイン失敗");
+    }
+  });
+
+  byId("logoutBtn")?.addEventListener("click", async () => {
+    try {
+      await window.api.signOut();
+      setLoginMsg("ログアウトしました");
+      await refreshLoginBox();
+      await refreshRanking();
+    } catch (e) {
+      setLoginMsg(e?.message || "ログアウト失敗");
+    }
+  });
+
+  (async () => {
+    await refreshLoginBox();
+    await refreshRanking();
+
+    window.onResultShown = async () => {
+      await refreshRanking();
+    };
+  })();
+})();
