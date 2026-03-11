@@ -7,9 +7,10 @@
  * - クラス対抗（平均）
  * - 目標表示
  * - Plain text風の進捗表示（説明つき・コンパクト版）
+ * - Top3メダルつき
  */
 
-console.log("[ranking] loaded! (compact-pretty-goal)");
+console.log("[ranking] loaded! (game-like-ranking)");
 
 function byId2(id) {
   return document.getElementById(id);
@@ -24,29 +25,51 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
+function rankBadge(i) {
+  if (i === 0) return "🥇";
+  if (i === 1) return "🥈";
+  if (i === 2) return "🥉";
+  return String(i + 1);
+}
+
+function scoreLabel(points) {
+  const p = Number(points) || 0;
+  if (p >= 100) return "SCORE BURST";
+  if (p >= 70) return "GREAT";
+  if (p >= 40) return "NICE";
+  return "TRY";
+}
+
 function fmtRowHtml(i, row) {
   const name = row.nickname || row.user_id || "-";
   const pts = row.points ?? row.score ?? 0;
   const combo = row.max_combo ?? 0;
+  const badge = rankBadge(i);
+  const glow =
+    i === 0 ? "rgba(255,215,0,.16)" :
+    i === 1 ? "rgba(220,220,235,.12)" :
+    i === 2 ? "rgba(205,127,50,.14)" :
+    "rgba(255,255,255,.04)";
 
   return `
     <div style="
       display:grid;
-      grid-template-columns:30px 1fr auto;
+      grid-template-columns:36px 1fr auto;
       gap:8px;
       align-items:center;
-      padding:7px 9px;
-      border-radius:10px;
-      background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.06);
-      margin-bottom:5px;
+      padding:8px 10px;
+      border-radius:12px;
+      background:${glow};
+      border:1px solid rgba(255,255,255,.08);
+      margin-bottom:6px;
+      box-shadow:0 8px 18px rgba(0,0,0,.14);
     ">
       <div style="
         font-weight:1000;
-        font-size:13px;
+        font-size:15px;
         text-align:center;
         color:#fff;
-      ">${i + 1}</div>
+      ">${badge}</div>
 
       <div style="min-width:0;">
         <div style="
@@ -60,16 +83,22 @@ function fmtRowHtml(i, row) {
         <div style="
           color:rgba(234,240,255,.62);
           font-size:10px;
-          font-weight:700;
+          font-weight:800;
           margin-top:2px;
-        ">COMBO ${escapeHtml(String(combo))}</div>
+          letter-spacing:.02em;
+        ">COMBO ${escapeHtml(String(combo))} ・ ${escapeHtml(scoreLabel(pts))}</div>
       </div>
 
       <div style="
-        font-weight:1000;
-        font-size:14px;
+        text-align:right;
         white-space:nowrap;
-      ">${escapeHtml(String(pts))}点</div>
+      ">
+        <div style="
+          font-weight:1000;
+          font-size:15px;
+          line-height:1;
+        ">${escapeHtml(String(pts))}点</div>
+      </div>
     </div>
   `;
 }
@@ -78,25 +107,39 @@ function fmtClassRowHtml(i, row) {
   const avg = row.avg_score ?? 0;
   const players = row.players ?? 0;
   const best = row.best_score ?? 0;
+  const badge = rankBadge(i);
 
   return `
     <div style="
-      padding:7px 9px;
-      border-radius:10px;
+      padding:8px 10px;
+      border-radius:12px;
       background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.06);
-      margin-bottom:5px;
+      border:1px solid rgba(255,255,255,.07);
+      margin-bottom:6px;
       line-height:1.2;
     ">
-      <div style="font-weight:1000; font-size:13px; margin-bottom:2px;">
-        ${i + 1}. ${escapeHtml(String(row.class_code || "-"))}
+      <div style="
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:8px;
+        margin-bottom:2px;
+      ">
+        <div style="font-weight:1000; font-size:13px;">
+          ${badge} ${escapeHtml(String(row.class_code || "-"))}
+        </div>
+        <div style="
+          font-size:11px;
+          color:rgba(234,240,255,.65);
+          font-weight:800;
+        ">平均${escapeHtml(String(avg))}点</div>
       </div>
       <div style="
         color:rgba(234,240,255,.68);
         font-size:11px;
         font-weight:700;
       ">
-        平均${escapeHtml(String(avg))}点 / ${escapeHtml(String(players))}人 / 最高${escapeHtml(String(best))}点
+        ${escapeHtml(String(players))}人 / 最高${escapeHtml(String(best))}点
       </div>
     </div>
   `;
@@ -187,8 +230,15 @@ async function loadRankings() {
     const mine = await api.fetchMyWeeklyRank(weekId);
     if (myRank) {
       if (mine) {
+        const rank = Number(mine.rank) || 0;
+        const title =
+          rank === 1 ? "🏆 今週のトップ" :
+          rank <= 3 ? "🔥 上位ランクイン" :
+          rank <= 10 ? "✨ TOP10入り" :
+          "📘 まだまだ挑戦";
+
         myRank.innerHTML = `
-          <div style="font-size:12px; color:rgba(234,240,255,.62); font-weight:800;">現在の順位</div>
+          <div style="font-size:12px; color:rgba(234,240,255,.62); font-weight:800;">${title}</div>
           <div style="font-size:28px; font-weight:1000; line-height:1; margin:4px 0 6px;">${escapeHtml(String(mine.rank ?? "-"))}位</div>
           <div style="font-size:16px; font-weight:900;">${escapeHtml(String(mine.points ?? 0))}点</div>
         `;
@@ -229,20 +279,17 @@ async function loadRankings() {
             ">
               <div style="font-size:13px; font-weight:1000;">今週の目標</div>
               <div style="font-size:11px; color:rgba(234,240,255,.64); font-weight:800;">
-                このバーはクラス平均が目標点にどれだけ近いか
+                クラス平均 ${escapeHtml(avg.toFixed(1))}点
               </div>
             </div>
 
             <div style="
-              display:flex;
-              justify-content:space-between;
-              align-items:center;
-              gap:8px;
-              font-size:12px;
+              font-size:11px;
+              color:rgba(234,240,255,.62);
+              font-weight:800;
               margin-bottom:8px;
             ">
-              <div style="color:rgba(234,240,255,.70); font-weight:800;">現在のクラス平均</div>
-              <div style="font-weight:1000;">${escapeHtml(avg.toFixed(1))}点</div>
+              目標点に対して、今どこまで近づいたかを表しています
             </div>
 
             ${makeGoalLine("🥉", "銅", avg, 30)}
