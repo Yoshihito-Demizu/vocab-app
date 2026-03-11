@@ -16,7 +16,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const params = new URLSearchParams(location.search);
 const urlMode = (params.get("mode") || "").toLowerCase();
 
-let MODE = urlMode || localStorage.getItem("vocab_mode") || "mock";
+let MODE = "prod";
 if (MODE !== "mock" && MODE !== "prod") MODE = "mock";
 
 // ===== key/url check =====
@@ -91,3 +91,4 @@ window.toEmail = function toEmail(loginId) {
   const safe = s.replace(/[^a-z0-9\-_]/g, "-");
   return `${safe}@app.local`;
 };
+
