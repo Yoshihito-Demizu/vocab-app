@@ -9,7 +9,7 @@
 
 // ===== Supabase =====
 const SUPABASE_URL = "https://cnczakndzbqvauovoybv.supabase.co";
-const SUPABASE_ANON_KEY = "ここに今使っている本物のANON KEYを入れてください";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNuY3pha25kemJxdmF1b3ZveWJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkyMjQxNzgsImV4cCI6MjA4NDgwMDE3OH0.IRszAYwh3XPqWvl6fCApjEPTuOm9x647cqzPCgmgYUA";
 
 // ===== mode =====
 const params = new URLSearchParams(location.search);
@@ -89,3 +89,4 @@ window.toEmail = function toEmail(loginId) {
   const safe = s.replace(/[^a-z0-9\-_]/g, "-");
   return `${safe}@app.local`;
 };
+
