@@ -3,10 +3,11 @@
 "use strict";
 
 /**
- * 方針：
+ * 安定版 api.js
  * - 出題は vocab.csv から
  * - ログインは Supabase Auth
  * - ランキングは RPC
+ * - ranking.js / quiz.js / main.js と整合
  */
 
 const fallbackVocab = [
@@ -110,9 +111,11 @@ function getISOWeekId(d) {
 
 async function ensureClientReady() {
   if (window.USE_MOCK) return null;
+
   if (window.clientReady && typeof window.clientReady.then === "function") {
     await window.clientReady;
   }
+
   const c = window.client || null;
   if (!c) throw new Error("Supabase client が無い（config.js / anon key / ネット確認）");
   return c;
@@ -121,12 +124,15 @@ async function ensureClientReady() {
 function parseCSV(text) {
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
   if (lines.length <= 1) return [];
+
   const header = lines[0].split(",").map((s) => s.trim());
   const idxWord = header.indexOf("word");
   const idxMeaning = header.indexOf("meaning");
   const idxLevel = header.indexOf("level");
 
-  if (idxWord < 0 || idxMeaning < 0) throw new Error("CSVヘッダに word,meaning が必要です");
+  if (idxWord < 0 || idxMeaning < 0) {
+    throw new Error("CSVヘッダに word,meaning が必要です");
+  }
 
   const out = [];
   for (let i = 1; i < lines.length; i++) {
@@ -138,6 +144,7 @@ function parseCSV(text) {
     if (!word || !meaning) continue;
     out.push({ word, meaning, level });
   }
+
   return out;
 }
 
@@ -145,8 +152,10 @@ async function loadVocabCSV() {
   try {
     const res = await fetch("./vocab.csv", { cache: "no-store" });
     if (!res.ok) throw new Error("vocab.csv fetch failed: " + res.status);
+
     const text = await res.text();
     const list = parseCSV(text);
+
     if (list.length >= 4) {
       state.vocab = list;
       console.log("[api] vocab loaded from CSV:", list.length);
@@ -172,10 +181,14 @@ const api = {
   },
 
   async signIn(loginId, password) {
-    if (window.USE_MOCK) return { ok: true, message: "（モック：ログイン不要）" };
+    if (window.USE_MOCK) {
+      return { ok: true, message: "（モック：ログイン不要）" };
+    }
+
     const client = await ensureClientReady();
     const email = (window.toEmail || toEmail)(loginId);
     const { error } = await client.auth.signInWithPassword({ email, password });
+
     if (error) return { ok: false, message: error.message };
     return { ok: true, message: "ログイン成功" };
   },
@@ -199,9 +212,9 @@ const api = {
     const client = await ensureClientReady();
     const { data: sess, error: sessErr } = await client.auth.getSession();
     if (sessErr) return { ok: false, error: sessErr };
+
     const uid = sess?.session?.user?.id;
     if (!uid) return { ok: false, error: { message: "未ログイン" } };
-
     if (!classCode) return { ok: false, error: { message: "class_code が空" } };
 
     const payload = {
@@ -256,58 +269,34 @@ const api = {
   },
 
   async submitRun(score, maxCombo) {
+    if (window.USE_MOCK) return { ok: true, via: "mock" };
 
-  const weekId = this.getWeekIdNow();
+    const client = await ensureClientReady();
+    const { data: sess, error: sessErr } = await client.auth.getSession();
+    if (sessErr) return { ok: false, error: sessErr };
 
-  let uid = null;
+    const uid = sess?.session?.user?.id;
+    if (!uid) return { ok: false, error: { message: "未ログイン" } };
 
-  try {
+    const weekId = this.getWeekIdNow();
 
-    if (!window.USE_MOCK) {
-      const client = await ensureClientReady();
-      const { data } = await client.auth.getSession();
-      uid = data?.session?.user?.id || null;
-    }
+    const { data, error } = await client.rpc("submit_secure_run", {
+      p_week_id: weekId,
+      p_score: Number(score) || 0,
+      p_max_combo: Number(maxCombo) || 0,
+    });
 
-  } catch {}
+    if (error) return { ok: false, error };
+    if (!data?.ok) return { ok: false, error: { message: data?.error || "submit failed" } };
 
-  // iPhone PWA対策
-  if (!uid) {
-
-    uid = localStorage.getItem("pwa_user_id");
-
-    if (!uid) {
-
-      uid = "pwa-" + Math.random().toString(36).slice(2,10);
-
-      localStorage.setItem("pwa_user_id", uid);
-
-    }
-
-  }
-
-  const client = await ensureClientReady();
-
-  const { error } = await client.from("runs").insert([
-    {
-      user_id: uid,
-      week_id: weekId,
-      score: Number(score) || 0,
-      max_combo: Number(maxCombo) || 0,
-    },
-  ]);
-
-  if (error) {
-    console.warn("[submitRun] failed", error);
-    return { ok:false };
-  }
-
-  return { ok:true };
-
-}
+    return { ok: true, via: "rpc" };
+  },
 
   async fetchWeekOptions() {
-    if (window.USE_MOCK) return [];
+    if (window.USE_MOCK) {
+      return [this.getWeekIdNow()];
+    }
+
     const client = await ensureClientReady();
     const { data, error } = await client.rpc("get_week_options");
     if (error) throw error;
@@ -316,6 +305,7 @@ const api = {
 
   async fetchWeeklyTop(weekId) {
     if (window.USE_MOCK) return [];
+
     const client = await ensureClientReady();
     const { data, error } = await client.rpc("get_weekly_top10", { p_week_id: weekId });
     if (error) throw error;
@@ -324,6 +314,7 @@ const api = {
 
   async fetchMyWeeklyRank(weekId) {
     if (window.USE_MOCK) return null;
+
     const client = await ensureClientReady();
     const { data, error } = await client.rpc("get_my_weekly_rank", { p_week_id: weekId });
     if (error) throw error;
@@ -332,6 +323,7 @@ const api = {
 
   async fetchClassWeeklyRanking(weekId, limit = 20) {
     if (window.USE_MOCK) return [];
+
     const client = await ensureClientReady();
     const { data, error } = await client.rpc("get_class_weekly_ranking", {
       p_week_id: weekId,
@@ -348,4 +340,3 @@ const api = {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", (state.vocab || []).length);
-
