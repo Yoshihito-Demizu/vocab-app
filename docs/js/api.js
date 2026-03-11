@@ -256,28 +256,55 @@ const api = {
   },
 
   async submitRun(score, maxCombo) {
-    if (window.USE_MOCK) return { ok: true, via: "mock" };
 
-    const client = await ensureClientReady();
-    const { data: sess, error: sessErr } = await client.auth.getSession();
-    if (sessErr) return { ok: false, error: sessErr };
+  const weekId = this.getWeekIdNow();
 
-    const uid = sess?.session?.user?.id;
-    if (!uid) return { ok: false, error: { message: "未ログイン" } };
+  let uid = null;
 
-    const weekId = this.getWeekIdNow();
+  try {
 
-    const { data, error } = await client.rpc("submit_secure_run", {
-      p_week_id: weekId,
-      p_score: Number(score) || 0,
-      p_max_combo: Number(maxCombo) || 0,
-    });
+    if (!window.USE_MOCK) {
+      const client = await ensureClientReady();
+      const { data } = await client.auth.getSession();
+      uid = data?.session?.user?.id || null;
+    }
 
-    if (error) return { ok: false, error };
-    if (!data?.ok) return { ok: false, error: { message: data?.error || "submit failed" } };
+  } catch {}
 
-    return { ok: true, via: "rpc" };
-  },
+  // iPhone PWA対策
+  if (!uid) {
+
+    uid = localStorage.getItem("pwa_user_id");
+
+    if (!uid) {
+
+      uid = "pwa-" + Math.random().toString(36).slice(2,10);
+
+      localStorage.setItem("pwa_user_id", uid);
+
+    }
+
+  }
+
+  const client = await ensureClientReady();
+
+  const { error } = await client.from("runs").insert([
+    {
+      user_id: uid,
+      week_id: weekId,
+      score: Number(score) || 0,
+      max_combo: Number(maxCombo) || 0,
+    },
+  ]);
+
+  if (error) {
+    console.warn("[submitRun] failed", error);
+    return { ok:false };
+  }
+
+  return { ok:true };
+
+}
 
   async fetchWeekOptions() {
     if (window.USE_MOCK) return [];
@@ -321,3 +348,4 @@ const api = {
 
 window.api = api;
 console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", (state.vocab || []).length);
+
