@@ -1,14 +1,13 @@
 "use strict";
 
 /**
- * docs/js/main.js
- * - ボタン配線
- * - ログイン / ログアウト
- * - ランキング読み込み
- * - nickname を「2-3-01」形式で保存
+ * ID入力方式 main.js
+ * - loginBox をプレイヤーID入力として使う
+ * - パスワード欄は隠す
+ * - 現在のID表示 / ID変更ボタン
  */
 
-console.log("[main] loaded! (buttons+login+ranking+B-id-classcode)");
+console.log("[main] loaded! (id-mode)");
 
 (() => {
   const byId = (id) => document.getElementById(id);
@@ -18,50 +17,19 @@ console.log("[main] loaded! (buttons+login+ranking+B-id-classcode)");
     if (el) el.textContent = t || "";
   };
 
-  // 例: 2-3-01-k9f2 -> 2-3
-  function parseClassCodeFromLoginId(loginId) {
-    const s = String(loginId || "").trim().toLowerCase();
-    const m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
-    if (!m) return null;
-    return `${m[1]}-${m[2]}`;
-  }
-
-  // 例: 2-3-01-k9f2 -> 2-3-01
-  function makeNicknameFromLoginId(loginId) {
-    const s = String(loginId || "").trim().toLowerCase();
-    const m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
-    if (!m) return s;
-
-    const g = m[1];
-    const c = m[2];
-    const n = m[3].padStart(2, "0");
-    return `${g}-${c}-${n}`;
-  }
-
   const refreshLoginBox = async () => {
     const box = byId("loginBox");
     if (!box) return;
-
-    if (window.api?.isMock?.()) {
-      box.classList.add("hidden");
-      return;
-    }
-
     box.classList.remove("hidden");
 
-    try {
-      const uid = await window.api.getMyUserId();
-      setLoginMsg(uid ? `ログイン中：${uid}` : "未ログイン（本番送信にはログインが必要）");
-    } catch {
-      setLoginMsg("未ログイン（本番送信にはログインが必要）");
-    }
+    const uid = await window.api.getMyUserId();
+    setLoginMsg(uid ? `現在のID：${uid}` : "プレイヤーIDを入れてください");
   };
 
   const refreshRanking = async () => {
     try {
       if (typeof window.loadWeekOptions !== "function") return;
       if (typeof window.loadRankings !== "function") return;
-
       await window.loadWeekOptions();
       await window.loadRankings();
     } catch (e) {
@@ -71,8 +39,47 @@ console.log("[main] loaded! (buttons+login+ranking+B-id-classcode)");
     }
   };
 
-  byId("startBtn")?.addEventListener("click", () => window.startGame?.());
-  byId("retryBtn")?.addEventListener("click", () => window.startGame?.());
+  function prepareIdUi() {
+    const title = byId("loginBox")?.querySelector("div");
+    if (title) title.textContent = "プレイヤーID（iPhone対応版）";
+
+    const pwInput = byId("loginPw");
+    if (pwInput) {
+      pwInput.value = "";
+      pwInput.closest("div").style.display = "none";
+    }
+
+    const idLabel = byId("loginId")?.previousElementSibling;
+    if (idLabel) idLabel.textContent = "プレイヤーID（例：2-3-01-k9f2）";
+
+    const idInput = byId("loginId");
+    if (idInput) idInput.placeholder = "2-3-01-k9f2";
+
+    const loginBtn = byId("loginBtn");
+    if (loginBtn) loginBtn.textContent = "ID保存";
+
+    const logoutBtn = byId("logoutBtn");
+    if (logoutBtn) logoutBtn.textContent = "ID変更";
+  }
+
+  byId("startBtn")?.addEventListener("click", async () => {
+    const uid = await window.api.getMyUserId();
+    if (!uid) {
+      setLoginMsg("先にプレイヤーIDを保存してください");
+      return;
+    }
+    window.startGame?.();
+  });
+
+  byId("retryBtn")?.addEventListener("click", async () => {
+    const uid = await window.api.getMyUserId();
+    if (!uid) {
+      setLoginMsg("先にプレイヤーIDを保存してください");
+      return;
+    }
+    window.startGame?.();
+  });
+
   byId("stopBtn")?.addEventListener("click", () => window.endGame?.());
 
   byId("rankReloadBtn")?.addEventListener("click", async () => {
@@ -87,50 +94,42 @@ console.log("[main] loaded! (buttons+login+ranking+B-id-classcode)");
 
   byId("loginBtn")?.addEventListener("click", async () => {
     try {
-      const loginId = byId("loginId")?.value || "";
-      const pw = byId("loginPw")?.value || "";
+      const playerId = byId("loginId")?.value || "";
+      const res = await window.api.signIn(playerId);
 
-      if (!loginId || !pw) {
-        setLoginMsg("ログインIDとパスワードを入れてください");
-        return;
-      }
-
-      const res = await window.api.signIn(loginId, pw);
       if (!res?.ok) {
-        setLoginMsg(res?.message || "ログイン失敗");
+        setLoginMsg(res?.message || "ID保存失敗");
         return;
       }
 
-      const classCode = parseClassCodeFromLoginId(loginId);
-      const nickname = makeNicknameFromLoginId(loginId);
-
-      if (classCode) {
-        await window.api.upsertProfile({
-          nickname: nickname,
-          classCode: classCode,
-        });
-      }
-
-      setLoginMsg("ログイン成功");
+      setLoginMsg("IDを保存しました");
       await refreshLoginBox();
       await refreshRanking();
     } catch (e) {
-      setLoginMsg(e?.message || "ログイン失敗");
+      setLoginMsg(e?.message || "ID保存失敗");
     }
   });
 
   byId("logoutBtn")?.addEventListener("click", async () => {
     try {
       await window.api.signOut();
-      setLoginMsg("ログアウトしました");
+      const idInput = byId("loginId");
+      if (idInput) idInput.value = "";
+      setLoginMsg("IDを消しました");
       await refreshLoginBox();
       await refreshRanking();
     } catch (e) {
-      setLoginMsg(e?.message || "ログアウト失敗");
+      setLoginMsg(e?.message || "ID変更失敗");
     }
   });
 
   (async () => {
+    prepareIdUi();
+
+    const currentId = await window.api.getMyUserId();
+    const idInput = byId("loginId");
+    if (idInput && currentId) idInput.value = currentId;
+
     await refreshLoginBox();
     await refreshRanking();
 
