@@ -1,13 +1,10 @@
-// docs/js/api.js
-/* global USE_MOCK, toEmail */
 "use strict";
 
 /**
- * 安定版 api.js
- * - 出題は vocab.csv から
- * - ログインは Supabase Auth
- * - ランキングは RPC
- * - ranking.js / quiz.js / main.js と整合
+ * ID入力方式 api.js
+ * - Authなし
+ * - player_id を localStorage に保存
+ * - runs_public と public RPC を使う
  */
 
 const fallbackVocab = [
@@ -110,14 +107,11 @@ function getISOWeekId(d) {
 }
 
 async function ensureClientReady() {
-  if (window.USE_MOCK) return null;
-
   if (window.clientReady && typeof window.clientReady.then === "function") {
     await window.clientReady;
   }
-
   const c = window.client || null;
-  if (!c) throw new Error("Supabase client が無い（config.js / anon key / ネット確認）");
+  if (!c) throw new Error("Supabase client が無い");
   return c;
 }
 
@@ -159,8 +153,6 @@ async function loadVocabCSV() {
     if (list.length >= 4) {
       state.vocab = list;
       console.log("[api] vocab loaded from CSV:", list.length);
-    } else {
-      console.warn("[api] vocab.csv too small (need >=4). keep fallback:", list.length);
     }
   } catch (e) {
     console.warn("[api] vocab.csv load skipped:", e && e.message ? e.message : e);
@@ -171,62 +163,57 @@ window.vocabReady = (async () => {
   await loadVocabCSV();
 })();
 
+function normalizePlayerId(s) {
+  return String(s || "").trim().toLowerCase();
+}
+
+function parseClassCodeFromPlayerId(playerId) {
+  const m = normalizePlayerId(playerId).match(/^(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
+  if (!m) return null;
+  return `${m[1]}-${m[2]}`;
+}
+
+function makeNicknameFromPlayerId(playerId) {
+  const m = normalizePlayerId(playerId).match(/^(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
+  if (!m) return normalizePlayerId(playerId);
+  return `${m[1]}-${m[2]}-${m[3].padStart(2, "0")}`;
+}
+
 const api = {
   isMock() {
-    return !!window.USE_MOCK;
+    return false;
   },
 
   getWeekIdNow() {
     return getISOWeekId(new Date());
   },
 
-  async signIn(loginId, password) {
-    if (window.USE_MOCK) {
-      return { ok: true, message: "（モック：ログイン不要）" };
+  async signIn(playerId) {
+    const normalized = normalizePlayerId(playerId);
+    const classCode = parseClassCodeFromPlayerId(normalized);
+
+    if (!normalized) {
+      return { ok: false, message: "プレイヤーIDを入れてください" };
     }
 
-    const client = await ensureClientReady();
-    const email = (window.toEmail || toEmail)(loginId);
-    const { error } = await client.auth.signInWithPassword({ email, password });
+    if (!classCode) {
+      return { ok: false, message: "ID形式が違います（例：2-3-01-k9f2）" };
+    }
 
-    if (error) return { ok: false, message: error.message };
-    return { ok: true, message: "ログイン成功" };
+    localStorage.setItem("player_id", normalized);
+    return { ok: true, message: "IDを保存しました" };
   },
 
   async signOut() {
-    if (window.USE_MOCK) return;
-    const client = await ensureClientReady();
-    await client.auth.signOut();
+    localStorage.removeItem("player_id");
   },
 
   async getMyUserId() {
-    if (window.USE_MOCK) return "u1";
-    const client = await ensureClientReady();
-    const { data } = await client.auth.getSession();
-    return data?.session?.user?.id || null;
+    return localStorage.getItem("player_id") || null;
   },
 
-  async upsertProfile({ nickname, classCode }) {
-    if (window.USE_MOCK) return { ok: true, via: "mock" };
-
-    const client = await ensureClientReady();
-    const { data: sess, error: sessErr } = await client.auth.getSession();
-    if (sessErr) return { ok: false, error: sessErr };
-
-    const uid = sess?.session?.user?.id;
-    if (!uid) return { ok: false, error: { message: "未ログイン" } };
-    if (!classCode) return { ok: false, error: { message: "class_code が空" } };
-
-    const payload = {
-      user_id: uid,
-      class_code: String(classCode),
-      nickname: nickname ? String(nickname) : null,
-      updated_at: new Date().toISOString(),
-    };
-
-    const { error } = await client.from("user_profile").upsert(payload);
-    if (error) return { ok: false, error };
-    return { ok: true, via: "upsert" };
+  async upsertProfile() {
+    return { ok: true, via: "local" };
   },
 
   async fetchLatestQuestion() {
@@ -269,18 +256,21 @@ const api = {
   },
 
   async submitRun(score, maxCombo) {
-    if (window.USE_MOCK) return { ok: true, via: "mock" };
-
     const client = await ensureClientReady();
-    const { data: sess, error: sessErr } = await client.auth.getSession();
-    if (sessErr) return { ok: false, error: sessErr };
 
-    const uid = sess?.session?.user?.id;
-    if (!uid) return { ok: false, error: { message: "未ログイン" } };
-
+    const playerId = normalizePlayerId(localStorage.getItem("player_id"));
+    const classCode = parseClassCodeFromPlayerId(playerId);
+    const nickname = makeNicknameFromPlayerId(playerId);
     const weekId = this.getWeekIdNow();
 
-    const { data, error } = await client.rpc("submit_secure_run", {
+    if (!playerId || !classCode) {
+      return { ok: false, error: { message: "プレイヤーID未設定" } };
+    }
+
+    const { data, error } = await client.rpc("submit_public_run", {
+      p_player_id: playerId,
+      p_class_code: classCode,
+      p_nickname: nickname,
       p_week_id: weekId,
       p_score: Number(score) || 0,
       p_max_combo: Number(maxCombo) || 0,
@@ -288,44 +278,39 @@ const api = {
 
     if (error) return { ok: false, error };
     if (!data?.ok) return { ok: false, error: { message: data?.error || "submit failed" } };
-
     return { ok: true, via: "rpc" };
   },
 
   async fetchWeekOptions() {
-    if (window.USE_MOCK) {
-      return [this.getWeekIdNow()];
-    }
-
     const client = await ensureClientReady();
-    const { data, error } = await client.rpc("get_week_options");
+    const { data, error } = await client.rpc("get_public_week_options");
     if (error) throw error;
     return (data || []).map((x) => x.week_id).filter(Boolean);
   },
 
   async fetchWeeklyTop(weekId) {
-    if (window.USE_MOCK) return [];
-
     const client = await ensureClientReady();
-    const { data, error } = await client.rpc("get_weekly_top10", { p_week_id: weekId });
+    const { data, error } = await client.rpc("get_public_weekly_top10", { p_week_id: weekId });
     if (error) throw error;
     return data || [];
   },
 
   async fetchMyWeeklyRank(weekId) {
-    if (window.USE_MOCK) return null;
-
     const client = await ensureClientReady();
-    const { data, error } = await client.rpc("get_my_weekly_rank", { p_week_id: weekId });
+    const playerId = normalizePlayerId(localStorage.getItem("player_id"));
+    if (!playerId) return null;
+
+    const { data, error } = await client.rpc("get_public_my_weekly_rank", {
+      p_week_id: weekId,
+      p_player_id: playerId,
+    });
     if (error) throw error;
     return Array.isArray(data) ? data[0] : data;
   },
 
   async fetchClassWeeklyRanking(weekId, limit = 20) {
-    if (window.USE_MOCK) return [];
-
     const client = await ensureClientReady();
-    const { data, error } = await client.rpc("get_class_weekly_ranking", {
+    const { data, error } = await client.rpc("get_public_class_weekly_ranking", {
       p_week_id: weekId,
       p_limit: limit,
     });
@@ -339,4 +324,4 @@ const api = {
 };
 
 window.api = api;
-console.log("[api] loaded. USE_MOCK =", window.USE_MOCK, "fallback vocab size =", (state.vocab || []).length);
+console.log("[api] loaded. USE_MOCK = false fallback vocab size =", (state.vocab || []).length);
