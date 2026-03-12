@@ -2,9 +2,8 @@
 /* global api */
 "use strict";
 
-console.log("[quiz] loaded! (maru-batsu + normal-countdown + 60s + next-question-fix + best-score)");
+console.log("[quiz] loaded! (ideal-score-structure)");
 
-// ===== DOM =====
 const $ = (id) => document.getElementById(id);
 
 const panes = {
@@ -40,15 +39,18 @@ let maxCombo = 0;
 let timerId = null;
 let msLeft = 0;
 
-// ✅ 1プレイ中の「同じ問題」防止
 let seenQuestionIds = new Set();
+
+// 回答速度計測
+let qShownAt = 0;
+let totalAnswerMs = 0;
+let answeredCount = 0;
+let fastestAnswerMs = null;
 
 // ===== settings =====
 const GAME_SECONDS = 60;
-
-// カウントダウン速度（ここだけ好みで変えられる）
-const COUNT_MS = 600;   // 3,2,1 の1つあたり
-const GO_MS = 700;      // GO表示
+const COUNT_MS = 600;
+const GO_MS = 700;
 
 // ===== helpers =====
 function showPane(name) {
@@ -93,7 +95,58 @@ function escapeHtml(s) {
     .replaceAll("'", "&#039;");
 }
 
-// ===== FX (overlay) =====
+function ensureResultUi() {
+  const resultStats = document.querySelector(".resultStats");
+  if (!resultStats) return;
+
+  if (!document.getElementById("finalAvgTime")) {
+    const card = document.createElement("div");
+    card.className = "resultStatCard";
+    card.innerHTML = `
+      <div class="resultStatLabel">平均回答時間</div>
+      <div class="resultStatValue" id="finalAvgTime">0.00秒</div>
+    `;
+    resultStats.appendChild(card);
+  }
+
+  if (!document.getElementById("finalFastestTime")) {
+    const card = document.createElement("div");
+    card.className = "resultStatCard";
+    card.innerHTML = `
+      <div class="resultStatLabel">最速回答</div>
+      <div class="resultStatValue" id="finalFastestTime">0.00秒</div>
+    `;
+    resultStats.appendChild(card);
+  }
+}
+
+// ===== scoring =====
+function getComboBonus(nextCombo) {
+  if (nextCombo >= 15) return 4;
+  if (nextCombo >= 10) return 3;
+  if (nextCombo >= 5) return 2;
+  if (nextCombo >= 3) return 1;
+  return 0;
+}
+
+function getSpeedBonus(answerMs) {
+  const answerSec = answerMs / 1000;
+
+  // 0.25秒刻み / 最大10点 / 2.5秒で0点
+  // 5秒までは測るが、ボーナスは2.5秒以降0
+  const step = Math.floor(answerSec / 0.25);
+  return Math.max(0, 10 - step);
+}
+
+function getFastLabel(answerMs) {
+  const sec = answerMs / 1000;
+  if (sec <= 0.50) return "GOD SPEED";
+  if (sec <= 1.00) return "FAST!";
+  if (sec <= 1.50) return "QUICK!";
+  return "";
+}
+
+// ===== FX =====
 async function showOverlay(type, text, ms) {
   if (!els.overlay || !els.overlayPanel) return;
   els.overlay.classList.remove("hidden");
@@ -125,7 +178,7 @@ function markButtons(correctLabel, chosenLabel) {
   }
 }
 
-// ===== UI render =====
+// ===== render =====
 function renderQuestion(q) {
   if (!els.q || !els.choices) return;
 
@@ -147,10 +200,15 @@ function renderQuestion(q) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.dataset.choice = label;
-    btn.innerHTML = `<div style="font-weight:1000">${label}</div><div style="margin-top:6px; font-weight:900">${escapeHtml(text || "")}</div>`;
+    btn.innerHTML = `
+      <div style="font-weight:1000">${label}</div>
+      <div style="margin-top:6px; font-weight:900">${escapeHtml(text || "")}</div>
+    `;
     btn.addEventListener("click", () => answer(label));
     els.choices.appendChild(btn);
   }
+
+  qShownAt = performance.now();
 }
 
 // ===== core =====
@@ -159,7 +217,6 @@ async function loadQuestion() {
 
   let q = null;
 
-  // ✅ 最大10回まで引き直して「未出」を探す
   for (let i = 0; i < 10; i++) {
     q = await api.fetchLatestQuestion();
     if (!q) break;
@@ -177,11 +234,12 @@ async function loadQuestion() {
   renderQuestion(q);
 }
 
-// ✅ 正解ラベル取得（mock/prod両方対応）
 function getCorrectLabel() {
   const a = clampLabel(window.__LAST_MOCK_CORRECT);
   const b = clampLabel(window.__LAST_PROD_CORRECT);
-  return a || b || "";
+  const c = clampLabel(window.__LAST_CORRECT);
+  const d = clampLabel(window.__LAST_PUBLIC_CORRECT);
+  return a || b || c || d || "";
 }
 
 async function answer(choiceLabel) {
@@ -189,6 +247,7 @@ async function answer(choiceLabel) {
   answering = true;
 
   const chosen = clampLabel(choiceLabel);
+  const answerMs = Math.min(5000, Math.max(0, performance.now() - qShownAt));
 
   try {
     const qid = currentQ ? currentQ.id : null;
@@ -198,27 +257,35 @@ async function answer(choiceLabel) {
     const row = Array.isArray(res) ? res[0] : res;
 
     const isCorrect = !!(row && row.is_correct);
-    const pts = Number(row && row.points ? row.points : 0);
-
     const correctLabel = getCorrectLabel();
+
+    answeredCount += 1;
+    totalAnswerMs += answerMs;
+    fastestAnswerMs = fastestAnswerMs === null ? answerMs : Math.min(fastestAnswerMs, answerMs);
+
     if (correctLabel) markButtons(correctLabel, chosen);
 
     if (isCorrect) {
       combo += 1;
       maxCombo = Math.max(maxCombo, combo);
-      score += pts;
+
+      const speedBonus = getSpeedBonus(answerMs);
+      const comboBonus = getComboBonus(combo);
+      const gained = 10 + speedBonus + comboBonus;
+
+      score += gained;
+
       setText(els.scoreNow, score);
       setText(els.comboNow, combo);
 
-      // ✅ 〇
-      await showOverlay("ok", "〇", 450);
+      const fastLabel = getFastLabel(answerMs);
+      const overlayText = fastLabel ? `${fastLabel} +${gained}` : `〇 +${gained}`;
+      await showOverlay("ok", overlayText, 520);
     } else {
       combo = 0;
-      score += pts;
       setText(els.scoreNow, score);
       setText(els.comboNow, combo);
 
-      // ✅ ×
       await showOverlay("ng", "×", 520);
     }
 
@@ -226,7 +293,9 @@ async function answer(choiceLabel) {
   } catch (e) {
     console.warn("[quiz] answer failed:", e);
     await showOverlay("warn", "送信エラー", 700);
-    try { await loadQuestion(); } catch {}
+    try {
+      await loadQuestion();
+    } catch {}
   } finally {
     answering = false;
   }
@@ -236,6 +305,8 @@ async function startGame() {
   try {
     if (playing) return;
 
+    ensureResultUi();
+
     playing = true;
     answering = false;
 
@@ -243,6 +314,11 @@ async function startGame() {
     combo = 0;
     maxCombo = 0;
     seenQuestionIds.clear();
+
+    totalAnswerMs = 0;
+    answeredCount = 0;
+    fastestAnswerMs = null;
+    qShownAt = 0;
 
     setText(els.scoreNow, 0);
     setText(els.comboNow, 0);
@@ -253,12 +329,9 @@ async function startGame() {
     msLeft = GAME_SECONDS * 1000;
     startTimer();
 
-    // ✅ 普通の速さのカウントダウン
     await showOverlay("count", "3", COUNT_MS);
     await showOverlay("count", "2", COUNT_MS);
     await showOverlay("count", "1", COUNT_MS);
-
-    // GOは控えめ（要らなければ消してOK）
     await showOverlay("go", "START", GO_MS);
 
     await loadQuestion();
@@ -277,17 +350,29 @@ async function endGame() {
   answering = false;
   stopTimer();
 
+  const avgSec = answeredCount > 0 ? (totalAnswerMs / answeredCount / 1000) : 0;
+  const fastestSec = fastestAnswerMs !== null ? (fastestAnswerMs / 1000) : 0;
+
   setText(els.finalScore, score);
   setText(els.finalCombo, maxCombo);
+
   const finalScoreCard = document.getElementById("finalScoreCard");
   if (finalScoreCard) finalScoreCard.textContent = String(score);
+
+  const finalAvgTime = document.getElementById("finalAvgTime");
+  if (finalAvgTime) finalAvgTime.textContent = `${avgSec.toFixed(2)}秒`;
+
+  const finalFastestTime = document.getElementById("finalFastestTime");
+  if (finalFastestTime) finalFastestTime.textContent = `${fastestSec.toFixed(2)}秒`;
+
   showPane("result");
 
   if (typeof window.onResultShown === "function") {
-    try { await window.onResultShown(); } catch {}
+    try {
+      await window.onResultShown();
+    } catch {}
   }
 
-  // 最高得点ランキング用
   try {
     if (api && typeof api.submitRun === "function") {
       await api.submitRun(score, maxCombo);
@@ -299,4 +384,3 @@ async function endGame() {
 
 window.startGame = startGame;
 window.endGame = endGame;
-
