@@ -5,10 +5,10 @@
  * - 個人Top5
  * - 自分の順位
  * - クラス対抗（平均）
- * - 見やすい装飾版
+ * - メダル装飾強化版
  */
 
-console.log("[ranking] loaded! (styled-ranking)");
+console.log("[ranking] loaded! (medal-style)");
 
 function byId2(id) {
   return document.getElementById(id);
@@ -32,34 +32,95 @@ function rankBadge(i) {
 
 function scoreLabel(points) {
   const p = Number(points) || 0;
-  if (p >= 200) return "MASTER";
-  if (p >= 160) return "EXCELLENT";
-  if (p >= 120) return "GREAT";
-  if (p >= 80) return "GOOD";
+  if (p >= 300) return "LEGEND";
+  if (p >= 240) return "EXCELLENT";
+  if (p >= 180) return "GREAT";
+  if (p >= 120) return "GOOD";
   return "TRY";
 }
 
-function getClassMedal(avg) {
+function getClassStage(avg) {
   const n = Number(avg) || 0;
-  if (n >= 200) return { icon: "🥇", label: "金", color: "rgba(255,215,0,.16)" };
-  if (n >= 160) return { icon: "🥈", label: "銀", color: "rgba(220,220,235,.14)" };
-  if (n >= 120) return { icon: "🥉", label: "銅", color: "rgba(205,127,50,.16)" };
-  return { icon: "🎯", label: "挑戦中", color: "rgba(255,255,255,.06)" };
+
+  if (n >= 300) {
+    return {
+      key: "gold",
+      icon: "🥇",
+      label: "金ランク",
+      bg: "linear-gradient(135deg, rgba(255,215,0,.24), rgba(255,170,0,.08))",
+      border: "rgba(255,215,0,.35)",
+      glow: "0 0 24px rgba(255,215,0,.15)"
+    };
+  }
+
+  if (n >= 240) {
+    return {
+      key: "silver",
+      icon: "🥈",
+      label: "銀ランク",
+      bg: "linear-gradient(135deg, rgba(220,220,235,.20), rgba(160,170,200,.08))",
+      border: "rgba(220,220,235,.28)",
+      glow: "0 0 22px rgba(220,220,235,.10)"
+    };
+  }
+
+  if (n >= 180) {
+    return {
+      key: "bronze",
+      icon: "🥉",
+      label: "銅ランク",
+      bg: "linear-gradient(135deg, rgba(205,127,50,.22), rgba(140,90,40,.08))",
+      border: "rgba(205,127,50,.30)",
+      glow: "0 0 20px rgba(205,127,50,.10)"
+    };
+  }
+
+  return {
+    key: "normal",
+    icon: "🎯",
+    label: "挑戦中",
+    bg: "linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.03))",
+    border: "rgba(255,255,255,.10)",
+    glow: "0 0 0 rgba(0,0,0,0)"
+  };
 }
 
-function getNextTarget(avg) {
+function getNextGoal(avg) {
   const n = Number(avg) || 0;
-  if (n < 120) return { name: "銅", value: 120, remain: (120 - n).toFixed(1) };
-  if (n < 160) return { name: "銀", value: 160, remain: (160 - n).toFixed(1) };
-  if (n < 200) return { name: "金", value: 200, remain: (200 - n).toFixed(1) };
-  return { name: "金達成", value: 200, remain: "0.0" };
-}
 
-function makeMiniBar(current, max = 200, width = 18) {
-  const ratio = Math.max(0, Math.min(1, current / max));
-  const filled = Math.round(ratio * width);
-  const empty = width - filled;
-  return `${"█".repeat(filled)}${"░".repeat(empty)}`;
+  if (n < 180) {
+    return {
+      icon: "🥉",
+      label: "銅ランク",
+      remain: (180 - n).toFixed(1),
+      desc: "まずは銅ランクを目指そう"
+    };
+  }
+
+  if (n < 240) {
+    return {
+      icon: "🥈",
+      label: "銀ランク",
+      remain: (240 - n).toFixed(1),
+      desc: "ここから銀ランクへ"
+    };
+  }
+
+  if (n < 300) {
+    return {
+      icon: "🥇",
+      label: "金ランク",
+      remain: (300 - n).toFixed(1),
+      desc: "あと少しで金ランク"
+    };
+  }
+
+  return {
+    icon: "👑",
+    label: "金ランク到達",
+    remain: "0.0",
+    desc: "最高ランク達成中"
+  };
 }
 
 function fmtTopRowHtml(i, row) {
@@ -69,14 +130,14 @@ function fmtTopRowHtml(i, row) {
   const badge = rankBadge(i);
 
   const bg =
-    i === 0 ? "linear-gradient(90deg, rgba(255,215,0,.18), rgba(255,215,0,.06))" :
-    i === 1 ? "linear-gradient(90deg, rgba(220,220,235,.15), rgba(220,220,235,.05))" :
-    i === 2 ? "linear-gradient(90deg, rgba(205,127,50,.16), rgba(205,127,50,.05))" :
+    i === 0 ? "linear-gradient(90deg, rgba(255,215,0,.20), rgba(255,215,0,.06))" :
+    i === 1 ? "linear-gradient(90deg, rgba(220,220,235,.16), rgba(220,220,235,.05))" :
+    i === 2 ? "linear-gradient(90deg, rgba(205,127,50,.18), rgba(205,127,50,.05))" :
     "rgba(255,255,255,.04)";
 
   const border =
-    i === 0 ? "rgba(255,215,0,.28)" :
-    i === 1 ? "rgba(220,220,235,.22)" :
+    i === 0 ? "rgba(255,215,0,.30)" :
+    i === 1 ? "rgba(220,220,235,.24)" :
     i === 2 ? "rgba(205,127,50,.24)" :
     "rgba(255,255,255,.07)";
 
@@ -174,29 +235,41 @@ function renderClassGoal(row) {
   const players = Number(row.players ?? 0);
   const best = Number(row.best_score ?? 0);
 
-  const medal = getClassMedal(avg);
-  const next = getNextTarget(avg);
-  const bar = makeMiniBar(avg, 200, 18);
+  const stage = getClassStage(avg);
+  const next = getNextGoal(avg);
 
   return `
     <div style="
-      background:${medal.color};
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:12px;
-      padding:10px;
+      background:${stage.bg};
+      border:1px solid ${stage.border};
+      border-radius:14px;
+      padding:12px;
       margin-bottom:8px;
+      box-shadow:${stage.glow};
     ">
       <div style="
         display:flex;
         justify-content:space-between;
         align-items:center;
-        gap:8px;
-        margin-bottom:8px;
+        gap:10px;
+        margin-bottom:10px;
       ">
-        <div style="font-weight:1000; font-size:14px;">
-          ${medal.icon} クラス平均
+        <div style="
+          display:flex;
+          align-items:center;
+          gap:8px;
+          font-weight:1000;
+          font-size:15px;
+        ">
+          <span style="font-size:20px;">${stage.icon}</span>
+          <span>${stage.label}</span>
         </div>
-        <div style="font-size:18px; font-weight:1000;">
+
+        <div style="
+          font-size:22px;
+          font-weight:1000;
+          line-height:1;
+        ">
           ${escapeHtml(avg.toFixed(1))}点
         </div>
       </div>
@@ -208,47 +281,66 @@ function renderClassGoal(row) {
         margin-bottom:8px;
       ">
         <div style="
-          background:rgba(255,255,255,.05);
-          border-radius:10px;
-          padding:8px;
-          border:1px solid rgba(255,255,255,.06);
+          background:rgba(255,255,255,.06);
+          border:1px solid rgba(255,255,255,.08);
+          border-radius:12px;
+          padding:9px;
         ">
-          <div style="font-size:10px; color:rgba(234,240,255,.65); font-weight:800;">現在ランク</div>
-          <div style="font-size:16px; font-weight:1000; margin-top:2px;">${medal.label}</div>
+          <div style="font-size:10px; color:rgba(234,240,255,.66); font-weight:800;">現在の状態</div>
+          <div style="font-size:16px; font-weight:1000; margin-top:3px;">
+            ${stage.icon} ${stage.label}
+          </div>
         </div>
 
         <div style="
-          background:rgba(255,255,255,.05);
-          border-radius:10px;
-          padding:8px;
-          border:1px solid rgba(255,255,255,.06);
+          background:rgba(255,255,255,.06);
+          border:1px solid rgba(255,255,255,.08);
+          border-radius:12px;
+          padding:9px;
         ">
-          <div style="font-size:10px; color:rgba(234,240,255,.65); font-weight:800;">次の目標</div>
-          <div style="font-size:16px; font-weight:1000; margin-top:2px;">
-            ${next.name === "金達成" ? "達成" : `${next.name}まで ${next.remain}`}
+          <div style="font-size:10px; color:rgba(234,240,255,.66); font-weight:800;">次の目標</div>
+          <div style="font-size:15px; font-weight:1000; margin-top:3px;">
+            ${next.icon} ${next.label}
+          </div>
+          <div style="font-size:11px; color:rgba(234,240,255,.75); font-weight:800; margin-top:2px;">
+            ${next.remain === "0.0" ? next.desc : `あと ${next.remain}点`}
           </div>
         </div>
       </div>
 
       <div style="
-        font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-        letter-spacing:.05em;
-        white-space:nowrap;
-        font-size:13px;
+        background:rgba(255,255,255,.05);
+        border:1px solid rgba(255,255,255,.08);
+        border-radius:12px;
+        padding:9px;
         margin-bottom:8px;
-      ">${bar}</div>
+      ">
+        <div style="font-size:11px; color:rgba(234,240,255,.68); font-weight:800; margin-bottom:4px;">
+          ランク目安
+        </div>
+        <div style="
+          display:flex;
+          justify-content:space-between;
+          gap:8px;
+          font-size:11px;
+          font-weight:900;
+        ">
+          <span>🥉 180</span>
+          <span>🥈 240</span>
+          <span>🥇 300</span>
+        </div>
+      </div>
 
       <div style="
         display:flex;
         justify-content:space-between;
         gap:10px;
         font-size:11px;
-        color:rgba(234,240,255,.72);
+        color:rgba(234,240,255,.76);
         font-weight:800;
       ">
         <span>参加 ${escapeHtml(String(players))}人</span>
         <span>最高 ${escapeHtml(String(best))}点</span>
-        <span>目標: 銅120 / 銀160 / 金200</span>
       </div>
     </div>
   `;
