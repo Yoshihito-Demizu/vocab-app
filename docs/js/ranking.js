@@ -6,9 +6,10 @@
  * - 自分の順位
  * - クラス対抗（平均）
  * - メダル装飾強化版
+ * - 1位王冠・光演出つき
  */
 
-console.log("[ranking] loaded! (medal-style)");
+console.log("[ranking] loaded! (royal-ranking)");
 
 function byId2(id) {
   return document.getElementById(id);
@@ -24,10 +25,17 @@ function escapeHtml(s) {
 }
 
 function rankBadge(i) {
-  if (i === 0) return "🥇";
+  if (i === 0) return "👑";
   if (i === 1) return "🥈";
   if (i === 2) return "🥉";
   return `${i + 1}`;
+}
+
+function rankLabel(i) {
+  if (i === 0) return "CHAMPION";
+  if (i === 1) return "2ND PLACE";
+  if (i === 2) return "3RD PLACE";
+  return `TOP ${i + 1}`;
 }
 
 function scoreLabel(points) {
@@ -47,9 +55,9 @@ function getClassStage(avg) {
       key: "gold",
       icon: "🥇",
       label: "金ランク",
-      bg: "linear-gradient(135deg, rgba(255,215,0,.24), rgba(255,170,0,.08))",
-      border: "rgba(255,215,0,.35)",
-      glow: "0 0 24px rgba(255,215,0,.15)"
+      bg: "linear-gradient(135deg, rgba(255,215,0,.26), rgba(255,170,0,.08))",
+      border: "rgba(255,215,0,.38)",
+      glow: "0 0 28px rgba(255,215,0,.16)"
     };
   }
 
@@ -58,7 +66,7 @@ function getClassStage(avg) {
       key: "silver",
       icon: "🥈",
       label: "銀ランク",
-      bg: "linear-gradient(135deg, rgba(220,220,235,.20), rgba(160,170,200,.08))",
+      bg: "linear-gradient(135deg, rgba(220,220,235,.22), rgba(160,170,200,.08))",
       border: "rgba(220,220,235,.28)",
       glow: "0 0 22px rgba(220,220,235,.10)"
     };
@@ -69,7 +77,7 @@ function getClassStage(avg) {
       key: "bronze",
       icon: "🥉",
       label: "銅ランク",
-      bg: "linear-gradient(135deg, rgba(205,127,50,.22), rgba(140,90,40,.08))",
+      bg: "linear-gradient(135deg, rgba(205,127,50,.24), rgba(140,90,40,.08))",
       border: "rgba(205,127,50,.30)",
       glow: "0 0 20px rgba(205,127,50,.10)"
     };
@@ -117,9 +125,9 @@ function getNextGoal(avg) {
 
   return {
     icon: "👑",
-    label: "金ランク到達",
+    label: "王者クラス",
     remain: "0.0",
-    desc: "最高ランク達成中"
+    desc: "最高ランク到達中"
   };
 }
 
@@ -128,37 +136,59 @@ function fmtTopRowHtml(i, row) {
   const pts = Number(row.points ?? row.score ?? 0);
   const combo = Number(row.max_combo ?? 0);
   const badge = rankBadge(i);
+  const label = rankLabel(i);
 
-  const bg =
-    i === 0 ? "linear-gradient(90deg, rgba(255,215,0,.20), rgba(255,215,0,.06))" :
-    i === 1 ? "linear-gradient(90deg, rgba(220,220,235,.16), rgba(220,220,235,.05))" :
-    i === 2 ? "linear-gradient(90deg, rgba(205,127,50,.18), rgba(205,127,50,.05))" :
-    "rgba(255,255,255,.04)";
+  let bg = "rgba(255,255,255,.04)";
+  let border = "rgba(255,255,255,.07)";
+  let shadow = "0 8px 18px rgba(0,0,0,.12)";
+  let accent = "rgba(234,240,255,.62)";
 
-  const border =
-    i === 0 ? "rgba(255,215,0,.30)" :
-    i === 1 ? "rgba(220,220,235,.24)" :
-    i === 2 ? "rgba(205,127,50,.24)" :
-    "rgba(255,255,255,.07)";
+  if (i === 0) {
+    bg = "linear-gradient(90deg, rgba(255,215,0,.24), rgba(255,215,0,.08), rgba(255,255,255,.02))";
+    border = "rgba(255,215,0,.34)";
+    shadow = "0 0 26px rgba(255,215,0,.14), 0 10px 20px rgba(0,0,0,.14)";
+    accent = "rgba(255,227,130,.92)";
+  } else if (i === 1) {
+    bg = "linear-gradient(90deg, rgba(220,220,235,.18), rgba(220,220,235,.06))";
+    border = "rgba(220,220,235,.24)";
+  } else if (i === 2) {
+    bg = "linear-gradient(90deg, rgba(205,127,50,.18), rgba(205,127,50,.06))";
+    border = "rgba(205,127,50,.24)";
+  }
 
   return `
     <div style="
       display:grid;
-      grid-template-columns:36px 1fr auto;
+      grid-template-columns:40px 1fr auto;
       gap:10px;
       align-items:center;
-      padding:9px 10px;
-      border-radius:12px;
+      padding:10px 11px;
+      border-radius:14px;
       background:${bg};
       border:1px solid ${border};
-      margin-bottom:6px;
-      box-shadow:0 8px 18px rgba(0,0,0,.12);
+      margin-bottom:7px;
+      box-shadow:${shadow};
+      position:relative;
+      overflow:hidden;
     ">
+      ${i === 0 ? `
+        <div style="
+          position:absolute;
+          top:0;
+          right:0;
+          width:90px;
+          height:100%;
+          background:linear-gradient(90deg, transparent, rgba(255,255,255,.08));
+          pointer-events:none;
+        "></div>
+      ` : ""}
+
       <div style="
         font-weight:1000;
-        font-size:15px;
+        font-size:17px;
         text-align:center;
         color:#fff;
+        line-height:1;
       ">${badge}</div>
 
       <div style="min-width:0;">
@@ -170,8 +200,17 @@ function fmtTopRowHtml(i, row) {
           text-overflow:ellipsis;
           white-space:nowrap;
         ">${escapeHtml(String(name))}</div>
+
         <div style="
-          color:rgba(234,240,255,.62);
+          color:${accent};
+          font-size:10px;
+          font-weight:900;
+          margin-top:2px;
+          letter-spacing:.04em;
+        ">${label}</div>
+
+        <div style="
+          color:rgba(234,240,255,.60);
           font-size:10px;
           font-weight:800;
           margin-top:2px;
@@ -183,7 +222,7 @@ function fmtTopRowHtml(i, row) {
       <div style="text-align:right;">
         <div style="
           font-weight:1000;
-          font-size:16px;
+          font-size:17px;
           line-height:1;
         ">${escapeHtml(String(pts))}点</div>
       </div>
@@ -197,11 +236,17 @@ function fmtClassRowHtml(i, row) {
   const best = Number(row.best_score ?? 0);
   const badge = rankBadge(i);
 
+  const tint =
+    i === 0 ? "rgba(255,215,0,.10)" :
+    i === 1 ? "rgba(220,220,235,.08)" :
+    i === 2 ? "rgba(205,127,50,.10)" :
+    "rgba(255,255,255,.04)";
+
   return `
     <div style="
       padding:8px 10px;
       border-radius:10px;
-      background:rgba(255,255,255,.04);
+      background:${tint};
       border:1px solid rgba(255,255,255,.06);
       margin-bottom:5px;
     ">
@@ -242,11 +287,25 @@ function renderClassGoal(row) {
     <div style="
       background:${stage.bg};
       border:1px solid ${stage.border};
-      border-radius:14px;
+      border-radius:16px;
       padding:12px;
       margin-bottom:8px;
       box-shadow:${stage.glow};
+      position:relative;
+      overflow:hidden;
     ">
+      ${stage.key === "gold" ? `
+        <div style="
+          position:absolute;
+          top:0;
+          right:0;
+          width:120px;
+          height:100%;
+          background:linear-gradient(90deg, transparent, rgba(255,255,255,.12));
+          pointer-events:none;
+        "></div>
+      ` : ""}
+
       <div style="
         display:flex;
         justify-content:space-between;
@@ -261,12 +320,12 @@ function renderClassGoal(row) {
           font-weight:1000;
           font-size:15px;
         ">
-          <span style="font-size:20px;">${stage.icon}</span>
+          <span style="font-size:21px;">${stage.icon}</span>
           <span>${stage.label}</span>
         </div>
 
         <div style="
-          font-size:22px;
+          font-size:24px;
           font-weight:1000;
           line-height:1;
         ">
@@ -286,8 +345,8 @@ function renderClassGoal(row) {
           border-radius:12px;
           padding:9px;
         ">
-          <div style="font-size:10px; color:rgba(234,240,255,.66); font-weight:800;">現在の状態</div>
-          <div style="font-size:16px; font-weight:1000; margin-top:3px;">
+          <div style="font-size:10px; color:rgba(234,240,255,.66); font-weight:800;">現在のランク</div>
+          <div style="font-size:17px; font-weight:1000; margin-top:3px;">
             ${stage.icon} ${stage.label}
           </div>
         </div>
@@ -302,7 +361,7 @@ function renderClassGoal(row) {
           <div style="font-size:15px; font-weight:1000; margin-top:3px;">
             ${next.icon} ${next.label}
           </div>
-          <div style="font-size:11px; color:rgba(234,240,255,.75); font-weight:800; margin-top:2px;">
+          <div style="font-size:11px; color:rgba(234,240,255,.76); font-weight:800; margin-top:2px;">
             ${next.remain === "0.0" ? next.desc : `あと ${next.remain}点`}
           </div>
         </div>
@@ -312,18 +371,18 @@ function renderClassGoal(row) {
         background:rgba(255,255,255,.05);
         border:1px solid rgba(255,255,255,.08);
         border-radius:12px;
-        padding:9px;
+        padding:10px;
         margin-bottom:8px;
       ">
-        <div style="font-size:11px; color:rgba(234,240,255,.68); font-weight:800; margin-bottom:4px;">
-          ランク目安
+        <div style="font-size:11px; color:rgba(234,240,255,.68); font-weight:900; margin-bottom:6px;">
+          クラス目標
         </div>
         <div style="
           display:flex;
           justify-content:space-between;
           gap:8px;
-          font-size:11px;
-          font-weight:900;
+          font-size:12px;
+          font-weight:1000;
         ">
           <span>🥉 180</span>
           <span>🥈 240</span>
@@ -371,7 +430,7 @@ function renderMyCard(mine, topRows) {
   }
 
   const title =
-    myRank === 1 ? "🏆 今週のトップ" :
+    myRank === 1 ? "👑 今週の王者" :
     myRank <= 3 ? "🔥 上位ランクイン" :
     myRank <= 5 ? "✨ TOP5入り" :
     "📘 まだまだ挑戦";
