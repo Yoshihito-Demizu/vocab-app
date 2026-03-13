@@ -7,9 +7,10 @@
  * - クラス対抗（平均）
  * - メダル装飾強化版
  * - 1位王冠・光演出つき
+ * - あなたカード強化版
  */
 
-console.log("[ranking] loaded! (royal-ranking)");
+console.log("[ranking] loaded! (royal-ranking + mycard-plus)");
 
 function byId2(id) {
   return document.getElementById(id);
@@ -429,17 +430,84 @@ function renderMyCard(mine, topRows) {
     `;
   }
 
-  const title =
-    myRank === 1 ? "👑 今週の王者" :
-    myRank <= 3 ? "🔥 上位ランクイン" :
-    myRank <= 5 ? "✨ TOP5入り" :
-    "📘 まだまだ挑戦";
+  let title = "📘 まだまだ挑戦";
+  let badge = "✨";
+  let bg = "linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.03))";
+  let border = "rgba(255,255,255,.08)";
+  let shadow = "0 8px 18px rgba(0,0,0,.10)";
+
+  if (myRank === 1) {
+    title = "今週の王者";
+    badge = "👑";
+    bg = "linear-gradient(135deg, rgba(255,215,0,.22), rgba(255,170,0,.08))";
+    border = "rgba(255,215,0,.30)";
+    shadow = "0 0 26px rgba(255,215,0,.14), 0 10px 22px rgba(0,0,0,.14)";
+  } else if (myRank <= 3) {
+    title = "上位ランクイン";
+    badge = "🔥";
+    bg = "linear-gradient(135deg, rgba(255,120,80,.16), rgba(255,255,255,.03))";
+  } else if (myRank <= 5) {
+    title = "TOP5入り";
+    badge = "✨";
+    bg = "linear-gradient(135deg, rgba(120,180,255,.16), rgba(255,255,255,.03))";
+  }
 
   return `
-    <div style="font-size:12px; color:rgba(234,240,255,.62); font-weight:800;">${title}</div>
-    <div style="font-size:30px; font-weight:1000; line-height:1; margin:6px 0 6px;">${escapeHtml(String(myRank))}位</div>
-    <div style="font-size:18px; font-weight:1000;">${escapeHtml(String(myPoints))}点</div>
-    ${nextGapHtml}
+    <div style="
+      background:${bg};
+      border:1px solid ${border};
+      border-radius:14px;
+      padding:12px;
+      box-shadow:${shadow};
+      position:relative;
+      overflow:hidden;
+    ">
+      ${myRank === 1 ? `
+        <div style="
+          position:absolute;
+          top:0;
+          right:0;
+          width:120px;
+          height:100%;
+          background:linear-gradient(90deg, transparent, rgba(255,255,255,.12));
+          pointer-events:none;
+        "></div>
+      ` : ""}
+
+      <div style="
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        gap:6px;
+        font-size:13px;
+        color:rgba(234,240,255,.76);
+        font-weight:900;
+        margin-bottom:8px;
+      ">
+        <span>${badge}</span>
+        <span>${title}</span>
+      </div>
+
+      <div style="
+        text-align:center;
+        font-size:34px;
+        font-weight:1000;
+        line-height:1;
+        margin:2px 0 8px;
+      ">
+        ${escapeHtml(String(myRank))}位
+      </div>
+
+      <div style="
+        text-align:center;
+        font-size:20px;
+        font-weight:1000;
+      ">
+        ${escapeHtml(String(myPoints))}点
+      </div>
+
+      ${nextGapHtml}
+    </div>
   `;
 }
 
