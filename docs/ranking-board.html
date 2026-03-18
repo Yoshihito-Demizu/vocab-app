@@ -1,155 +1,411 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<title>語彙タイムアタック ランキング</title>
-
-<style>
-
-body{
-background:#0b1020;
-color:white;
-font-family:system-ui;
-margin:0;
-padding:0;
-text-align:center;
-}
-
-h1{
-font-size:56px;
-margin-top:30px;
-margin-bottom:10px;
-}
-
-#week{
-opacity:0.6;
-margin-bottom:30px;
-}
-
-.container{
-display:flex;
-justify-content:center;
-gap:80px;
-padding:40px;
-}
-
-.board{
-background:#121a33;
-padding:40px;
-border-radius:20px;
-width:600px;
-}
-
-.title{
-font-size:32px;
-margin-bottom:20px;
-}
-
-.row{
-display:flex;
-justify-content:space-between;
-font-size:28px;
-margin:10px 0;
-}
-
-.rank1{font-size:36px;color:#ffd700;}
-.rank2{color:#c0c0c0;}
-.rank3{color:#cd7f32;}
-
-.footer{
-margin-top:40px;
-opacity:0.5;
-font-size:20px;
-}
-
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>語彙タイムアタック ランキングボード</title>
+  <style>
+    :root{
+      --bg:#08101f;
+      --card:#101a33;
+      --line:rgba(255,255,255,.10);
+      --ink:#eef3ff;
+      --muted:#aebada;
+      --gold:#ffd54a;
+      --silver:#d8dee9;
+      --bronze:#d49a63;
+      --accent:#5aa9ff;
+    }
+    *{ box-sizing:border-box; }
+    html,body{
+      margin:0;
+      min-height:100%;
+      background:
+        radial-gradient(circle at top, rgba(90,169,255,.10), transparent 35%),
+        linear-gradient(180deg, #091121 0%, #060c18 100%);
+      color:var(--ink);
+      font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    }
+    body{
+      padding:24px;
+    }
+    .wrap{
+      max-width:1600px;
+      margin:0 auto;
+    }
+    .topbar{
+      display:flex;
+      align-items:flex-end;
+      justify-content:space-between;
+      gap:20px;
+      margin-bottom:20px;
+    }
+    .title{
+      font-size:42px;
+      font-weight:1000;
+      letter-spacing:.02em;
+      margin:0;
+    }
+    .sub{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:16px;
+      font-weight:700;
+    }
+    .status{
+      text-align:right;
+      color:var(--muted);
+      font-size:14px;
+      font-weight:800;
+      line-height:1.6;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns:1.1fr .9fr;
+      gap:18px;
+    }
+    .panel{
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius:24px;
+      padding:20px;
+      box-shadow:0 18px 50px rgba(0,0,0,.22);
+    }
+    .panelTitle{
+      font-size:28px;
+      font-weight:1000;
+      margin-bottom:14px;
+    }
+    .champion{
+      display:grid;
+      grid-template-columns:110px 1fr auto;
+      gap:16px;
+      align-items:center;
+      padding:18px;
+      border-radius:22px;
+      margin-bottom:14px;
+      background:linear-gradient(90deg, rgba(255,213,74,.20), rgba(255,213,74,.06));
+      border:1px solid rgba(255,213,74,.28);
+      box-shadow:0 0 26px rgba(255,213,74,.08);
+    }
+    .championBadge{
+      font-size:60px;
+      text-align:center;
+      line-height:1;
+    }
+    .championName{
+      font-size:30px;
+      font-weight:1000;
+      line-height:1.1;
+    }
+    .championMeta{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:15px;
+      font-weight:800;
+    }
+    .championScore{
+      text-align:right;
+    }
+    .championScoreNum{
+      font-size:46px;
+      font-weight:1000;
+      line-height:1;
+      color:var(--gold);
+    }
+    .championScoreUnit{
+      margin-top:6px;
+      color:var(--muted);
+      font-weight:800;
+      font-size:14px;
+    }
+    .list{
+      display:grid;
+      gap:10px;
+    }
+    .row{
+      display:grid;
+      grid-template-columns:64px 1fr auto;
+      gap:12px;
+      align-items:center;
+      padding:14px 16px;
+      border-radius:16px;
+      background:rgba(255,255,255,.04);
+      border:1px solid rgba(255,255,255,.07);
+    }
+    .row.rank2{
+      background:linear-gradient(90deg, rgba(216,222,233,.13), rgba(216,222,233,.04));
+      border-color:rgba(216,222,233,.18);
+    }
+    .row.rank3{
+      background:linear-gradient(90deg, rgba(212,154,99,.14), rgba(212,154,99,.04));
+      border-color:rgba(212,154,99,.18);
+    }
+    .rank{
+      font-size:28px;
+      font-weight:1000;
+      text-align:center;
+      line-height:1;
+    }
+    .name{
+      font-size:24px;
+      font-weight:1000;
+      line-height:1.15;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .meta{
+      margin-top:4px;
+      color:var(--muted);
+      font-size:13px;
+      font-weight:800;
+    }
+    .score{
+      text-align:right;
+      white-space:nowrap;
+    }
+    .scoreNum{
+      font-size:30px;
+      font-weight:1000;
+      line-height:1;
+    }
+    .scoreUnit{
+      margin-top:4px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:800;
+    }
+    .classHero{
+      display:grid;
+      grid-template-columns:96px 1fr auto;
+      gap:14px;
+      align-items:center;
+      padding:16px;
+      border-radius:20px;
+      background:linear-gradient(90deg, rgba(90,169,255,.18), rgba(90,169,255,.05));
+      border:1px solid rgba(90,169,255,.22);
+      margin-bottom:14px;
+    }
+    .classIcon{
+      font-size:52px;
+      text-align:center;
+      line-height:1;
+    }
+    .className{
+      font-size:28px;
+      font-weight:1000;
+      line-height:1.1;
+    }
+    .classMeta{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:14px;
+      font-weight:800;
+    }
+    .classAvg{
+      text-align:right;
+    }
+    .classAvgNum{
+      font-size:42px;
+      font-weight:1000;
+      line-height:1;
+      color:var(--accent);
+    }
+    .classAvgUnit{
+      margin-top:6px;
+      color:var(--muted);
+      font-weight:800;
+      font-size:13px;
+    }
+    .footer{
+      margin-top:16px;
+      text-align:center;
+      color:var(--muted);
+      font-size:13px;
+      font-weight:800;
+    }
+    @media (max-width: 1200px){
+      .grid{ grid-template-columns:1fr; }
+    }
+  </style>
 </head>
-
 <body>
+  <div class="wrap">
+    <div class="topbar">
+      <div>
+        <h1 class="title">🏆 語彙タイムアタック ランキング</h1>
+        <div class="sub">個人TOP5 / クラス対抗TOP5</div>
+      </div>
+      <div class="status">
+        <div id="boardWeek">週: -</div>
+        <div id="boardUpdated">更新中...</div>
+      </div>
+    </div>
 
-<h1>語彙タイムアタック</h1>
-<div id="week"></div>
+    <div class="grid">
+      <section class="panel">
+        <div class="panelTitle">個人ランキング</div>
+        <div id="personalBoard"></div>
+      </section>
 
-<div class="container">
+      <section class="panel">
+        <div class="panelTitle">クラス対抗（平均）</div>
+        <div id="classBoard"></div>
+      </section>
+    </div>
 
-<div class="board">
-<div class="title">🏆 個人ランキング</div>
-<div id="top10"></div>
-</div>
+    <div class="footer">
+      30秒ごとに自動更新します
+    </div>
+  </div>
 
-<div class="board">
-<div class="title">🏫 クラス平均</div>
-<div id="classRank"></div>
-</div>
+  <script src="./js/config.js?v=20260314board"></script>
+  <script src="./js/api.js?v=20260314board"></script>
+  <script>
+    function escapeHtml(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
 
-</div>
+    function fmtTime(d) {
+      const y = d.getFullYear();
+      const mo = String(d.getMonth() + 1).padStart(2, "0");
+      const da = String(d.getDate()).padStart(2, "0");
+      const h = String(d.getHours()).padStart(2, "0");
+      const mi = String(d.getMinutes()).padStart(2, "0");
+      const s = String(d.getSeconds()).padStart(2, "0");
+      return `${y}/${mo}/${da} ${h}:${mi}:${s}`;
+    }
 
-<div class="footer">
-自動更新：30秒
-</div>
+    function personalHtml(rows) {
+      if (!rows || rows.length === 0) {
+        return `<div class="row"><div class="rank">-</div><div><div class="name">まだデータなし</div></div><div class="score"><div class="scoreNum">-</div></div></div>`;
+      }
 
-<script src="./js/config.js"></script>
-<script src="./js/api.js"></script>
+      const first = rows[0];
+      const championName = first.nickname || first.player_id || first.user_id || "-";
+      const championPoints = Number(first.points ?? first.score ?? 0);
+      const championCombo = Number(first.max_combo ?? 0);
 
-<script>
+      const champion = `
+        <div class="champion">
+          <div class="championBadge">👑</div>
+          <div>
+            <div class="championName">${escapeHtml(championName)}</div>
+            <div class="championMeta">COMBO ${championCombo} / 今週のCHAMPION</div>
+          </div>
+          <div class="championScore">
+            <div class="championScoreNum">${championPoints}</div>
+            <div class="championScoreUnit">POINTS</div>
+          </div>
+        </div>
+      `;
 
-async function update(){
+      const rest = rows.slice(1, 5).map((r, idx) => {
+        const rank = idx + 2;
+        const cls = rank === 2 ? "row rank2" : rank === 3 ? "row rank3" : "row";
+        const name = r.nickname || r.player_id || r.user_id || "-";
+        const points = Number(r.points ?? r.score ?? 0);
+        const combo = Number(r.max_combo ?? 0);
+        const badge = rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+        return `
+          <div class="${cls}">
+            <div class="rank">${badge}</div>
+            <div>
+              <div class="name">${escapeHtml(name)}</div>
+              <div class="meta">COMBO ${combo}</div>
+            </div>
+            <div class="score">
+              <div class="scoreNum">${points}</div>
+              <div class="scoreUnit">POINTS</div>
+            </div>
+          </div>
+        `;
+      }).join("");
 
-const week = api.getWeekIdNow()
+      return champion + `<div class="list">${rest}</div>`;
+    }
 
-document.getElementById("week").textContent =
-"今週：" + week
+    function classHtml(rows) {
+      if (!rows || rows.length === 0) {
+        return `<div class="row"><div class="rank">-</div><div><div class="name">まだデータなし</div></div><div class="score"><div class="scoreNum">-</div></div></div>`;
+      }
 
-// 個人ランキング
-const top = await api.fetchWeeklyTop(week)
+      const first = rows[0];
+      const className = first.class_code || "-";
+      const avg = Number(first.avg_score ?? 0);
+      const players = Number(first.players ?? 0);
+      const best = Number(first.best_score ?? 0);
 
-let html=""
+      const hero = `
+        <div class="classHero">
+          <div class="classIcon">🏫</div>
+          <div>
+            <div class="className">${escapeHtml(className)}</div>
+            <div class="classMeta">参加 ${players}人 / 最高 ${best}点</div>
+          </div>
+          <div class="classAvg">
+            <div class="classAvgNum">${avg.toFixed(1)}</div>
+            <div class="classAvgUnit">AVG</div>
+          </div>
+        </div>
+      `;
 
-top.forEach((r,i)=>{
+      const rest = rows.slice(1, 5).map((r, idx) => {
+        const rank = idx + 2;
+        const cls = rank === 2 ? "row rank2" : rank === 3 ? "row rank3" : "row";
+        const avg = Number(r.avg_score ?? 0);
+        const players = Number(r.players ?? 0);
+        const best = Number(r.best_score ?? 0);
+        const badge = rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+        return `
+          <div class="${cls}">
+            <div class="rank">${badge}</div>
+            <div>
+              <div class="name">${escapeHtml(r.class_code || "-")}</div>
+              <div class="meta">参加 ${players}人 / 最高 ${best}点</div>
+            </div>
+            <div class="score">
+              <div class="scoreNum">${avg.toFixed(1)}</div>
+              <div class="scoreUnit">AVG</div>
+            </div>
+          </div>
+        `;
+      }).join("");
 
-let cls=""
+      return hero + `<div class="list">${rest}</div>`;
+    }
 
-if(i==0) cls="rank1"
-if(i==1) cls="rank2"
-if(i==2) cls="rank3"
+    async function updateBoard() {
+      try {
+        const week = window.api.getWeekIdNow();
+        document.getElementById("boardWeek").textContent = `週: ${week}`;
 
-html += `
-<div class="row ${cls}">
-<div>${i+1}位 ${r.nickname}</div>
-<div>${r.points}</div>
-</div>
-`
+        const [top, classRows] = await Promise.all([
+          window.api.fetchWeeklyTop(week),
+          typeof window.api.fetchClassWeeklyRanking === "function"
+            ? window.api.fetchClassWeeklyRanking(week, 10)
+            : Promise.resolve([])
+        ]);
 
-})
+        document.getElementById("personalBoard").innerHTML = personalHtml(top || []);
+        document.getElementById("classBoard").innerHTML = classHtml(classRows || []);
+        document.getElementById("boardUpdated").textContent = `最終更新: ${fmtTime(new Date())}`;
+      } catch (e) {
+        console.warn("[board] update failed:", e);
+        document.getElementById("boardUpdated").textContent = "更新失敗";
+      }
+    }
 
-document.getElementById("top10").innerHTML = html
-
-
-// クラスランキング
-const classes = await api.fetchClassWeeklyRanking(week)
-
-let html2=""
-
-classes.forEach((c,i)=>{
-
-html2 += `
-<div class="row">
-<div>${i+1}位 ${c.class_code}</div>
-<div>${c.avg_score}</div>
-</div>
-`
-
-})
-
-document.getElementById("classRank").innerHTML = html2
-
-}
-
-update()
-
-setInterval(update,30000)
-
-</script>
-
+    (async () => {
+      await updateBoard();
+      setInterval(updateBoard, 30000);
+    })();
+  </script>
 </body>
 </html>
