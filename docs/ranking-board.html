@@ -6,262 +6,578 @@
   <title>語彙タイムアタック ランキングボード</title>
   <style>
     :root{
-      --bg:#08101f;
-      --card:#101a33;
+      --bg1:#050914;
+      --bg2:#0a1222;
+      --card:#121b33;
       --line:rgba(255,255,255,.10);
-      --ink:#eef3ff;
-      --muted:#aebada;
+      --ink:#eef4ff;
+      --muted:#aeb9d9;
+
       --gold:#ffd54a;
-      --silver:#d8dee9;
-      --bronze:#d49a63;
-      --accent:#5aa9ff;
+      --silver:#d9e0ea;
+      --bronze:#d89b63;
+      --blue:#67a9ff;
+      --blue2:#8fd3ff;
+      --pink:#ff7fd1;
+      --green:#63f0ba;
     }
+
     *{ box-sizing:border-box; }
+
     html,body{
       margin:0;
       min-height:100%;
-      background:
-        radial-gradient(circle at top, rgba(90,169,255,.10), transparent 35%),
-        linear-gradient(180deg, #091121 0%, #060c18 100%);
       color:var(--ink);
       font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(103,169,255,.18), transparent 28%),
+        radial-gradient(circle at 85% 12%, rgba(255,127,209,.12), transparent 24%),
+        radial-gradient(circle at 50% 100%, rgba(99,240,186,.08), transparent 30%),
+        linear-gradient(180deg, var(--bg2) 0%, var(--bg1) 100%);
+      overflow-x:hidden;
     }
+
     body{
       padding:24px;
     }
+
+    .bg-glow{
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      overflow:hidden;
+      z-index:0;
+    }
+
+    .orb{
+      position:absolute;
+      border-radius:999px;
+      filter:blur(40px);
+      opacity:.18;
+      animation: drift 18s ease-in-out infinite alternate;
+    }
+
+    .orb.a{
+      width:260px;height:260px;
+      background:var(--blue);
+      left:4%;top:8%;
+    }
+    .orb.b{
+      width:220px;height:220px;
+      background:var(--pink);
+      right:7%;top:12%;
+      animation-duration:22s;
+    }
+    .orb.c{
+      width:300px;height:300px;
+      background:var(--green);
+      left:38%;bottom:-80px;
+      animation-duration:26s;
+    }
+
+    @keyframes drift{
+      from{ transform:translateY(0) translateX(0) scale(1); }
+      to{ transform:translateY(20px) translateX(18px) scale(1.08); }
+    }
+
     .wrap{
-      max-width:1600px;
+      position:relative;
+      z-index:1;
+      max-width:1780px;
       margin:0 auto;
     }
+
     .topbar{
-      display:flex;
-      align-items:flex-end;
-      justify-content:space-between;
-      gap:20px;
+      display:grid;
+      grid-template-columns:1fr auto;
+      gap:18px;
+      align-items:end;
       margin-bottom:20px;
     }
+
+    .hero{
+      position:relative;
+      overflow:hidden;
+      border-radius:30px;
+      padding:22px 26px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.09), rgba(255,255,255,.03)),
+        linear-gradient(180deg, rgba(103,169,255,.08), rgba(255,255,255,0));
+      border:1px solid rgba(255,255,255,.11);
+      box-shadow:0 24px 70px rgba(0,0,0,.28);
+    }
+
+    .hero::after{
+      content:"";
+      position:absolute;
+      inset:auto -10% -40% auto;
+      width:340px;
+      height:340px;
+      border-radius:999px;
+      background:radial-gradient(circle, rgba(255,213,74,.18), transparent 60%);
+      pointer-events:none;
+    }
+
     .title{
-      font-size:42px;
+      margin:0;
+      font-size:54px;
+      line-height:1;
       font-weight:1000;
       letter-spacing:.02em;
-      margin:0;
+      text-shadow:0 8px 26px rgba(0,0,0,.32);
     }
+
     .sub{
-      margin-top:6px;
+      margin-top:10px;
       color:var(--muted);
-      font-size:16px;
-      font-weight:700;
+      font-size:18px;
+      font-weight:800;
+      letter-spacing:.02em;
     }
+
     .status{
+      min-width:290px;
+      border-radius:24px;
+      padding:18px 20px;
+      background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow:0 18px 50px rgba(0,0,0,.20);
       text-align:right;
+    }
+
+    .status .week{
+      font-size:22px;
+      font-weight:1000;
+      line-height:1.2;
+    }
+
+    .status .updated{
+      margin-top:8px;
       color:var(--muted);
       font-size:14px;
       font-weight:800;
-      line-height:1.6;
     }
+
     .grid{
       display:grid;
-      grid-template-columns:1.1fr .9fr;
+      grid-template-columns:1.18fr .82fr;
       gap:18px;
+      align-items:start;
     }
+
     .panel{
-      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-      border:1px solid var(--line);
-      border-radius:24px;
+      position:relative;
+      overflow:hidden;
+      border-radius:30px;
       padding:20px;
-      box-shadow:0 18px 50px rgba(0,0,0,.22);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025));
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow:0 20px 60px rgba(0,0,0,.22);
+      min-height:720px;
     }
+
     .panelTitle{
-      font-size:28px;
-      font-weight:1000;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
       margin-bottom:14px;
     }
+
+    .panelTitle h2{
+      margin:0;
+      font-size:30px;
+      font-weight:1000;
+      letter-spacing:.01em;
+    }
+
+    .badgeMini{
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:12px;
+      font-weight:900;
+      color:#dfe9ff;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+    }
+
+    .pulse{
+      animation: pulseIn .55s ease;
+    }
+
+    @keyframes pulseIn{
+      0%{ transform:scale(.985); opacity:.7; }
+      100%{ transform:scale(1); opacity:1; }
+    }
+
     .champion{
+      position:relative;
+      overflow:hidden;
+      display:grid;
+      grid-template-columns:132px 1fr auto;
+      gap:18px;
+      align-items:center;
+      padding:20px;
+      border-radius:28px;
+      margin-bottom:14px;
+      background:
+        linear-gradient(90deg, rgba(255,213,74,.24), rgba(255,213,74,.08), rgba(255,255,255,.03));
+      border:1px solid rgba(255,213,74,.30);
+      box-shadow:0 0 32px rgba(255,213,74,.10), 0 18px 40px rgba(0,0,0,.16);
+    }
+
+    .champion::after{
+      content:"";
+      position:absolute;
+      top:0;
+      right:0;
+      width:180px;
+      height:100%;
+      background:linear-gradient(90deg, transparent, rgba(255,255,255,.10));
+      pointer-events:none;
+    }
+
+    .championBadge{
+      text-align:center;
+      line-height:1;
+    }
+
+    .championBadge .crown{
+      font-size:70px;
+      display:block;
+      filter:drop-shadow(0 8px 16px rgba(255,213,74,.22));
+    }
+
+    .championBadge .place{
+      margin-top:6px;
+      font-size:18px;
+      font-weight:1000;
+      color:#261b00;
+      letter-spacing:.06em;
+    }
+
+    .championMain{
+      min-width:0;
+    }
+
+    .championName{
+      font-size:34px;
+      font-weight:1000;
+      line-height:1.05;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      color:#fff7d1;
+      text-shadow:0 6px 20px rgba(0,0,0,.25);
+    }
+
+    .championMeta{
+      margin-top:8px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+
+    .chip{
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:12px;
+      font-weight:900;
+      color:#0d1222;
+      background:rgba(255,255,255,.78);
+    }
+
+    .chip.dark{
+      color:#e7eeff;
+      background:rgba(255,255,255,.08);
+      border:1px solid rgba(255,255,255,.12);
+    }
+
+    .championScore{
+      text-align:right;
+      min-width:150px;
+    }
+
+    .championScoreNum{
+      font-size:64px;
+      line-height:1;
+      font-weight:1000;
+      color:var(--gold);
+      text-shadow:0 8px 24px rgba(255,213,74,.16);
+    }
+
+    .championScoreUnit{
+      margin-top:8px;
+      color:var(--muted);
+      font-size:14px;
+      font-weight:900;
+      letter-spacing:.08em;
+    }
+
+    .list{
+      display:grid;
+      gap:10px;
+    }
+
+    .row{
+      display:grid;
+      grid-template-columns:72px 1fr auto;
+      gap:14px;
+      align-items:center;
+      padding:16px 16px;
+      border-radius:18px;
+      background:rgba(255,255,255,.045);
+      border:1px solid rgba(255,255,255,.08);
+      box-shadow:0 10px 22px rgba(0,0,0,.10);
+    }
+
+    .row.rank2{
+      background:linear-gradient(90deg, rgba(217,224,234,.16), rgba(217,224,234,.05));
+      border-color:rgba(217,224,234,.18);
+    }
+
+    .row.rank3{
+      background:linear-gradient(90deg, rgba(216,155,99,.17), rgba(216,155,99,.05));
+      border-color:rgba(216,155,99,.18);
+    }
+
+    .rank{
+      text-align:center;
+      font-size:32px;
+      line-height:1;
+      font-weight:1000;
+    }
+
+    .name{
+      font-size:28px;
+      line-height:1.08;
+      font-weight:1000;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+
+    .meta{
+      margin-top:5px;
+      color:var(--muted);
+      font-size:14px;
+      font-weight:800;
+    }
+
+    .score{
+      text-align:right;
+      white-space:nowrap;
+      min-width:140px;
+    }
+
+    .scoreNum{
+      font-size:38px;
+      line-height:1;
+      font-weight:1000;
+    }
+
+    .scoreUnit{
+      margin-top:6px;
+      color:var(--muted);
+      font-size:12px;
+      font-weight:900;
+      letter-spacing:.08em;
+    }
+
+    .classHero{
+      position:relative;
+      overflow:hidden;
       display:grid;
       grid-template-columns:110px 1fr auto;
       gap:16px;
       align-items:center;
       padding:18px;
-      border-radius:22px;
+      border-radius:24px;
+      background:
+        linear-gradient(90deg, rgba(103,169,255,.22), rgba(103,169,255,.07), rgba(255,255,255,.03));
+      border:1px solid rgba(103,169,255,.25);
+      box-shadow:0 0 28px rgba(103,169,255,.08), 0 16px 36px rgba(0,0,0,.14);
       margin-bottom:14px;
-      background:linear-gradient(90deg, rgba(255,213,74,.20), rgba(255,213,74,.06));
-      border:1px solid rgba(255,213,74,.28);
-      box-shadow:0 0 26px rgba(255,213,74,.08);
     }
-    .championBadge{
-      font-size:60px;
+
+    .classHero::after{
+      content:"";
+      position:absolute;
+      top:0;
+      right:0;
+      width:160px;
+      height:100%;
+      background:linear-gradient(90deg, transparent, rgba(255,255,255,.08));
+      pointer-events:none;
+    }
+
+    .classIcon{
       text-align:center;
       line-height:1;
     }
-    .championName{
-      font-size:30px;
-      font-weight:1000;
-      line-height:1.1;
+
+    .classIcon .emoji{
+      font-size:58px;
+      display:block;
     }
-    .championMeta{
+
+    .classIcon .label{
       margin-top:6px;
-      color:var(--muted);
-      font-size:15px;
-      font-weight:800;
-    }
-    .championScore{
-      text-align:right;
-    }
-    .championScoreNum{
-      font-size:46px;
+      font-size:16px;
       font-weight:1000;
-      line-height:1;
-      color:var(--gold);
+      color:#d9edff;
     }
-    .championScoreUnit{
-      margin-top:6px;
-      color:var(--muted);
-      font-weight:800;
-      font-size:14px;
+
+    .classMain{
+      min-width:0;
     }
-    .list{
-      display:grid;
-      gap:10px;
-    }
-    .row{
-      display:grid;
-      grid-template-columns:64px 1fr auto;
-      gap:12px;
-      align-items:center;
-      padding:14px 16px;
-      border-radius:16px;
-      background:rgba(255,255,255,.04);
-      border:1px solid rgba(255,255,255,.07);
-    }
-    .row.rank2{
-      background:linear-gradient(90deg, rgba(216,222,233,.13), rgba(216,222,233,.04));
-      border-color:rgba(216,222,233,.18);
-    }
-    .row.rank3{
-      background:linear-gradient(90deg, rgba(212,154,99,.14), rgba(212,154,99,.04));
-      border-color:rgba(212,154,99,.18);
-    }
-    .rank{
-      font-size:28px;
+
+    .className{
+      font-size:34px;
       font-weight:1000;
-      text-align:center;
-      line-height:1;
-    }
-    .name{
-      font-size:24px;
-      font-weight:1000;
-      line-height:1.15;
+      line-height:1.05;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
     }
-    .meta{
-      margin-top:4px;
-      color:var(--muted);
-      font-size:13px;
-      font-weight:800;
+
+    .classMeta{
+      margin-top:8px;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
     }
-    .score{
-      text-align:right;
+
+    .goalWrap{
+      margin-top:12px;
+      display:grid;
+      gap:8px;
+    }
+
+    .goalRow{
+      display:grid;
+      grid-template-columns:60px 1fr 74px;
+      gap:10px;
+      align-items:center;
+    }
+
+    .goalLabel{
+      font-size:14px;
+      font-weight:1000;
       white-space:nowrap;
     }
-    .scoreNum{
-      font-size:30px;
-      font-weight:1000;
-      line-height:1;
+
+    .goalBar{
+      height:12px;
+      border-radius:999px;
+      background:rgba(255,255,255,.08);
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,.07);
     }
-    .scoreUnit{
-      margin-top:4px;
-      color:var(--muted);
-      font-size:12px;
-      font-weight:800;
+
+    .goalFill{
+      height:100%;
+      border-radius:999px;
     }
-    .classHero{
-      display:grid;
-      grid-template-columns:96px 1fr auto;
-      gap:14px;
-      align-items:center;
-      padding:16px;
-      border-radius:20px;
-      background:linear-gradient(90deg, rgba(90,169,255,.18), rgba(90,169,255,.05));
-      border:1px solid rgba(90,169,255,.22);
-      margin-bottom:14px;
+
+    .goalValue{
+      text-align:right;
+      font-size:13px;
+      font-weight:900;
+      color:#dfe9ff;
+      white-space:nowrap;
     }
-    .classIcon{
-      font-size:52px;
-      text-align:center;
-      line-height:1;
-    }
-    .className{
-      font-size:28px;
-      font-weight:1000;
-      line-height:1.1;
-    }
-    .classMeta{
-      margin-top:6px;
-      color:var(--muted);
-      font-size:14px;
-      font-weight:800;
-    }
+
     .classAvg{
       text-align:right;
+      min-width:140px;
     }
+
     .classAvgNum{
-      font-size:42px;
-      font-weight:1000;
+      font-size:58px;
       line-height:1;
-      color:var(--accent);
+      font-weight:1000;
+      color:var(--blue2);
+      text-shadow:0 8px 22px rgba(103,169,255,.14);
     }
+
     .classAvgUnit{
-      margin-top:6px;
+      margin-top:8px;
       color:var(--muted);
-      font-weight:800;
       font-size:13px;
+      font-weight:900;
+      letter-spacing:.08em;
     }
+
     .footer{
       margin-top:16px;
       text-align:center;
       color:var(--muted);
       font-size:13px;
-      font-weight:800;
+      font-weight:900;
+      letter-spacing:.04em;
     }
+
+    @media (max-width: 1400px){
+      .title{ font-size:46px; }
+      .championName,.className{ font-size:30px; }
+      .championScoreNum,.classAvgNum{ font-size:52px; }
+      .name{ font-size:24px; }
+      .scoreNum{ font-size:34px; }
+    }
+
     @media (max-width: 1200px){
       .grid{ grid-template-columns:1fr; }
+      .panel{ min-height:auto; }
     }
   </style>
 </head>
 <body>
+  <div class="bg-glow">
+    <div class="orb a"></div>
+    <div class="orb b"></div>
+    <div class="orb c"></div>
+  </div>
+
   <div class="wrap">
     <div class="topbar">
-      <div>
+      <div class="hero">
         <h1 class="title">🏆 語彙タイムアタック ランキング</h1>
-        <div class="sub">個人TOP5 / クラス対抗TOP5</div>
+        <div class="sub">個人TOP5 / クラス対抗TOP5 / 30秒ごと自動更新</div>
       </div>
+
       <div class="status">
-        <div id="boardWeek">週: -</div>
-        <div id="boardUpdated">更新中...</div>
+        <div class="week" id="boardWeek">週: -</div>
+        <div class="updated" id="boardUpdated">更新中...</div>
       </div>
     </div>
 
     <div class="grid">
-      <section class="panel">
-        <div class="panelTitle">個人ランキング</div>
+      <section class="panel" id="personalPanel">
+        <div class="panelTitle">
+          <h2>個人ランキング</h2>
+          <div class="badgeMini">BEST SCORE</div>
+        </div>
         <div id="personalBoard"></div>
       </section>
 
-      <section class="panel">
-        <div class="panelTitle">クラス対抗（平均）</div>
+      <section class="panel" id="classPanel">
+        <div class="panelTitle">
+          <h2>クラス対抗（平均）</h2>
+          <div class="badgeMini">CLASS BATTLE</div>
+        </div>
         <div id="classBoard"></div>
       </section>
     </div>
 
     <div class="footer">
-      30秒ごとに自動更新します
+      VOCAB TIME ATTACK BOARD
     </div>
   </div>
 
-  <script src="./js/config.js?v=20260314board"></script>
-  <script src="./js/api.js?v=20260314board"></script>
+  <script src="./js/config.js?v=20260315board"></script>
+  <script src="./js/api.js?v=20260315board"></script>
   <script>
     function escapeHtml(s) {
       return String(s)
@@ -282,6 +598,20 @@
       return `${y}/${mo}/${da} ${h}:${mi}:${s}`;
     }
 
+    function goalBar(current, target, fillCss) {
+      const ratio = Math.max(0, Math.min(1, current / target));
+      const width = Math.round(ratio * 100);
+      return `
+        <div class="goalRow">
+          <div class="goalLabel">${fillCss.label}</div>
+          <div class="goalBar">
+            <div class="goalFill" style="width:${width}%; background:${fillCss.bg};"></div>
+          </div>
+          <div class="goalValue">${Math.min(current, target).toFixed(1)} / ${target}</div>
+        </div>
+      `;
+    }
+
     function personalHtml(rows) {
       if (!rows || rows.length === 0) {
         return `<div class="row"><div class="rank">-</div><div><div class="name">まだデータなし</div></div><div class="score"><div class="scoreNum">-</div></div></div>`;
@@ -293,12 +623,20 @@
       const championCombo = Number(first.max_combo ?? 0);
 
       const champion = `
-        <div class="champion">
-          <div class="championBadge">👑</div>
-          <div>
-            <div class="championName">${escapeHtml(championName)}</div>
-            <div class="championMeta">COMBO ${championCombo} / 今週のCHAMPION</div>
+        <div class="champion pulse">
+          <div class="championBadge">
+            <span class="crown">👑</span>
+            <span class="place">#1</span>
           </div>
+
+          <div class="championMain">
+            <div class="championName">${escapeHtml(championName)}</div>
+            <div class="championMeta">
+              <span class="chip">CHAMPION</span>
+              <span class="chip dark">COMBO ${championCombo}</span>
+            </div>
+          </div>
+
           <div class="championScore">
             <div class="championScoreNum">${championPoints}</div>
             <div class="championScoreUnit">POINTS</div>
@@ -308,17 +646,19 @@
 
       const rest = rows.slice(1, 5).map((r, idx) => {
         const rank = idx + 2;
-        const cls = rank === 2 ? "row rank2" : rank === 3 ? "row rank3" : "row";
+        const cls = rank === 2 ? "row rank2 pulse" : rank === 3 ? "row rank3 pulse" : "row pulse";
         const name = r.nickname || r.player_id || r.user_id || "-";
         const points = Number(r.points ?? r.score ?? 0);
         const combo = Number(r.max_combo ?? 0);
         const badge = rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+        const metaLabel = rank === 2 ? "2ND PLACE" : rank === 3 ? "3RD PLACE" : `TOP ${rank}`;
+
         return `
           <div class="${cls}">
             <div class="rank">${badge}</div>
             <div>
               <div class="name">${escapeHtml(name)}</div>
-              <div class="meta">COMBO ${combo}</div>
+              <div class="meta">${metaLabel} / COMBO ${combo}</div>
             </div>
             <div class="score">
               <div class="scoreNum">${points}</div>
@@ -342,13 +682,40 @@
       const players = Number(first.players ?? 0);
       const best = Number(first.best_score ?? 0);
 
+      let stageEmoji = "🎯";
+      let stageLabel = "挑戦中";
+      if (avg >= 300) {
+        stageEmoji = "🥇";
+        stageLabel = "金ランク";
+      } else if (avg >= 240) {
+        stageEmoji = "🥈";
+        stageLabel = "銀ランク";
+      } else if (avg >= 180) {
+        stageEmoji = "🥉";
+        stageLabel = "銅ランク";
+      }
+
       const hero = `
-        <div class="classHero">
-          <div class="classIcon">🏫</div>
-          <div>
-            <div class="className">${escapeHtml(className)}</div>
-            <div class="classMeta">参加 ${players}人 / 最高 ${best}点</div>
+        <div class="classHero pulse">
+          <div class="classIcon">
+            <span class="emoji">${stageEmoji}</span>
+            <span class="label">${stageLabel}</span>
           </div>
+
+          <div class="classMain">
+            <div class="className">${escapeHtml(className)}</div>
+            <div class="classMeta">
+              <span class="chip dark">参加 ${players}人</span>
+              <span class="chip dark">最高 ${best}点</span>
+            </div>
+
+            <div class="goalWrap">
+              ${goalBar(avg, 180, { label: "🥉 180", bg: "linear-gradient(90deg, #d89b63, #a76533)" })}
+              ${goalBar(avg, 240, { label: "🥈 240", bg: "linear-gradient(90deg, #d9e0ea, #aab4c3)" })}
+              ${goalBar(avg, 300, { label: "🥇 300", bg: "linear-gradient(90deg, #ffd54a, #ffb400)" })}
+            </div>
+          </div>
+
           <div class="classAvg">
             <div class="classAvgNum">${avg.toFixed(1)}</div>
             <div class="classAvgUnit">AVG</div>
@@ -358,11 +725,12 @@
 
       const rest = rows.slice(1, 5).map((r, idx) => {
         const rank = idx + 2;
-        const cls = rank === 2 ? "row rank2" : rank === 3 ? "row rank3" : "row";
+        const cls = rank === 2 ? "row rank2 pulse" : rank === 3 ? "row rank3 pulse" : "row pulse";
         const avg = Number(r.avg_score ?? 0);
         const players = Number(r.players ?? 0);
         const best = Number(r.best_score ?? 0);
         const badge = rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
+
         return `
           <div class="${cls}">
             <div class="rank">${badge}</div>
@@ -381,6 +749,16 @@
       return hero + `<div class="list">${rest}</div>`;
     }
 
+    function flashPanels() {
+      const personal = document.getElementById("personalPanel");
+      const klass = document.getElementById("classPanel");
+      personal.classList.remove("pulse");
+      klass.classList.remove("pulse");
+      void personal.offsetWidth;
+      personal.classList.add("pulse");
+      klass.classList.add("pulse");
+    }
+
     async function updateBoard() {
       try {
         const week = window.api.getWeekIdNow();
@@ -396,6 +774,7 @@
         document.getElementById("personalBoard").innerHTML = personalHtml(top || []);
         document.getElementById("classBoard").innerHTML = classHtml(classRows || []);
         document.getElementById("boardUpdated").textContent = `最終更新: ${fmtTime(new Date())}`;
+        flashPanels();
       } catch (e) {
         console.warn("[board] update failed:", e);
         document.getElementById("boardUpdated").textContent = "更新失敗";
