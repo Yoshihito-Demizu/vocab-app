@@ -1,6 +1,6 @@
 "use strict";
 
-console.log("[ranking] loaded! (compact-class-graph + mini-you)");
+console.log("[ranking] loaded! (compact-class-graph + mini-you + jp-week)");
 
 function byId2(id) {
   return document.getElementById(id);
@@ -111,6 +111,26 @@ function makeMiniProgress(current, target) {
       "></div>
     </div>
   `;
+}
+
+function formatWeekJapanese(weekId) {
+  // "2026-W12" -> "3月3週"
+  const m = String(weekId || "").match(/^(\d{4})-W(\d{2})$/);
+  if (!m) return weekId || "-";
+
+  const year = Number(m[1]);
+  const week = Number(m[2]);
+
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const monday = new Date(jan4);
+  monday.setUTCDate(jan4.getUTCDate() - (jan4Day - 1) + (week - 1) * 7);
+
+  const month = monday.getUTCMonth() + 1;
+  const day = monday.getUTCDate();
+  const weekInMonth = Math.floor((day - 1) / 7) + 1;
+
+  return `${month}月${weekInMonth}週`;
 }
 
 function fmtTopRowHtml(i, row) {
@@ -455,7 +475,7 @@ async function loadWeekOptions() {
     for (const w of use) {
       const opt = document.createElement("option");
       opt.value = w;
-      opt.textContent = w;
+      opt.textContent = formatWeekJapanese(w);
       if (w === now) opt.selected = true;
       weekSelect.appendChild(opt);
     }
@@ -509,7 +529,7 @@ async function loadRankings() {
     }
 
     if (rankMsg) {
-      rankMsg.textContent = `OK（${weekId}）`;
+      rankMsg.textContent = `OK（${formatWeekJapanese(weekId)}）`;
     }
   } catch (e) {
     console.warn("[ranking] loadRankings failed:", e);
