@@ -37,9 +37,7 @@
       overflow-x:hidden;
     }
 
-    body{
-      padding:24px;
-    }
+    body{ padding:24px; }
 
     .bg-glow{
       position:fixed;
@@ -57,23 +55,9 @@
       animation: drift 18s ease-in-out infinite alternate;
     }
 
-    .orb.a{
-      width:260px;height:260px;
-      background:var(--blue);
-      left:4%;top:8%;
-    }
-    .orb.b{
-      width:220px;height:220px;
-      background:var(--pink);
-      right:7%;top:12%;
-      animation-duration:22s;
-    }
-    .orb.c{
-      width:300px;height:300px;
-      background:var(--green);
-      left:38%;bottom:-80px;
-      animation-duration:26s;
-    }
+    .orb.a{ width:260px;height:260px;background:var(--blue);left:4%;top:8%; }
+    .orb.b{ width:220px;height:220px;background:var(--pink);right:7%;top:12%;animation-duration:22s; }
+    .orb.c{ width:300px;height:300px;background:var(--green);left:38%;bottom:-80px;animation-duration:26s; }
 
     @keyframes drift{
       from{ transform:translateY(0) translateX(0) scale(1); }
@@ -202,9 +186,7 @@
       border:1px solid rgba(255,255,255,.10);
     }
 
-    .pulse{
-      animation: pulseIn .55s ease;
-    }
+    .pulse{ animation: pulseIn .55s ease; }
 
     @keyframes pulseIn{
       0%{ transform:scale(.985); opacity:.7; }
@@ -257,9 +239,7 @@
       letter-spacing:.06em;
     }
 
-    .championMain{
-      min-width:0;
-    }
+    .championMain{ min-width:0; }
 
     .championName{
       font-size:34px;
@@ -429,9 +409,7 @@
       color:#d9edff;
     }
 
-    .classMain{
-      min-width:0;
-    }
+    .classMain{ min-width:0; }
 
     .className{
       font-size:34px;
@@ -576,8 +554,8 @@
     </div>
   </div>
 
-  <script src="./js/config.js?v=20260315board"></script>
-  <script src="./js/api.js?v=20260315board"></script>
+  <script src="./js/config.js?v=20260315board2"></script>
+  <script src="./js/api.js?v=20260315board2"></script>
   <script>
     function escapeHtml(s) {
       return String(s)
@@ -596,6 +574,25 @@
       const mi = String(d.getMinutes()).padStart(2, "0");
       const s = String(d.getSeconds()).padStart(2, "0");
       return `${y}/${mo}/${da} ${h}:${mi}:${s}`;
+    }
+
+    function formatWeekJapanese(weekId) {
+      const m = String(weekId || "").match(/^(\d{4})-W(\d{2})$/);
+      if (!m) return weekId || "-";
+
+      const year = Number(m[1]);
+      const week = Number(m[2]);
+
+      const jan4 = new Date(Date.UTC(year, 0, 4));
+      const jan4Day = jan4.getUTCDay() || 7;
+      const monday = new Date(jan4);
+      monday.setUTCDate(jan4.getUTCDate() - (jan4Day - 1) + (week - 1) * 7);
+
+      const month = monday.getUTCMonth() + 1;
+      const day = monday.getUTCDate();
+      const weekInMonth = Math.floor((day - 1) / 7) + 1;
+
+      return `${month}月${weekInMonth}週`;
     }
 
     function goalBar(current, target, fillCss) {
@@ -762,7 +759,7 @@
     async function updateBoard() {
       try {
         const week = window.api.getWeekIdNow();
-        document.getElementById("boardWeek").textContent = `週: ${week}`;
+        document.getElementById("boardWeek").textContent = `📅 ${formatWeekJapanese(week)}`;
 
         const [top, classRows] = await Promise.all([
           window.api.fetchWeeklyTop(week),
