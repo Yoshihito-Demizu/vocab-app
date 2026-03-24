@@ -2,12 +2,12 @@
 
 /**
  * ID入力方式 main.js
- * - loginBox をプレイヤーID入力として使う
- * - パスワード欄は隠す
- * - 現在のID表示 / ID変更ボタン
+ * - QRの ?id= から自動読込
+ * - localStorage に保存
+ * - 次回以降も同じ端末で自動維持
  */
 
-console.log("[main] loaded! (id-mode)");
+console.log("[main] loaded! (id-mode + qr-autosave)");
 
 (() => {
   const byId = (id) => document.getElementById(id);
@@ -41,10 +41,10 @@ console.log("[main] loaded! (id-mode)");
 
   function prepareIdUi() {
     const title = byId("loginBox")?.querySelector("div");
-    if (title) title.textContent = "プレイヤーID（iPhone対応版）";
+    if (title) title.textContent = "プレイヤーID（QR対応版）";
 
     const pwInput = byId("loginPw");
-    if (pwInput) {
+    if (pwInput && pwInput.closest("div")) {
       pwInput.value = "";
       pwInput.closest("div").style.display = "none";
     }
@@ -60,6 +60,36 @@ console.log("[main] loaded! (id-mode)");
 
     const logoutBtn = byId("logoutBtn");
     if (logoutBtn) logoutBtn.textContent = "ID変更";
+  }
+
+  async function saveIdFromUrlIfExists() {
+    const params = new URLSearchParams(window.location.search);
+    const urlId = (params.get("id") || "").trim();
+
+    if (!urlId) return false;
+
+    try {
+      const res = await window.api.signIn(urlId);
+      if (!res?.ok) {
+        setLoginMsg(res?.message || "QRのID保存に失敗");
+        return false;
+      }
+
+      const idInput = byId("loginId");
+      if (idInput) idInput.value = urlId;
+
+      setLoginMsg("QRからIDを保存しました");
+
+      // URLをきれいにする（?id= を消す）
+      const cleanUrl = location.origin + location.pathname;
+      history.replaceState({}, "", cleanUrl);
+
+      return true;
+    } catch (e) {
+      console.warn("[main] saveIdFromUrlIfExists failed:", e);
+      setLoginMsg("QRのID保存に失敗");
+      return false;
+    }
   }
 
   byId("startBtn")?.addEventListener("click", async () => {
@@ -126,6 +156,10 @@ console.log("[main] loaded! (id-mode)");
   (async () => {
     prepareIdUi();
 
+    // 1. まずQRの ?id= を最優先で保存
+    await saveIdFromUrlIfExists();
+
+    // 2. そのあと localStorage の既存IDを表示
     const currentId = await window.api.getMyUserId();
     const idInput = byId("loginId");
     if (idInput && currentId) idInput.value = currentId;
