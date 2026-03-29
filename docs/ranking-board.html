@@ -8,11 +8,8 @@
     :root{
       --bg1:#050914;
       --bg2:#0a1222;
-      --card:#121b33;
-      --line:rgba(255,255,255,.10);
       --ink:#eef4ff;
       --muted:#aeb9d9;
-
       --gold:#ffd54a;
       --silver:#d9e0ea;
       --bronze:#d89b63;
@@ -52,7 +49,7 @@
       border-radius:999px;
       filter:blur(40px);
       opacity:.18;
-      animation: drift 18s ease-in-out infinite alternate;
+      animation:drift 18s ease-in-out infinite alternate;
     }
 
     .orb.a{ width:260px;height:260px;background:var(--blue);left:4%;top:8%; }
@@ -67,15 +64,15 @@
     .wrap{
       position:relative;
       z-index:1;
-      max-width:1780px;
+      max-width:1820px;
       margin:0 auto;
     }
 
     .topbar{
       display:grid;
-      grid-template-columns:1fr auto;
+      grid-template-columns: 1.15fr auto 280px;
       gap:18px;
-      align-items:end;
+      align-items:stretch;
       margin-bottom:20px;
     }
 
@@ -120,13 +117,16 @@
     }
 
     .status{
-      min-width:290px;
+      min-width:280px;
       border-radius:24px;
       padding:18px 20px;
       background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
       border:1px solid rgba(255,255,255,.10);
       box-shadow:0 18px 50px rgba(0,0,0,.20);
       text-align:right;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
     }
 
     .status .week{
@@ -142,6 +142,37 @@
       font-weight:800;
     }
 
+    .gradeVisual{
+      border-radius:24px;
+      padding:14px;
+      background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow:0 18px 50px rgba(0,0,0,.20);
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      gap:8px;
+      overflow:hidden;
+    }
+
+    .gradeVisual img{
+      width:100%;
+      max-width:220px;
+      max-height:220px;
+      object-fit:contain;
+      display:block;
+      filter:drop-shadow(0 10px 24px rgba(0,0,0,.22));
+    }
+
+    .gradeVisualLabel{
+      font-size:16px;
+      font-weight:1000;
+      text-align:center;
+      color:#f1f5ff;
+      letter-spacing:.04em;
+    }
+
     .grid{
       display:grid;
       grid-template-columns:1.18fr .82fr;
@@ -154,8 +185,7 @@
       overflow:hidden;
       border-radius:30px;
       padding:20px;
-      background:
-        linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025));
+      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025));
       border:1px solid rgba(255,255,255,.10);
       box-shadow:0 20px 60px rgba(0,0,0,.22);
       min-height:720px;
@@ -186,7 +216,7 @@
       border:1px solid rgba(255,255,255,.10);
     }
 
-    .pulse{ animation: pulseIn .55s ease; }
+    .pulse{ animation:pulseIn .55s ease; }
 
     @keyframes pulseIn{
       0%{ transform:scale(.985); opacity:.7; }
@@ -203,8 +233,7 @@
       padding:20px;
       border-radius:28px;
       margin-bottom:14px;
-      background:
-        linear-gradient(90deg, rgba(255,213,74,.24), rgba(255,213,74,.08), rgba(255,255,255,.03));
+      background:linear-gradient(90deg, rgba(255,213,74,.24), rgba(255,213,74,.08), rgba(255,255,255,.03));
       border:1px solid rgba(255,213,74,.30);
       box-shadow:0 0 32px rgba(255,213,74,.10), 0 18px 40px rgba(0,0,0,.16);
     }
@@ -374,8 +403,7 @@
       align-items:center;
       padding:18px;
       border-radius:24px;
-      background:
-        linear-gradient(90deg, rgba(103,169,255,.22), rgba(103,169,255,.07), rgba(255,255,255,.03));
+      background:linear-gradient(90deg, rgba(103,169,255,.22), rgba(103,169,255,.07), rgba(255,255,255,.03));
       border:1px solid rgba(103,169,255,.25);
       box-shadow:0 0 28px rgba(103,169,255,.08), 0 16px 36px rgba(0,0,0,.14);
       margin-bottom:14px;
@@ -497,12 +525,9 @@
       letter-spacing:.04em;
     }
 
-    @media (max-width: 1400px){
-      .title{ font-size:46px; }
-      .championName,.className{ font-size:30px; }
-      .championScoreNum,.classAvgNum{ font-size:52px; }
-      .name{ font-size:24px; }
-      .scoreNum{ font-size:34px; }
+    @media (max-width: 1500px){
+      .topbar{ grid-template-columns:1fr auto; }
+      .gradeVisual{ grid-column:1 / -1; }
     }
 
     @media (max-width: 1200px){
@@ -526,8 +551,13 @@
       </div>
 
       <div class="status">
-        <div class="week" id="boardWeek">週: -</div>
+        <div class="week" id="boardWeek">📅 -</div>
         <div class="updated" id="boardUpdated">更新中...</div>
+      </div>
+
+      <div class="gradeVisual">
+        <img id="gradeImage" src="" alt="学年画像" style="display:none;">
+        <div class="gradeVisualLabel" id="gradeLabel">学年画像なし</div>
       </div>
     </div>
 
@@ -554,9 +584,18 @@
     </div>
   </div>
 
-  <script src="./js/config.js?v=20260315board2"></script>
-  <script src="./js/api.js?v=20260315board2"></script>
+  <script src="./js/config.js?v=20260316grade"></script>
+  <script src="./js/api.js?v=20260316grade"></script>
   <script>
+    const GRADE_IMAGES = {
+      J1: "./images/signage/J1.png",
+      J2: "./images/signage/J2.png",
+      J3: "./images/signage/J3.png",
+      H1: "./images/signage/H1.png",
+      H2: "./images/signage/H2.png",
+      H3: "./images/signage/H3.png"
+    };
+
     function escapeHtml(s) {
       return String(s)
         .replaceAll("&", "&amp;")
@@ -593,6 +632,54 @@
       const weekInMonth = Math.floor((day - 1) / 7) + 1;
 
       return `${month}月${weekInMonth}週`;
+    }
+
+    function extractGradeCode(value) {
+      const s = String(value || "").trim();
+
+      // J1-1 / J2 / H3-2
+      let m = s.match(/\b(J[1-3]|H[1-3])\b/i);
+      if (m) return m[1].toUpperCase();
+
+      // 1-1 / 2-3 みたいな旧式をJ1/J2/J3として扱う
+      m = s.match(/^([123])[-－]/);
+      if (m) return `J${m[1]}`;
+
+      return null;
+    }
+
+    function decideGradeFromRows(topRows, classRows) {
+      if (Array.isArray(classRows) && classRows.length > 0) {
+        const g = extractGradeCode(classRows[0].class_code);
+        if (g) return g;
+      }
+
+      if (Array.isArray(topRows)) {
+        for (const r of topRows) {
+          const g1 = extractGradeCode(r.nickname);
+          if (g1) return g1;
+          const g2 = extractGradeCode(r.class_code);
+          if (g2) return g2;
+        }
+      }
+
+      return null;
+    }
+
+    function updateGradeVisual(gradeCode) {
+      const img = document.getElementById("gradeImage");
+      const label = document.getElementById("gradeLabel");
+
+      if (!gradeCode || !GRADE_IMAGES[gradeCode]) {
+        img.style.display = "none";
+        img.src = "";
+        label.textContent = "学年画像なし";
+        return;
+      }
+
+      img.src = GRADE_IMAGES[gradeCode];
+      img.style.display = "block";
+      label.textContent = `${gradeCode} ランキング`;
     }
 
     function goalBar(current, target, fillCss) {
@@ -771,6 +858,10 @@
         document.getElementById("personalBoard").innerHTML = personalHtml(top || []);
         document.getElementById("classBoard").innerHTML = classHtml(classRows || []);
         document.getElementById("boardUpdated").textContent = `最終更新: ${fmtTime(new Date())}`;
+
+        const gradeCode = decideGradeFromRows(top || [], classRows || []);
+        updateGradeVisual(gradeCode);
+
         flashPanels();
       } catch (e) {
         console.warn("[board] update failed:", e);
