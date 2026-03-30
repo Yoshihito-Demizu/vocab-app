@@ -1,878 +1,213 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>語彙タイムアタック ランキングボード</title>
-  <style>
-    :root{
-      --bg1:#050914;
-      --bg2:#0a1222;
-      --ink:#eef4ff;
-      --muted:#aeb9d9;
-      --gold:#ffd54a;
-      --silver:#d9e0ea;
-      --bronze:#d89b63;
-      --blue:#67a9ff;
-      --blue2:#8fd3ff;
-      --pink:#ff7fd1;
-      --green:#63f0ba;
-    }
-
-    *{ box-sizing:border-box; }
-
-    html,body{
-      margin:0;
-      min-height:100%;
-      color:var(--ink);
-      font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
-      background:
-        radial-gradient(circle at 15% 15%, rgba(103,169,255,.18), transparent 28%),
-        radial-gradient(circle at 85% 12%, rgba(255,127,209,.12), transparent 24%),
-        radial-gradient(circle at 50% 100%, rgba(99,240,186,.08), transparent 30%),
-        linear-gradient(180deg, var(--bg2) 0%, var(--bg1) 100%);
-      overflow-x:hidden;
-    }
-
-    body{ padding:24px; }
-
-    .bg-glow{
-      position:fixed;
-      inset:0;
-      pointer-events:none;
-      overflow:hidden;
-      z-index:0;
-    }
-
-    .orb{
-      position:absolute;
-      border-radius:999px;
-      filter:blur(40px);
-      opacity:.18;
-      animation:drift 18s ease-in-out infinite alternate;
-    }
-
-    .orb.a{ width:260px;height:260px;background:var(--blue);left:4%;top:8%; }
-    .orb.b{ width:220px;height:220px;background:var(--pink);right:7%;top:12%;animation-duration:22s; }
-    .orb.c{ width:300px;height:300px;background:var(--green);left:38%;bottom:-80px;animation-duration:26s; }
-
-    @keyframes drift{
-      from{ transform:translateY(0) translateX(0) scale(1); }
-      to{ transform:translateY(20px) translateX(18px) scale(1.08); }
-    }
-
-    .wrap{
-      position:relative;
-      z-index:1;
-      max-width:1820px;
-      margin:0 auto;
-    }
-
-    .topbar{
-      display:grid;
-      grid-template-columns: 1.15fr auto 280px;
-      gap:18px;
-      align-items:stretch;
-      margin-bottom:20px;
-    }
-
-    .hero{
-      position:relative;
-      overflow:hidden;
-      border-radius:30px;
-      padding:22px 26px;
-      background:
-        linear-gradient(135deg, rgba(255,255,255,.09), rgba(255,255,255,.03)),
-        linear-gradient(180deg, rgba(103,169,255,.08), rgba(255,255,255,0));
-      border:1px solid rgba(255,255,255,.11);
-      box-shadow:0 24px 70px rgba(0,0,0,.28);
-    }
-
-    .hero::after{
-      content:"";
-      position:absolute;
-      inset:auto -10% -40% auto;
-      width:340px;
-      height:340px;
-      border-radius:999px;
-      background:radial-gradient(circle, rgba(255,213,74,.18), transparent 60%);
-      pointer-events:none;
-    }
-
-    .title{
-      margin:0;
-      font-size:54px;
-      line-height:1;
-      font-weight:1000;
-      letter-spacing:.02em;
-      text-shadow:0 8px 26px rgba(0,0,0,.32);
-    }
-
-    .sub{
-      margin-top:10px;
-      color:var(--muted);
-      font-size:18px;
-      font-weight:800;
-      letter-spacing:.02em;
-    }
-
-    .status{
-      min-width:280px;
-      border-radius:24px;
-      padding:18px 20px;
-      background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
-      border:1px solid rgba(255,255,255,.10);
-      box-shadow:0 18px 50px rgba(0,0,0,.20);
-      text-align:right;
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-    }
-
-    .status .week{
-      font-size:22px;
-      font-weight:1000;
-      line-height:1.2;
-    }
-
-    .status .updated{
-      margin-top:8px;
-      color:var(--muted);
-      font-size:14px;
-      font-weight:800;
-    }
-
-    .gradeVisual{
-      border-radius:24px;
-      padding:14px;
-      background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
-      border:1px solid rgba(255,255,255,.10);
-      box-shadow:0 18px 50px rgba(0,0,0,.20);
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      align-items:center;
-      gap:8px;
-      overflow:hidden;
-    }
-
-    .gradeVisual img{
-      width:100%;
-      max-width:220px;
-      max-height:220px;
-      object-fit:contain;
-      display:block;
-      filter:drop-shadow(0 10px 24px rgba(0,0,0,.22));
-    }
-
-    .gradeVisualLabel{
-      font-size:16px;
-      font-weight:1000;
-      text-align:center;
-      color:#f1f5ff;
-      letter-spacing:.04em;
-    }
-
-    .grid{
-      display:grid;
-      grid-template-columns:1.18fr .82fr;
-      gap:18px;
-      align-items:start;
-    }
-
-    .panel{
-      position:relative;
-      overflow:hidden;
-      border-radius:30px;
-      padding:20px;
-      background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.025));
-      border:1px solid rgba(255,255,255,.10);
-      box-shadow:0 20px 60px rgba(0,0,0,.22);
-      min-height:720px;
-    }
-
-    .panelTitle{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:12px;
-      margin-bottom:14px;
-    }
-
-    .panelTitle h2{
-      margin:0;
-      font-size:30px;
-      font-weight:1000;
-      letter-spacing:.01em;
-    }
-
-    .badgeMini{
-      border-radius:999px;
-      padding:8px 12px;
-      font-size:12px;
-      font-weight:900;
-      color:#dfe9ff;
-      background:rgba(255,255,255,.06);
-      border:1px solid rgba(255,255,255,.10);
-    }
-
-    .pulse{ animation:pulseIn .55s ease; }
-
-    @keyframes pulseIn{
-      0%{ transform:scale(.985); opacity:.7; }
-      100%{ transform:scale(1); opacity:1; }
-    }
-
-    .champion{
-      position:relative;
-      overflow:hidden;
-      display:grid;
-      grid-template-columns:132px 1fr auto;
-      gap:18px;
-      align-items:center;
-      padding:20px;
-      border-radius:28px;
-      margin-bottom:14px;
-      background:linear-gradient(90deg, rgba(255,213,74,.24), rgba(255,213,74,.08), rgba(255,255,255,.03));
-      border:1px solid rgba(255,213,74,.30);
-      box-shadow:0 0 32px rgba(255,213,74,.10), 0 18px 40px rgba(0,0,0,.16);
-    }
-
-    .champion::after{
-      content:"";
-      position:absolute;
-      top:0;
-      right:0;
-      width:180px;
-      height:100%;
-      background:linear-gradient(90deg, transparent, rgba(255,255,255,.10));
-      pointer-events:none;
-    }
-
-    .championBadge{
-      text-align:center;
-      line-height:1;
-    }
-
-    .championBadge .crown{
-      font-size:70px;
-      display:block;
-      filter:drop-shadow(0 8px 16px rgba(255,213,74,.22));
-    }
-
-    .championBadge .place{
-      margin-top:6px;
-      font-size:18px;
-      font-weight:1000;
-      color:#261b00;
-      letter-spacing:.06em;
-    }
-
-    .championMain{ min-width:0; }
-
-    .championName{
-      font-size:34px;
-      font-weight:1000;
-      line-height:1.05;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-      color:#fff7d1;
-      text-shadow:0 6px 20px rgba(0,0,0,.25);
-    }
-
-    .championMeta{
-      margin-top:8px;
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-
-    .chip{
-      border-radius:999px;
-      padding:8px 12px;
-      font-size:12px;
-      font-weight:900;
-      color:#0d1222;
-      background:rgba(255,255,255,.78);
-    }
-
-    .chip.dark{
-      color:#e7eeff;
-      background:rgba(255,255,255,.08);
-      border:1px solid rgba(255,255,255,.12);
-    }
-
-    .championScore{
-      text-align:right;
-      min-width:150px;
-    }
-
-    .championScoreNum{
-      font-size:64px;
-      line-height:1;
-      font-weight:1000;
-      color:var(--gold);
-      text-shadow:0 8px 24px rgba(255,213,74,.16);
-    }
-
-    .championScoreUnit{
-      margin-top:8px;
-      color:var(--muted);
-      font-size:14px;
-      font-weight:900;
-      letter-spacing:.08em;
-    }
-
-    .list{
-      display:grid;
-      gap:10px;
-    }
-
-    .row{
-      display:grid;
-      grid-template-columns:72px 1fr auto;
-      gap:14px;
-      align-items:center;
-      padding:16px 16px;
-      border-radius:18px;
-      background:rgba(255,255,255,.045);
-      border:1px solid rgba(255,255,255,.08);
-      box-shadow:0 10px 22px rgba(0,0,0,.10);
-    }
-
-    .row.rank2{
-      background:linear-gradient(90deg, rgba(217,224,234,.16), rgba(217,224,234,.05));
-      border-color:rgba(217,224,234,.18);
-    }
-
-    .row.rank3{
-      background:linear-gradient(90deg, rgba(216,155,99,.17), rgba(216,155,99,.05));
-      border-color:rgba(216,155,99,.18);
-    }
-
-    .rank{
-      text-align:center;
-      font-size:32px;
-      line-height:1;
-      font-weight:1000;
-    }
-
-    .name{
-      font-size:28px;
-      line-height:1.08;
-      font-weight:1000;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .meta{
-      margin-top:5px;
-      color:var(--muted);
-      font-size:14px;
-      font-weight:800;
-    }
-
-    .score{
-      text-align:right;
-      white-space:nowrap;
-      min-width:140px;
-    }
-
-    .scoreNum{
-      font-size:38px;
-      line-height:1;
-      font-weight:1000;
-    }
-
-    .scoreUnit{
-      margin-top:6px;
-      color:var(--muted);
-      font-size:12px;
-      font-weight:900;
-      letter-spacing:.08em;
-    }
-
-    .classHero{
-      position:relative;
-      overflow:hidden;
-      display:grid;
-      grid-template-columns:110px 1fr auto;
-      gap:16px;
-      align-items:center;
-      padding:18px;
-      border-radius:24px;
-      background:linear-gradient(90deg, rgba(103,169,255,.22), rgba(103,169,255,.07), rgba(255,255,255,.03));
-      border:1px solid rgba(103,169,255,.25);
-      box-shadow:0 0 28px rgba(103,169,255,.08), 0 16px 36px rgba(0,0,0,.14);
-      margin-bottom:14px;
-    }
-
-    .classHero::after{
-      content:"";
-      position:absolute;
-      top:0;
-      right:0;
-      width:160px;
-      height:100%;
-      background:linear-gradient(90deg, transparent, rgba(255,255,255,.08));
-      pointer-events:none;
-    }
-
-    .classIcon{
-      text-align:center;
-      line-height:1;
-    }
-
-    .classIcon .emoji{
-      font-size:58px;
-      display:block;
-    }
-
-    .classIcon .label{
-      margin-top:6px;
-      font-size:16px;
-      font-weight:1000;
-      color:#d9edff;
-    }
-
-    .classMain{ min-width:0; }
-
-    .className{
-      font-size:34px;
-      font-weight:1000;
-      line-height:1.05;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .classMeta{
-      margin-top:8px;
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-
-    .goalWrap{
-      margin-top:12px;
-      display:grid;
-      gap:8px;
-    }
-
-    .goalRow{
-      display:grid;
-      grid-template-columns:60px 1fr 74px;
-      gap:10px;
-      align-items:center;
-    }
-
-    .goalLabel{
-      font-size:14px;
-      font-weight:1000;
-      white-space:nowrap;
-    }
-
-    .goalBar{
-      height:12px;
-      border-radius:999px;
-      background:rgba(255,255,255,.08);
-      overflow:hidden;
-      border:1px solid rgba(255,255,255,.07);
-    }
-
-    .goalFill{
-      height:100%;
-      border-radius:999px;
-    }
-
-    .goalValue{
-      text-align:right;
-      font-size:13px;
-      font-weight:900;
-      color:#dfe9ff;
-      white-space:nowrap;
-    }
-
-    .classAvg{
-      text-align:right;
-      min-width:140px;
-    }
-
-    .classAvgNum{
-      font-size:58px;
-      line-height:1;
-      font-weight:1000;
-      color:var(--blue2);
-      text-shadow:0 8px 22px rgba(103,169,255,.14);
-    }
-
-    .classAvgUnit{
-      margin-top:8px;
-      color:var(--muted);
-      font-size:13px;
-      font-weight:900;
-      letter-spacing:.08em;
-    }
-
-    .footer{
-      margin-top:16px;
-      text-align:center;
-      color:var(--muted);
-      font-size:13px;
-      font-weight:900;
-      letter-spacing:.04em;
-    }
-
-    @media (max-width: 1500px){
-      .topbar{ grid-template-columns:1fr auto; }
-      .gradeVisual{ grid-column:1 / -1; }
-    }
-
-    @media (max-width: 1200px){
-      .grid{ grid-template-columns:1fr; }
-      .panel{ min-height:auto; }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>語彙タイムアタック ランキングボード</title>
+
+<style>
+:root{
+  --bg1:#050914;
+  --bg2:#0a1222;
+  --ink:#eef4ff;
+  --muted:#aeb9d9;
+}
+
+*{box-sizing:border-box;}
+
+body{
+  margin:0;
+  padding:24px;
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  color:var(--ink);
+  background:linear-gradient(180deg,var(--bg2),var(--bg1));
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:20px;
+}
+
+.panel{
+  background:rgba(255,255,255,.05);
+  border-radius:20px;
+  padding:20px;
+}
+
+.title{
+  font-size:28px;
+  font-weight:900;
+  margin-bottom:10px;
+}
+
+/* ⭐ 画像エリア */
+.visual{
+  margin-bottom:12px;
+}
+
+/* 1枚用 */
+.visual img{
+  width:100%;
+  max-height:180px;
+  object-fit:contain;
+}
+
+/* 2枚用 */
+.visual.double{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+}
+
+.row{
+  display:flex;
+  justify-content:space-between;
+  padding:10px;
+  border-bottom:1px solid rgba(255,255,255,.1);
+}
+
+.rank{
+  font-weight:900;
+}
+
+</style>
 </head>
+
 <body>
-  <div class="bg-glow">
-    <div class="orb a"></div>
-    <div class="orb b"></div>
-    <div class="orb c"></div>
+
+<div class="grid">
+
+  <!-- 個人 -->
+  <div class="panel">
+    <div class="title">個人ランキング</div>
+    <div id="personalVisual" class="visual"></div>
+    <div id="personalBoard"></div>
   </div>
 
-  <div class="wrap">
-    <div class="topbar">
-      <div class="hero">
-        <h1 class="title">🏆 語彙タイムアタック ランキング</h1>
-        <div class="sub">個人TOP5 / クラス対抗TOP5 / 30秒ごと自動更新</div>
-      </div>
-
-      <div class="status">
-        <div class="week" id="boardWeek">📅 -</div>
-        <div class="updated" id="boardUpdated">更新中...</div>
-      </div>
-
-      <div class="gradeVisual">
-        <img id="gradeImage" src="" alt="学年画像" style="display:none;">
-        <div class="gradeVisualLabel" id="gradeLabel">学年画像なし</div>
-      </div>
-    </div>
-
-    <div class="grid">
-      <section class="panel" id="personalPanel">
-        <div class="panelTitle">
-          <h2>個人ランキング</h2>
-          <div class="badgeMini">BEST SCORE</div>
-        </div>
-        <div id="personalBoard"></div>
-      </section>
-
-      <section class="panel" id="classPanel">
-        <div class="panelTitle">
-          <h2>クラス対抗（平均）</h2>
-          <div class="badgeMini">CLASS BATTLE</div>
-        </div>
-        <div id="classBoard"></div>
-      </section>
-    </div>
-
-    <div class="footer">
-      VOCAB TIME ATTACK BOARD
-    </div>
+  <!-- クラス -->
+  <div class="panel">
+    <div class="title">クラス対抗</div>
+    <div id="classBoard"></div>
   </div>
 
-  <script src="./js/config.js?v=20260316grade"></script>
-  <script src="./js/api.js?v=20260316grade"></script>
-  <script>
-    const GRADE_IMAGES = {
-      J1: "./images/signage/J1.png",
-      J2: "./images/signage/J2.png",
-      J3: "./images/signage/J3.png",
-      H1: "./images/signage/H1.png",
-      H2: "./images/signage/H2.png",
-      H3: "./images/signage/H3.png"
-    };
+</div>
 
-    function escapeHtml(s) {
-      return String(s)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+<script src="./js/config.js"></script>
+<script src="./js/api.js"></script>
+
+<script>
+/* ===== 画像設定 ===== */
+const PERSONAL_IMAGES = {
+  J1:["./images/signage/personal/J1.png"],
+  J2:[
+    "./images/signage/personal/J2-1.png",
+    "./images/signage/personal/J2-2.png"
+  ],
+  J3:["./images/signage/personal/J3.png"],
+  H1:["./images/signage/personal/H1.png"],
+  H2:["./images/signage/personal/H2.png"],
+  H3:["./images/signage/personal/H3.png"]
+};
+
+/* ===== 学年判定 ===== */
+function getGrade(str){
+  const s = String(str||"");
+
+  let m = s.match(/(J[1-3]|H[1-3])/);
+  if(m) return m[1];
+
+  m = s.match(/^([123])-/);
+  if(m) return "J"+m[1];
+
+  return null;
+}
+
+/* ===== 画像表示 ===== */
+function renderPersonalVisual(grade){
+  const el = document.getElementById("personalVisual");
+  const imgs = PERSONAL_IMAGES[grade];
+
+  if(!imgs){
+    el.innerHTML="";
+    return;
+  }
+
+  // ⭐ 2枚表示
+  if(imgs.length===2){
+    el.className="visual double";
+    el.innerHTML = imgs.map(src=>`
+      <img src="${src}">
+    `).join("");
+  }
+  // ⭐ 1枚表示
+  else{
+    el.className="visual";
+    el.innerHTML = `<img src="${imgs[0]}">`;
+  }
+}
+
+/* ===== ランキング描画 ===== */
+function renderPersonal(rows){
+  if(!rows || rows.length===0){
+    return "<div>データなし</div>";
+  }
+
+  return rows.slice(0,5).map((r,i)=>`
+    <div class="row">
+      <div class="rank">${i+1}</div>
+      <div>${r.nickname||"-"}</div>
+      <div>${r.score||r.points||0}</div>
+    </div>
+  `).join("");
+}
+
+function renderClass(rows){
+  if(!rows || rows.length===0){
+    return "<div>データなし</div>";
+  }
+
+  return rows.slice(0,5).map((r,i)=>`
+    <div class="row">
+      <div class="rank">${i+1}</div>
+      <div>${r.class_code||"-"}</div>
+      <div>${r.avg_score||0}</div>
+    </div>
+  `).join("");
+}
+
+/* ===== 更新 ===== */
+async function update(){
+  const week = window.api.getWeekIdNow();
+
+  const [personal, klass] = await Promise.all([
+    window.api.fetchWeeklyTop(week),
+    window.api.fetchClassWeeklyRanking(week,10)
+  ]);
+
+  document.getElementById("personalBoard").innerHTML = renderPersonal(personal);
+  document.getElementById("classBoard").innerHTML = renderClass(klass);
+
+  // ⭐ 学年判定
+  let grade = null;
+
+  if(klass && klass[0]){
+    grade = getGrade(klass[0].class_code);
+  }
+
+  if(!grade && personal){
+    for(const r of personal){
+      grade = getGrade(r.nickname) || getGrade(r.class_code);
+      if(grade) break;
     }
+  }
 
-    function fmtTime(d) {
-      const y = d.getFullYear();
-      const mo = String(d.getMonth() + 1).padStart(2, "0");
-      const da = String(d.getDate()).padStart(2, "0");
-      const h = String(d.getHours()).padStart(2, "0");
-      const mi = String(d.getMinutes()).padStart(2, "0");
-      const s = String(d.getSeconds()).padStart(2, "0");
-      return `${y}/${mo}/${da} ${h}:${mi}:${s}`;
-    }
+  renderPersonalVisual(grade);
+}
 
-    function formatWeekJapanese(weekId) {
-      const m = String(weekId || "").match(/^(\d{4})-W(\d{2})$/);
-      if (!m) return weekId || "-";
+update();
+setInterval(update,30000);
+</script>
 
-      const year = Number(m[1]);
-      const week = Number(m[2]);
-
-      const jan4 = new Date(Date.UTC(year, 0, 4));
-      const jan4Day = jan4.getUTCDay() || 7;
-      const monday = new Date(jan4);
-      monday.setUTCDate(jan4.getUTCDate() - (jan4Day - 1) + (week - 1) * 7);
-
-      const month = monday.getUTCMonth() + 1;
-      const day = monday.getUTCDate();
-      const weekInMonth = Math.floor((day - 1) / 7) + 1;
-
-      return `${month}月${weekInMonth}週`;
-    }
-
-    function extractGradeCode(value) {
-      const s = String(value || "").trim();
-
-      // J1-1 / J2 / H3-2
-      let m = s.match(/\b(J[1-3]|H[1-3])\b/i);
-      if (m) return m[1].toUpperCase();
-
-      // 1-1 / 2-3 みたいな旧式をJ1/J2/J3として扱う
-      m = s.match(/^([123])[-－]/);
-      if (m) return `J${m[1]}`;
-
-      return null;
-    }
-
-    function decideGradeFromRows(topRows, classRows) {
-      if (Array.isArray(classRows) && classRows.length > 0) {
-        const g = extractGradeCode(classRows[0].class_code);
-        if (g) return g;
-      }
-
-      if (Array.isArray(topRows)) {
-        for (const r of topRows) {
-          const g1 = extractGradeCode(r.nickname);
-          if (g1) return g1;
-          const g2 = extractGradeCode(r.class_code);
-          if (g2) return g2;
-        }
-      }
-
-      return null;
-    }
-
-    function updateGradeVisual(gradeCode) {
-      const img = document.getElementById("gradeImage");
-      const label = document.getElementById("gradeLabel");
-
-      if (!gradeCode || !GRADE_IMAGES[gradeCode]) {
-        img.style.display = "none";
-        img.src = "";
-        label.textContent = "学年画像なし";
-        return;
-      }
-
-      img.src = GRADE_IMAGES[gradeCode];
-      img.style.display = "block";
-      label.textContent = `${gradeCode} ランキング`;
-    }
-
-    function goalBar(current, target, fillCss) {
-      const ratio = Math.max(0, Math.min(1, current / target));
-      const width = Math.round(ratio * 100);
-      return `
-        <div class="goalRow">
-          <div class="goalLabel">${fillCss.label}</div>
-          <div class="goalBar">
-            <div class="goalFill" style="width:${width}%; background:${fillCss.bg};"></div>
-          </div>
-          <div class="goalValue">${Math.min(current, target).toFixed(1)} / ${target}</div>
-        </div>
-      `;
-    }
-
-    function personalHtml(rows) {
-      if (!rows || rows.length === 0) {
-        return `<div class="row"><div class="rank">-</div><div><div class="name">まだデータなし</div></div><div class="score"><div class="scoreNum">-</div></div></div>`;
-      }
-
-      const first = rows[0];
-      const championName = first.nickname || first.player_id || first.user_id || "-";
-      const championPoints = Number(first.points ?? first.score ?? 0);
-      const championCombo = Number(first.max_combo ?? 0);
-
-      const champion = `
-        <div class="champion pulse">
-          <div class="championBadge">
-            <span class="crown">👑</span>
-            <span class="place">#1</span>
-          </div>
-
-          <div class="championMain">
-            <div class="championName">${escapeHtml(championName)}</div>
-            <div class="championMeta">
-              <span class="chip">CHAMPION</span>
-              <span class="chip dark">COMBO ${championCombo}</span>
-            </div>
-          </div>
-
-          <div class="championScore">
-            <div class="championScoreNum">${championPoints}</div>
-            <div class="championScoreUnit">POINTS</div>
-          </div>
-        </div>
-      `;
-
-      const rest = rows.slice(1, 5).map((r, idx) => {
-        const rank = idx + 2;
-        const cls = rank === 2 ? "row rank2 pulse" : rank === 3 ? "row rank3 pulse" : "row pulse";
-        const name = r.nickname || r.player_id || r.user_id || "-";
-        const points = Number(r.points ?? r.score ?? 0);
-        const combo = Number(r.max_combo ?? 0);
-        const badge = rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
-        const metaLabel = rank === 2 ? "2ND PLACE" : rank === 3 ? "3RD PLACE" : `TOP ${rank}`;
-
-        return `
-          <div class="${cls}">
-            <div class="rank">${badge}</div>
-            <div>
-              <div class="name">${escapeHtml(name)}</div>
-              <div class="meta">${metaLabel} / COMBO ${combo}</div>
-            </div>
-            <div class="score">
-              <div class="scoreNum">${points}</div>
-              <div class="scoreUnit">POINTS</div>
-            </div>
-          </div>
-        `;
-      }).join("");
-
-      return champion + `<div class="list">${rest}</div>`;
-    }
-
-    function classHtml(rows) {
-      if (!rows || rows.length === 0) {
-        return `<div class="row"><div class="rank">-</div><div><div class="name">まだデータなし</div></div><div class="score"><div class="scoreNum">-</div></div></div>`;
-      }
-
-      const first = rows[0];
-      const className = first.class_code || "-";
-      const avg = Number(first.avg_score ?? 0);
-      const players = Number(first.players ?? 0);
-      const best = Number(first.best_score ?? 0);
-
-      let stageEmoji = "🎯";
-      let stageLabel = "挑戦中";
-      if (avg >= 300) {
-        stageEmoji = "🥇";
-        stageLabel = "金ランク";
-      } else if (avg >= 240) {
-        stageEmoji = "🥈";
-        stageLabel = "銀ランク";
-      } else if (avg >= 180) {
-        stageEmoji = "🥉";
-        stageLabel = "銅ランク";
-      }
-
-      const hero = `
-        <div class="classHero pulse">
-          <div class="classIcon">
-            <span class="emoji">${stageEmoji}</span>
-            <span class="label">${stageLabel}</span>
-          </div>
-
-          <div class="classMain">
-            <div class="className">${escapeHtml(className)}</div>
-            <div class="classMeta">
-              <span class="chip dark">参加 ${players}人</span>
-              <span class="chip dark">最高 ${best}点</span>
-            </div>
-
-            <div class="goalWrap">
-              ${goalBar(avg, 180, { label: "🥉 180", bg: "linear-gradient(90deg, #d89b63, #a76533)" })}
-              ${goalBar(avg, 240, { label: "🥈 240", bg: "linear-gradient(90deg, #d9e0ea, #aab4c3)" })}
-              ${goalBar(avg, 300, { label: "🥇 300", bg: "linear-gradient(90deg, #ffd54a, #ffb400)" })}
-            </div>
-          </div>
-
-          <div class="classAvg">
-            <div class="classAvgNum">${avg.toFixed(1)}</div>
-            <div class="classAvgUnit">AVG</div>
-          </div>
-        </div>
-      `;
-
-      const rest = rows.slice(1, 5).map((r, idx) => {
-        const rank = idx + 2;
-        const cls = rank === 2 ? "row rank2 pulse" : rank === 3 ? "row rank3 pulse" : "row pulse";
-        const avg = Number(r.avg_score ?? 0);
-        const players = Number(r.players ?? 0);
-        const best = Number(r.best_score ?? 0);
-        const badge = rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
-
-        return `
-          <div class="${cls}">
-            <div class="rank">${badge}</div>
-            <div>
-              <div class="name">${escapeHtml(r.class_code || "-")}</div>
-              <div class="meta">参加 ${players}人 / 最高 ${best}点</div>
-            </div>
-            <div class="score">
-              <div class="scoreNum">${avg.toFixed(1)}</div>
-              <div class="scoreUnit">AVG</div>
-            </div>
-          </div>
-        `;
-      }).join("");
-
-      return hero + `<div class="list">${rest}</div>`;
-    }
-
-    function flashPanels() {
-      const personal = document.getElementById("personalPanel");
-      const klass = document.getElementById("classPanel");
-      personal.classList.remove("pulse");
-      klass.classList.remove("pulse");
-      void personal.offsetWidth;
-      personal.classList.add("pulse");
-      klass.classList.add("pulse");
-    }
-
-    async function updateBoard() {
-      try {
-        const week = window.api.getWeekIdNow();
-        document.getElementById("boardWeek").textContent = `📅 ${formatWeekJapanese(week)}`;
-
-        const [top, classRows] = await Promise.all([
-          window.api.fetchWeeklyTop(week),
-          typeof window.api.fetchClassWeeklyRanking === "function"
-            ? window.api.fetchClassWeeklyRanking(week, 10)
-            : Promise.resolve([])
-        ]);
-
-        document.getElementById("personalBoard").innerHTML = personalHtml(top || []);
-        document.getElementById("classBoard").innerHTML = classHtml(classRows || []);
-        document.getElementById("boardUpdated").textContent = `最終更新: ${fmtTime(new Date())}`;
-
-        const gradeCode = decideGradeFromRows(top || [], classRows || []);
-        updateGradeVisual(gradeCode);
-
-        flashPanels();
-      } catch (e) {
-        console.warn("[board] update failed:", e);
-        document.getElementById("boardUpdated").textContent = "更新失敗";
-      }
-    }
-
-    (async () => {
-      await updateBoard();
-      setInterval(updateBoard, 30000);
-    })();
-  </script>
 </body>
 </html>
