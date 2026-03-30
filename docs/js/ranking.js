@@ -1,6 +1,6 @@
 "use strict";
 
-console.log("[ranking] loaded! (compact-class-graph + mini-you + jp-week)");
+console.log("[ranking] loaded! (result ranking enhanced)");
 
 function byId2(id) {
   return document.getElementById(id);
@@ -79,15 +79,9 @@ function getClassStage(avg) {
 function getNextGoal(avg) {
   const n = Number(avg) || 0;
 
-  if (n < 180) {
-    return { icon: "🥉", label: "銅", remain: (180 - n).toFixed(1) };
-  }
-  if (n < 240) {
-    return { icon: "🥈", label: "銀", remain: (240 - n).toFixed(1) };
-  }
-  if (n < 300) {
-    return { icon: "🥇", label: "金", remain: (300 - n).toFixed(1) };
-  }
+  if (n < 180) return { icon: "🥉", label: "銅", remain: (180 - n).toFixed(1) };
+  if (n < 240) return { icon: "🥈", label: "銀", remain: (240 - n).toFixed(1) };
+  if (n < 300) return { icon: "🥇", label: "金", remain: (300 - n).toFixed(1) };
   return { icon: "👑", label: "王者", remain: "0.0" };
 }
 
@@ -97,24 +91,25 @@ function makeMiniProgress(current, target) {
 
   return `
     <div style="
-      height:6px;
+      height:10px;
       background:rgba(255,255,255,.10);
       border-radius:999px;
       overflow:hidden;
-      margin-top:3px;
+      margin-top:6px;
+      border:1px solid rgba(255,255,255,.05);
     ">
       <div style="
         height:100%;
         width:${width}%;
-        background:rgba(255,255,255,.88);
+        background:linear-gradient(90deg, rgba(255,255,255,.95), rgba(190,220,255,.92));
         border-radius:999px;
+        box-shadow:0 0 14px rgba(255,255,255,.20);
       "></div>
     </div>
   `;
 }
 
 function formatWeekJapanese(weekId) {
-  // "2026-W12" -> "3月3週"
   const m = String(weekId || "").match(/^(\d{4})-W(\d{2})$/);
   if (!m) return weekId || "-";
 
@@ -133,23 +128,127 @@ function formatWeekJapanese(weekId) {
   return `${month}月${weekInMonth}週`;
 }
 
+function ensureRankingFxStyle() {
+  if (document.getElementById("rankingFxStyle")) return;
+
+  const style = document.createElement("style");
+  style.id = "rankingFxStyle";
+  style.textContent = `
+    @keyframes rankingPopIn {
+      0% {
+        opacity: 0;
+        transform: scale(.97);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    @keyframes championGlow {
+      0% {
+        filter: drop-shadow(0 0 0 rgba(255,215,0,.00));
+      }
+      100% {
+        filter: drop-shadow(0 0 14px rgba(255,215,0,.28));
+      }
+    }
+
+    @keyframes scoreShineGold {
+      0% {
+        text-shadow:
+          0 0 0 rgba(255,215,0,0),
+          0 0 0 rgba(255,255,255,0);
+      }
+      100% {
+        text-shadow:
+          0 0 12px rgba(255,215,0,.32),
+          0 0 24px rgba(255,255,255,.12);
+      }
+    }
+
+    @keyframes scoreShineBlue {
+      0% {
+        text-shadow:
+          0 0 0 rgba(120,180,255,0),
+          0 0 0 rgba(255,255,255,0);
+      }
+      100% {
+        text-shadow:
+          0 0 10px rgba(120,180,255,.26),
+          0 0 18px rgba(255,255,255,.10);
+      }
+    }
+
+    .ranking-pop {
+      animation: rankingPopIn .30s ease both;
+      transform-origin: center center;
+    }
+
+    .ranking-champion {
+      animation:
+        rankingPopIn .30s ease both,
+        championGlow .60s ease-out both;
+      transform-origin: center center;
+    }
+
+    .ranking-score-gold {
+      animation: scoreShineGold .60s ease-out both;
+      background: linear-gradient(180deg, #fff6bf 0%, #ffd24d 55%, #ffb400 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+
+    .ranking-score-blue {
+      animation: scoreShineBlue .50s ease-out both;
+      background: linear-gradient(180deg, #f2f7ff 0%, #9ec7ff 55%, #68a8ff 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function fmtTopRowHtml(i, row) {
   const name = row.nickname || row.player_id || row.user_id || "-";
   const pts = Number(row.points ?? row.score ?? 0);
   const combo = Number(row.max_combo ?? 0);
   const badge = rankIcon(i);
   const label = rankLabel(i);
+  const strong = i === 0;
 
-  let bg = "rgba(255,255,255,.04)";
-  let border = "rgba(255,255,255,.07)";
-  let shadow = "0 6px 14px rgba(0,0,0,.10)";
-  let accent = "rgba(234,240,255,.62)";
+  let bg = "rgba(255,255,255,.05)";
+  let border = "rgba(255,255,255,.08)";
+  let shadow = "0 10px 24px rgba(0,0,0,.12)";
+  let accent = "rgba(234,240,255,.70)";
+  let scoreClass = "ranking-score-blue";
+  let wrapClass = "ranking-pop";
+  let rankFont = "34px";
+  let nameFont = "26px";
+  let labelFont = "13px";
+  let metaFont = "13px";
+  let scoreFont = "34px";
+  let padding = "16px 18px";
+  let minHeight = "96px";
+  let gridCols = "56px 1fr auto";
 
   if (i === 0) {
-    bg = "linear-gradient(90deg, rgba(255,215,0,.22), rgba(255,215,0,.07), rgba(255,255,255,.02))";
-    border = "rgba(255,215,0,.32)";
-    shadow = "0 0 20px rgba(255,215,0,.12), 0 8px 16px rgba(0,0,0,.12)";
-    accent = "rgba(255,227,130,.92)";
+    bg = "linear-gradient(90deg, rgba(255,215,0,.24), rgba(255,215,0,.10), rgba(255,255,255,.03))";
+    border = "rgba(255,215,0,.34)";
+    shadow = "0 0 24px rgba(255,215,0,.10), 0 16px 32px rgba(0,0,0,.16)";
+    accent = "rgba(255,236,170,.96)";
+    scoreClass = "ranking-score-gold";
+    wrapClass = "ranking-champion";
+    rankFont = "48px";
+    nameFont = "34px";
+    labelFont = "16px";
+    metaFont = "16px";
+    scoreFont = "48px";
+    padding = "24px 24px";
+    minHeight = "148px";
+    gridCols = "74px 1fr auto";
   } else if (i === 1) {
     bg = "linear-gradient(90deg, rgba(220,220,235,.16), rgba(220,220,235,.05))";
     border = "rgba(220,220,235,.22)";
@@ -159,35 +258,36 @@ function fmtTopRowHtml(i, row) {
   }
 
   return `
-    <div style="
+    <div class="${wrapClass}" style="
       display:grid;
-      grid-template-columns:34px 1fr auto;
-      gap:8px;
+      grid-template-columns:${gridCols};
+      gap:14px;
       align-items:center;
-      padding:8px 9px;
-      border-radius:12px;
+      padding:${padding};
+      border-radius:18px;
       background:${bg};
       border:1px solid ${border};
-      margin-bottom:5px;
+      margin-bottom:12px;
       box-shadow:${shadow};
       position:relative;
       overflow:hidden;
+      min-height:${minHeight};
     ">
-      ${i === 0 ? `
+      ${strong ? `
         <div style="
           position:absolute;
           top:0;
           right:0;
-          width:70px;
+          width:140px;
           height:100%;
-          background:linear-gradient(90deg, transparent, rgba(255,255,255,.07));
+          background:linear-gradient(90deg, transparent, rgba(255,255,255,.10));
           pointer-events:none;
         "></div>
       ` : ""}
 
       <div style="
         font-weight:1000;
-        font-size:15px;
+        font-size:${rankFont};
         text-align:center;
         color:#fff;
         line-height:1;
@@ -196,8 +296,8 @@ function fmtTopRowHtml(i, row) {
       <div style="min-width:0;">
         <div style="
           font-weight:1000;
-          font-size:12px;
-          line-height:1.05;
+          font-size:${nameFont};
+          line-height:1.06;
           overflow:hidden;
           text-overflow:ellipsis;
           white-space:nowrap;
@@ -205,27 +305,28 @@ function fmtTopRowHtml(i, row) {
 
         <div style="
           color:${accent};
-          font-size:9px;
+          font-size:${labelFont};
           font-weight:900;
-          margin-top:1px;
-          letter-spacing:.03em;
+          margin-top:6px;
+          letter-spacing:.04em;
         ">${label}</div>
 
         <div style="
-          color:rgba(234,240,255,.58);
-          font-size:9px;
+          color:rgba(234,240,255,.72);
+          font-size:${metaFont};
           font-weight:800;
-          margin-top:1px;
+          margin-top:5px;
         ">
           COMBO ${escapeHtml(String(combo))} ・ ${escapeHtml(scoreLabel(pts))}
         </div>
       </div>
 
       <div style="text-align:right;">
-        <div style="
+        <div class="${scoreClass}" style="
           font-weight:1000;
-          font-size:15px;
+          font-size:${scoreFont};
           line-height:1;
+          white-space:nowrap;
         ">${escapeHtml(String(pts))}点</div>
       </div>
     </div>
@@ -238,38 +339,59 @@ function fmtClassRowHtml(i, row) {
   const best = Number(row.best_score ?? 0);
   const badge = rankIcon(i);
 
-  const tint =
-    i === 0 ? "rgba(255,215,0,.10)" :
-    i === 1 ? "rgba(220,220,235,.08)" :
-    i === 2 ? "rgba(205,127,50,.10)" :
-    "rgba(255,255,255,.04)";
+  let tint = "rgba(255,255,255,.04)";
+  let border = "rgba(255,255,255,.08)";
+  let scoreClass = "ranking-score-blue";
+
+  if (i === 0) {
+    tint = "linear-gradient(90deg, rgba(255,215,0,.16), rgba(255,215,0,.05), rgba(255,255,255,.02))";
+    border = "rgba(255,215,0,.26)";
+    scoreClass = "ranking-score-gold";
+  } else if (i === 1) {
+    tint = "linear-gradient(90deg, rgba(220,220,235,.12), rgba(220,220,235,.04))";
+    border = "rgba(220,220,235,.18)";
+  } else if (i === 2) {
+    tint = "linear-gradient(90deg, rgba(205,127,50,.12), rgba(205,127,50,.04))";
+    border = "rgba(205,127,50,.18)";
+  }
 
   return `
-    <div style="
-      padding:6px 8px;
-      border-radius:10px;
+    <div class="ranking-pop" style="
+      padding:14px 16px;
+      border-radius:14px;
       background:${tint};
-      border:1px solid rgba(255,255,255,.06);
-      margin-bottom:4px;
+      border:1px solid ${border};
+      margin-bottom:8px;
+      box-shadow:0 8px 18px rgba(0,0,0,.10);
     ">
       <div style="
         display:flex;
         justify-content:space-between;
         align-items:center;
-        gap:8px;
-        margin-bottom:2px;
+        gap:12px;
+        margin-bottom:4px;
       ">
-        <div style="font-weight:1000; font-size:11px;">
+        <div style="
+          font-weight:1000;
+          font-size:18px;
+          line-height:1.15;
+        ">
           ${badge} ${escapeHtml(String(row.class_code || "-"))}
         </div>
-        <div style="font-size:11px; font-weight:1000;">
+        <div class="${scoreClass}" style="
+          font-size:20px;
+          font-weight:1000;
+          line-height:1;
+          white-space:nowrap;
+        ">
           平均${escapeHtml(avg.toFixed(1))}点
         </div>
       </div>
+
       <div style="
-        color:rgba(234,240,255,.64);
-        font-size:9px;
-        font-weight:700;
+        color:rgba(234,240,255,.72);
+        font-size:12px;
+        font-weight:800;
       ">
         ${escapeHtml(String(players))}人 / 最高${escapeHtml(String(best))}点
       </div>
@@ -286,37 +408,39 @@ function renderClassGoal(row) {
   const next = getNextGoal(avg);
 
   return `
-    <div style="
+    <div class="ranking-pop" style="
       background:${stage.bg};
       border:1px solid ${stage.border};
-      border-radius:14px;
-      padding:8px 10px;
-      margin-bottom:6px;
+      border-radius:18px;
+      padding:14px 16px;
+      margin-bottom:10px;
       position:relative;
       overflow:hidden;
+      box-shadow:0 12px 28px rgba(0,0,0,.12);
     ">
       <div style="
         display:flex;
         justify-content:space-between;
         align-items:center;
-        gap:8px;
-        margin-bottom:6px;
+        gap:12px;
+        margin-bottom:12px;
       ">
         <div style="
           display:flex;
           align-items:center;
-          gap:6px;
+          gap:8px;
           font-weight:1000;
-          font-size:13px;
+          font-size:22px;
         ">
-          <span style="font-size:17px;">${stage.icon}</span>
+          <span style="font-size:26px;">${stage.icon}</span>
           <span>${stage.label}</span>
         </div>
 
-        <div style="
-          font-size:18px;
+        <div class="ranking-score-blue" style="
+          font-size:34px;
           font-weight:1000;
           line-height:1;
+          white-space:nowrap;
         ">
           ${escapeHtml(avg.toFixed(1))}点
         </div>
@@ -325,19 +449,19 @@ function renderClassGoal(row) {
       <div style="
         display:grid;
         grid-template-columns:1fr 1fr 1fr;
-        gap:8px;
-        margin-bottom:6px;
+        gap:12px;
+        margin-bottom:12px;
       ">
         <div>
-          <div style="font-size:10px; font-weight:900;">🥉 180</div>
+          <div style="font-size:14px; font-weight:900;">🥉 180</div>
           ${makeMiniProgress(avg, 180)}
         </div>
         <div>
-          <div style="font-size:10px; font-weight:900;">🥈 240</div>
+          <div style="font-size:14px; font-weight:900;">🥈 240</div>
           ${makeMiniProgress(avg, 240)}
         </div>
         <div>
-          <div style="font-size:10px; font-weight:900;">🥇 300</div>
+          <div style="font-size:14px; font-weight:900;">🥇 300</div>
           ${makeMiniProgress(avg, 300)}
         </div>
       </div>
@@ -345,11 +469,11 @@ function renderClassGoal(row) {
       <div style="
         display:flex;
         justify-content:space-between;
-        gap:8px;
-        font-size:10px;
-        color:rgba(234,240,255,.78);
+        gap:10px;
+        font-size:14px;
+        color:rgba(234,240,255,.84);
         font-weight:800;
-        margin-bottom:4px;
+        margin-bottom:8px;
       ">
         <span>次: ${next.icon} ${next.label}</span>
         <span>${next.remain === "0.0" ? "達成中" : `あと ${next.remain}点`}</span>
@@ -358,9 +482,9 @@ function renderClassGoal(row) {
       <div style="
         display:flex;
         justify-content:space-between;
-        gap:8px;
-        font-size:9px;
-        color:rgba(234,240,255,.70);
+        gap:10px;
+        font-size:13px;
+        color:rgba(234,240,255,.74);
         font-weight:800;
       ">
         <span>参加 ${escapeHtml(String(players))}人</span>
@@ -384,9 +508,9 @@ function renderMyCard(mine, topRows) {
     const gap = Math.max(0, above - myPoints);
     nextGapHtml = `
       <div style="
-        margin-top:4px;
-        font-size:9px;
-        color:rgba(234,240,255,.68);
+        margin-top:8px;
+        font-size:13px;
+        color:rgba(234,240,255,.74);
         font-weight:800;
       ">
         上まで ${escapeHtml(String(gap))}点
@@ -398,12 +522,14 @@ function renderMyCard(mine, topRows) {
   let badge = "✨";
   let bg = "linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.03))";
   let border = "rgba(255,255,255,.08)";
+  let scoreClass = "ranking-score-blue";
 
   if (myRank === 1) {
     title = "王者";
     badge = "👑";
     bg = "linear-gradient(135deg, rgba(255,215,0,.22), rgba(255,170,0,.08))";
     border = "rgba(255,215,0,.28)";
+    scoreClass = "ranking-score-gold";
   } else if (myRank <= 3) {
     title = "上位";
     badge = "🔥";
@@ -415,23 +541,25 @@ function renderMyCard(mine, topRows) {
   }
 
   return `
-    <div style="
+    <div class="ranking-pop" style="
       background:${bg};
       border:1px solid ${border};
-      border-radius:12px;
-      padding:8px;
+      border-radius:16px;
+      padding:14px 14px 12px;
       position:relative;
       overflow:hidden;
+      box-shadow:0 10px 24px rgba(0,0,0,.12);
+      min-height:132px;
     ">
       <div style="
         display:flex;
         align-items:center;
         justify-content:center;
-        gap:4px;
-        font-size:10px;
-        color:rgba(234,240,255,.78);
+        gap:6px;
+        font-size:14px;
+        color:rgba(234,240,255,.82);
         font-weight:900;
-        margin-bottom:4px;
+        margin-bottom:8px;
       ">
         <span>${badge}</span>
         <span>${title}</span>
@@ -439,18 +567,19 @@ function renderMyCard(mine, topRows) {
 
       <div style="
         text-align:center;
-        font-size:24px;
+        font-size:40px;
         font-weight:1000;
         line-height:1;
-        margin:0 0 4px;
+        margin:0 0 8px;
       ">
         ${escapeHtml(String(myRank))}位
       </div>
 
-      <div style="
+      <div class="${scoreClass}" style="
         text-align:center;
-        font-size:15px;
+        font-size:28px;
         font-weight:1000;
+        line-height:1;
       ">
         ${escapeHtml(String(myPoints))}点
       </div>
@@ -546,6 +675,8 @@ window.loadWeekOptions = loadWeekOptions;
 window.loadRankings = loadRankings;
 
 document.addEventListener("DOMContentLoaded", () => {
+  ensureRankingFxStyle();
+
   const tick = setInterval(async () => {
     if (!window.api) return;
     clearInterval(tick);
