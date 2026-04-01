@@ -17,6 +17,9 @@
       --blue2:#8fd3ff;
       --pink:#ff7fd1;
       --green:#63f0ba;
+      --line:rgba(255,255,255,.10);
+      --glass1:rgba(255,255,255,.07);
+      --glass2:rgba(255,255,255,.03);
     }
 
     *{ box-sizing:border-box; }
@@ -59,6 +62,26 @@
     @keyframes drift{
       from{ transform:translateY(0) translateX(0) scale(1); }
       to{ transform:translateY(20px) translateX(18px) scale(1.08); }
+    }
+
+    @keyframes popIn{
+      0%{ transform:scale(.97); opacity:.66; }
+      100%{ transform:scale(1); opacity:1; }
+    }
+
+    @keyframes floaty1{
+      from{ transform:translateY(0); }
+      to{ transform:translateY(7px); }
+    }
+
+    @keyframes floaty2{
+      from{ transform:translateY(0); }
+      to{ transform:translateY(5px); }
+    }
+
+    @keyframes glowGold{
+      from{ filter:drop-shadow(0 0 0 rgba(255,213,74,.00)); }
+      to{ filter:drop-shadow(0 0 14px rgba(255,213,74,.22)); }
     }
 
     .wrap{
@@ -157,20 +180,12 @@
       min-height:760px;
     }
 
-    .panelHead{
-      display:grid;
-      grid-template-columns:1fr 220px;
-      gap:14px;
-      align-items:stretch;
-      margin-bottom:14px;
-    }
-
     .panelTitle{
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:12px;
-      margin-bottom:0;
+      margin-bottom:8px;
     }
 
     .panelTitle h2{
@@ -188,120 +203,124 @@
       color:#dfe9ff;
       background:rgba(255,255,255,.06);
       border:1px solid rgba(255,255,255,.10);
+      white-space:nowrap;
     }
 
-    .sideVisual{
+    /* ===== A案：画像を小さくして1位カードへ食い込ませる ===== */
+    .heroTop3{
       position:relative;
-      border-radius:22px;
-      padding:12px;
-      background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.03));
-      border:1px solid rgba(255,255,255,.10);
+      margin-top:10px;
+      margin-bottom:14px;
+      padding-top:8px;
+    }
+
+    .heroTop3Stage{
+      position:relative;
+      z-index:2;
+      min-height:170px;
+      padding:8px 12px 0;
+      display:flex;
+      align-items:flex-end;
+      justify-content:center;
+      gap:16px;
+    }
+
+    .rankFigure{
+      position:relative;
       display:flex;
       flex-direction:column;
-      justify-content:center;
       align-items:center;
-      gap:8px;
-      min-height:180px;
-      overflow:hidden;
+      justify-content:flex-end;
+      min-width:110px;
+      animation:popIn .35s ease both;
     }
 
-    .sideVisual::before{
-      content:"";
-      position:absolute;
-      inset:auto auto -40px -20px;
-      width:140px;
-      height:140px;
-      background:radial-gradient(circle, rgba(103,169,255,.18), transparent 65%);
-      pointer-events:none;
-    }
-
-    .sideVisual::after{
-      content:"";
-      position:absolute;
-      inset:-40px -20px auto auto;
-      width:120px;
-      height:120px;
-      background:radial-gradient(circle, rgba(255,127,209,.12), transparent 65%);
-      pointer-events:none;
-    }
-
-    .sideVisualImages{
-      position:relative;
-      z-index:1;
-      width:100%;
-      display:flex;
-      justify-content:center;
-      align-items:center;
-      gap:10px;
-      min-height:140px;
-    }
-
-    .sideVisualImages img{
-      width:100%;
-      max-width:170px;
-      max-height:170px;
-      object-fit:contain;
+    .rankFigure img{
       display:block;
+      object-fit:contain;
       filter:drop-shadow(0 10px 24px rgba(0,0,0,.22));
-      animation:floaty 4.8s ease-in-out infinite alternate;
     }
 
-    .sideVisualImages.double{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:8px;
-      align-items:end;
+    .rankFigure.rank1{
+      z-index:4;
+      min-width:180px;
+      margin-bottom:-30px; /* 1位カードへ食い込ませる */
     }
 
-    .sideVisualImages.double img{
-      max-width:100%;
-      max-height:150px;
+    .rankFigure.rank2{
+      z-index:3;
+      min-width:125px;
+      margin-bottom:-12px;
     }
 
-    /* クラス側の2枚だけ少し小さく */
-    #classGradeImage.sideVisualImages.double img{
-      max-height:124px;
+    .rankFigure.rank3{
+      z-index:3;
+      min-width:100px;
+      margin-bottom:-8px;
     }
 
-    .sideVisualImages.double img:nth-child(2){
-      animation-duration:5.7s;
+    .rankFigure.rank1 img{
+      width:164px;
+      height:164px;
+      animation:floaty1 4.4s ease-in-out infinite alternate, glowGold .7s ease-out both;
     }
 
-    .sideVisualLabel{
-      position:relative;
-      z-index:1;
-      font-size:14px;
-      font-weight:1000;
+    .rankFigure.rank2 img{
+      width:112px;
+      height:112px;
+      animation:floaty2 5.0s ease-in-out infinite alternate;
+    }
+
+    .rankFigure.rank3 img{
+      width:88px;
+      height:88px;
+      animation:floaty2 5.4s ease-in-out infinite alternate;
+    }
+
+    .rankFigureLabel{
+      margin-top:4px;
       text-align:center;
-      color:#f1f5ff;
-      letter-spacing:.04em;
+      line-height:1.1;
     }
 
-    .pulse{ animation:pulseIn .55s ease; }
-
-    @keyframes pulseIn{
-      0%{ transform:scale(.985); opacity:.7; }
-      100%{ transform:scale(1); opacity:1; }
+    .rankFigurePlace{
+      font-size:18px;
+      font-weight:1000;
+      color:#fff;
+      text-shadow:0 6px 18px rgba(0,0,0,.30);
     }
 
-    @keyframes floaty{
-      from{ transform:translateY(0); }
-      to{ transform:translateY(8px); }
+    .rankFigurePlace.rank1{ font-size:22px; color:#fff3b0; }
+    .rankFigurePlace.rank2{ font-size:17px; color:#edf2ff; }
+    .rankFigurePlace.rank3{ font-size:16px; color:#ffd0ad; }
+
+    .rankFigureName{
+      margin-top:3px;
+      font-size:12px;
+      font-weight:900;
+      color:rgba(234,240,255,.86);
+      max-width:180px;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
     }
 
+    /* ===== 1位ヒーローカード ===== */
     .champion{
       position:relative;
       overflow:hidden;
       display:grid;
-      grid-template-columns:132px 1fr auto;
+      grid-template-columns:130px 1fr auto;
       gap:18px;
       align-items:center;
-      padding:20px;
+      padding:22px 20px 20px;
       border-radius:28px;
+      margin-top:-12px; /* 画像をカードに寄せる */
       margin-bottom:14px;
       background:linear-gradient(90deg, rgba(255,213,74,.24), rgba(255,213,74,.08), rgba(255,255,255,.03));
       border:1px solid rgba(255,213,74,.30);
       box-shadow:0 0 32px rgba(255,213,74,.10), 0 18px 40px rgba(0,0,0,.16);
+      animation:popIn .35s ease both;
     }
 
     .champion::after{
@@ -321,17 +340,17 @@
     }
 
     .championBadge .crown{
-      font-size:70px;
+      font-size:62px;
       display:block;
       filter:drop-shadow(0 8px 16px rgba(255,213,74,.22));
     }
 
     .championBadge .place{
       margin-top:6px;
-      font-size:18px;
+      font-size:28px;
       font-weight:1000;
-      color:#261b00;
-      letter-spacing:.06em;
+      color:#fff6cb;
+      letter-spacing:.04em;
     }
 
     .championMain{ min-width:0; }
@@ -379,7 +398,7 @@
       line-height:1;
       font-weight:1000;
       color:var(--gold);
-      text-shadow:0 8px 24px rgba(255,213,74,.16);
+      text-shadow:0 8px 24px rgba(255,213,74,.16), 0 0 16px rgba(255,213,74,.18);
     }
 
     .championScoreUnit{
@@ -397,7 +416,7 @@
 
     .row{
       display:grid;
-      grid-template-columns:72px 1fr auto;
+      grid-template-columns:90px 1fr auto;
       gap:14px;
       align-items:center;
       padding:16px 16px;
@@ -405,6 +424,7 @@
       background:rgba(255,255,255,.045);
       border:1px solid rgba(255,255,255,.08);
       box-shadow:0 10px 22px rgba(0,0,0,.10);
+      animation:popIn .30s ease both;
     }
 
     .row.rank2{
@@ -419,9 +439,16 @@
 
     .rank{
       text-align:center;
-      font-size:32px;
+      font-size:28px;
       line-height:1;
       font-weight:1000;
+    }
+
+    .rankText{
+      margin-top:6px;
+      font-size:15px;
+      font-weight:1000;
+      color:#eaf0ff;
     }
 
     .name{
@@ -460,19 +487,22 @@
       letter-spacing:.08em;
     }
 
+    /* ===== クラス1位ヒーロー ===== */
     .classHero{
       position:relative;
       overflow:hidden;
       display:grid;
-      grid-template-columns:110px 1fr auto;
+      grid-template-columns:120px 1fr auto;
       gap:16px;
       align-items:center;
-      padding:18px;
+      padding:20px 18px 18px;
       border-radius:24px;
       background:linear-gradient(90deg, rgba(103,169,255,.22), rgba(103,169,255,.07), rgba(255,255,255,.03));
       border:1px solid rgba(103,169,255,.25);
       box-shadow:0 0 28px rgba(103,169,255,.08), 0 16px 36px rgba(0,0,0,.14);
+      margin-top:-10px;
       margin-bottom:14px;
+      animation:popIn .35s ease both;
     }
 
     .classHero::after{
@@ -492,15 +522,15 @@
     }
 
     .classIcon .emoji{
-      font-size:58px;
+      font-size:56px;
       display:block;
     }
 
     .classIcon .label{
       margin-top:6px;
-      font-size:16px;
+      font-size:28px;
       font-weight:1000;
-      color:#d9edff;
+      color:#f0f6ff;
     }
 
     .classMain{ min-width:0; }
@@ -529,7 +559,7 @@
 
     .goalRow{
       display:grid;
-      grid-template-columns:60px 1fr 74px;
+      grid-template-columns:68px 1fr 84px;
       gap:10px;
       align-items:center;
     }
@@ -555,7 +585,7 @@
 
     .goalValue{
       text-align:right;
-      font-size:13px;
+      font-size:14px;
       font-weight:900;
       color:#dfe9ff;
       white-space:nowrap;
@@ -563,7 +593,7 @@
 
     .classAvg{
       text-align:right;
-      min-width:140px;
+      min-width:150px;
     }
 
     .classAvgNum{
@@ -571,7 +601,7 @@
       line-height:1;
       font-weight:1000;
       color:var(--blue2);
-      text-shadow:0 8px 22px rgba(103,169,255,.14);
+      text-shadow:0 8px 22px rgba(103,169,255,.14), 0 0 14px rgba(103,169,255,.14);
     }
 
     .classAvgUnit{
@@ -591,14 +621,43 @@
       letter-spacing:.04em;
     }
 
-    @media (max-width: 1400px){
-      .panelHead{ grid-template-columns:1fr; }
+    @media (max-width: 1500px){
+      .champion{
+        grid-template-columns:112px 1fr auto;
+      }
+      .championScoreNum{ font-size:56px; }
+      .championName{ font-size:30px; }
+      .heroTop3Stage{ min-height:156px; }
+      .rankFigure.rank1 img{ width:144px; height:144px; }
     }
 
     @media (max-width: 1200px){
       .grid{ grid-template-columns:1fr; }
       .panel{ min-height:auto; }
       .topbar{ grid-template-columns:1fr; }
+    }
+
+    @media (max-width: 760px){
+      .title{ font-size:36px; }
+      .panelTitle h2{ font-size:24px; }
+      .heroTop3Stage{ gap:8px; min-height:138px; }
+      .rankFigure.rank1 img{ width:118px; height:118px; }
+      .rankFigure.rank2 img{ width:82px; height:82px; }
+      .rankFigure.rank3 img{ width:68px; height:68px; }
+      .champion{
+        grid-template-columns:92px 1fr;
+      }
+      .championScore{
+        grid-column:1 / -1;
+        text-align:left;
+      }
+      .classHero{
+        grid-template-columns:92px 1fr;
+      }
+      .classAvg{
+        grid-column:1 / -1;
+        text-align:left;
+      }
     }
   </style>
 </head>
@@ -624,30 +683,20 @@
 
     <div class="grid">
       <section class="panel" id="personalPanel">
-        <div class="panelHead">
-          <div class="panelTitle">
-            <h2>個人ランキング</h2>
-            <div class="badgeMini">BEST SCORE</div>
-          </div>
-          <div class="sideVisual">
-            <div id="personalGradeImage" class="sideVisualImages"></div>
-            <div class="sideVisualLabel" id="personalGradeLabel">個人画像なし</div>
-          </div>
+        <div class="panelTitle">
+          <h2>個人ランキング</h2>
+          <div class="badgeMini">BEST SCORE</div>
         </div>
+
         <div id="personalBoard"></div>
       </section>
 
       <section class="panel" id="classPanel">
-        <div class="panelHead">
-          <div class="panelTitle">
-            <h2>クラス対抗（平均）</h2>
-            <div class="badgeMini">CLASS BATTLE</div>
-          </div>
-          <div class="sideVisual">
-            <div id="classGradeImage" class="sideVisualImages"></div>
-            <div class="sideVisualLabel" id="classGradeLabel">クラス画像なし</div>
-          </div>
+        <div class="panelTitle">
+          <h2>クラス対抗（平均）</h2>
+          <div class="badgeMini">CLASS BATTLE</div>
         </div>
+
         <div id="classBoard"></div>
       </section>
     </div>
@@ -657,8 +706,8 @@
     </div>
   </div>
 
-  <script src="./js/config.js?v=20260330fix2"></script>
-  <script src="./js/api.js?v=20260330fix2"></script>
+  <script src="./js/config.js?v=20260402a"></script>
+  <script src="./js/api.js?v=20260402a"></script>
   <script>
     const PERSONAL_GRADE_IMAGES = {
       J1: ["./images/signage/personal/J1.png"],
@@ -734,39 +783,48 @@
       return null;
     }
 
-    function decidePersonalGrade(rows) {
-      if (!Array.isArray(rows)) return null;
-      for (const r of rows) {
-        const g1 = extractGradeCode(r.nickname);
-        if (g1) return g1;
-        const g2 = extractGradeCode(r.class_code);
-        if (g2) return g2;
-        const g3 = extractGradeCode(r.player_id);
-        if (g3) return g3;
-      }
-      return null;
+    function getFirstImage(imageMap, gradeCode) {
+      if (!gradeCode || !imageMap[gradeCode] || imageMap[gradeCode].length === 0) return null;
+      return imageMap[gradeCode][0];
     }
 
-    function decideClassGrade(rows) {
-      if (!Array.isArray(rows) || rows.length === 0) return null;
-      return extractGradeCode(rows[0].class_code);
+    function getGradeFromPersonalRow(row) {
+      return extractGradeCode(row.class_code) || extractGradeCode(row.nickname) || extractGradeCode(row.player_id);
     }
 
-    function updateOneVisual(containerId, labelId, gradeCode, imageMap, emptyLabel, suffixLabel) {
-      const container = document.getElementById(containerId);
-      const label = document.getElementById(labelId);
-      const imgs = gradeCode ? imageMap[gradeCode] : null;
+    function getGradeFromClassRow(row) {
+      return extractGradeCode(row.class_code);
+    }
 
-      if (!imgs || imgs.length === 0) {
-        container.className = "sideVisualImages";
-        container.innerHTML = "";
-        label.textContent = emptyLabel;
-        return;
-      }
+    function top3VisualHtml(rows, imageMap, gradeFn, kindLabel) {
+      const top3 = (rows || []).slice(0, 3);
+      if (top3.length === 0) return "";
 
-      container.className = imgs.length > 1 ? "sideVisualImages double" : "sideVisualImages";
-      container.innerHTML = imgs.map(src => `<img src="${src}" alt="${gradeCode}">`).join("");
-      label.textContent = `${gradeCode} ${suffixLabel}`;
+      const items = top3.map((row, idx) => {
+        const rank = idx + 1;
+        const grade = gradeFn(row);
+        const img = getFirstImage(imageMap, grade);
+        const name = row.nickname || row.class_code || row.player_id || row.user_id || "-";
+        const placeText = `${rank}位`;
+
+        return `
+          <div class="rankFigure rank${rank}">
+            ${img ? `<img src="${img}" alt="${escapeHtml(placeText)}">` : ""}
+            <div class="rankFigureLabel">
+              <div class="rankFigurePlace rank${rank}">${rank === 1 ? "👑 " : rank === 2 ? "🥈 " : "🥉 "}${placeText}</div>
+              <div class="rankFigureName">${escapeHtml(name)}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      return `
+        <div class="heroTop3">
+          <div class="heroTop3Stage">
+            ${items}
+          </div>
+        </div>
+      `;
     }
 
     function goalBar(current, target, fillCss) {
@@ -793,11 +851,15 @@
       const championPoints = Number(first.points ?? first.score ?? 0);
       const championCombo = Number(first.max_combo ?? 0);
 
+      const top3Visual = top3VisualHtml(rows, PERSONAL_GRADE_IMAGES, getGradeFromPersonalRow, "ランキング");
+
       const champion = `
-        <div class="champion pulse">
+        ${top3Visual}
+
+        <div class="champion">
           <div class="championBadge">
             <span class="crown">👑</span>
-            <span class="place">#1</span>
+            <span class="place">1位</span>
           </div>
 
           <div class="championMain">
@@ -817,7 +879,7 @@
 
       const rest = rows.slice(1, 5).map((r, idx) => {
         const rank = idx + 2;
-        const cls = rank === 2 ? "row rank2 pulse" : rank === 3 ? "row rank3 pulse" : "row pulse";
+        const cls = rank === 2 ? "row rank2" : rank === 3 ? "row rank3" : "row";
         const name = r.nickname || r.player_id || r.user_id || "-";
         const points = Number(r.points ?? r.score ?? 0);
         const combo = Number(r.max_combo ?? 0);
@@ -826,7 +888,10 @@
 
         return `
           <div class="${cls}">
-            <div class="rank">${badge}</div>
+            <div class="rank">
+              <div>${badge}</div>
+              <div class="rankText">${rank}位</div>
+            </div>
             <div>
               <div class="name">${escapeHtml(name)}</div>
               <div class="meta">${metaLabel} / COMBO ${combo}</div>
@@ -866,11 +931,15 @@
         stageLabel = "銅ランク";
       }
 
+      const top3Visual = top3VisualHtml(rows, CLASS_GRADE_IMAGES, getGradeFromClassRow, "クラス対抗");
+
       const hero = `
-        <div class="classHero pulse">
+        ${top3Visual}
+
+        <div class="classHero">
           <div class="classIcon">
             <span class="emoji">${stageEmoji}</span>
-            <span class="label">${stageLabel}</span>
+            <span class="label">1位</span>
           </div>
 
           <div class="classMain">
@@ -878,6 +947,7 @@
             <div class="classMeta">
               <span class="chip dark">参加 ${players}人</span>
               <span class="chip dark">最高 ${best}点</span>
+              <span class="chip dark">${stageLabel}</span>
             </div>
 
             <div class="goalWrap">
@@ -896,7 +966,7 @@
 
       const rest = rows.slice(1, 5).map((r, idx) => {
         const rank = idx + 2;
-        const cls = rank === 2 ? "row rank2 pulse" : rank === 3 ? "row rank3 pulse" : "row pulse";
+        const cls = rank === 2 ? "row rank2" : rank === 3 ? "row rank3" : "row";
         const avg2 = Number(r.avg_score ?? 0);
         const players2 = Number(r.players ?? 0);
         const best2 = Number(r.best_score ?? 0);
@@ -904,7 +974,10 @@
 
         return `
           <div class="${cls}">
-            <div class="rank">${badge}</div>
+            <div class="rank">
+              <div>${badge}</div>
+              <div class="rankText">${rank}位</div>
+            </div>
             <div>
               <div class="name">${escapeHtml(r.class_code || "-")}</div>
               <div class="meta">参加 ${players2}人 / 最高 ${best2}点</div>
@@ -918,16 +991,6 @@
       }).join("");
 
       return hero + `<div class="list">${rest}</div>`;
-    }
-
-    function flashPanels() {
-      const personal = document.getElementById("personalPanel");
-      const klass = document.getElementById("classPanel");
-      personal.classList.remove("pulse");
-      klass.classList.remove("pulse");
-      void personal.offsetWidth;
-      personal.classList.add("pulse");
-      klass.classList.add("pulse");
     }
 
     async function updateBoard() {
@@ -945,29 +1008,6 @@
         document.getElementById("personalBoard").innerHTML = personalHtml(top || []);
         document.getElementById("classBoard").innerHTML = classHtml(classRows || []);
         document.getElementById("boardUpdated").textContent = `最終更新: ${fmtTime(new Date())}`;
-
-        const personalGrade = decidePersonalGrade(top || []);
-        const classGrade = decideClassGrade(classRows || []);
-
-        updateOneVisual(
-          "personalGradeImage",
-          "personalGradeLabel",
-          personalGrade,
-          PERSONAL_GRADE_IMAGES,
-          "個人画像なし",
-          "ランキング"
-        );
-
-        updateOneVisual(
-          "classGradeImage",
-          "classGradeLabel",
-          classGrade,
-          CLASS_GRADE_IMAGES,
-          "クラス画像なし",
-          "クラス対抗"
-        );
-
-        flashPanels();
       } catch (e) {
         console.warn("[board] update failed:", e);
         document.getElementById("boardUpdated").textContent = "更新失敗";
