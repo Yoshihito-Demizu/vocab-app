@@ -17,9 +17,6 @@
       --blue2:#8fd3ff;
       --pink:#ff7fd1;
       --green:#63f0ba;
-      --line:rgba(255,255,255,.10);
-      --glass1:rgba(255,255,255,.07);
-      --glass2:rgba(255,255,255,.03);
     }
 
     *{ box-sizing:border-box; }
@@ -65,23 +62,13 @@
     }
 
     @keyframes popIn{
-      0%{ transform:scale(.97); opacity:.66; }
+      0%{ transform:scale(.98); opacity:.72; }
       100%{ transform:scale(1); opacity:1; }
     }
 
-    @keyframes floaty1{
+    @keyframes floaty{
       from{ transform:translateY(0); }
-      to{ transform:translateY(7px); }
-    }
-
-    @keyframes floaty2{
-      from{ transform:translateY(0); }
-      to{ transform:translateY(5px); }
-    }
-
-    @keyframes glowGold{
-      from{ filter:drop-shadow(0 0 0 rgba(255,213,74,.00)); }
-      to{ filter:drop-shadow(0 0 14px rgba(255,213,74,.22)); }
+      to{ transform:translateY(6px); }
     }
 
     .wrap{
@@ -185,12 +172,12 @@
       align-items:center;
       justify-content:space-between;
       gap:12px;
-      margin-bottom:8px;
+      margin-bottom:10px;
     }
 
     .panelTitle h2{
       margin:0;
-      font-size:30px;
+      font-size:32px;
       font-weight:1000;
       letter-spacing:.01em;
     }
@@ -206,167 +193,139 @@
       white-space:nowrap;
     }
 
-    /* ===== A案：画像を小さくして1位カードへ食い込ませる ===== */
-    .heroTop3{
-      position:relative;
-      margin-top:10px;
-      margin-bottom:14px;
-      padding-top:8px;
+    /* 上のスペースを詰める */
+    .top3Strip{
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:10px;
+      align-items:end;
+      margin:2px 0 8px;
+      min-height:88px;
     }
 
-    .heroTop3Stage{
-      position:relative;
-      z-index:2;
-      min-height:170px;
-      padding:8px 12px 0;
-      display:flex;
-      align-items:flex-end;
-      justify-content:center;
-      gap:16px;
-    }
-
-    .rankFigure{
-      position:relative;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:flex-end;
-      min-width:110px;
-      animation:popIn .35s ease both;
-    }
-
-    .rankFigure img{
-      display:block;
-      object-fit:contain;
-      filter:drop-shadow(0 10px 24px rgba(0,0,0,.22));
-    }
-
-    .rankFigure.rank1{
-      z-index:4;
-      min-width:180px;
-      margin-bottom:-30px; /* 1位カードへ食い込ませる */
-    }
-
-    .rankFigure.rank2{
-      z-index:3;
-      min-width:125px;
-      margin-bottom:-12px;
-    }
-
-    .rankFigure.rank3{
-      z-index:3;
-      min-width:100px;
-      margin-bottom:-8px;
-    }
-
-    .rankFigure.rank1 img{
-      width:164px;
-      height:164px;
-      animation:floaty1 4.4s ease-in-out infinite alternate, glowGold .7s ease-out both;
-    }
-
-    .rankFigure.rank2 img{
-      width:112px;
-      height:112px;
-      animation:floaty2 5.0s ease-in-out infinite alternate;
-    }
-
-    .rankFigure.rank3 img{
-      width:88px;
-      height:88px;
-      animation:floaty2 5.4s ease-in-out infinite alternate;
-    }
-
-    .rankFigureLabel{
-      margin-top:4px;
+    .top3Mini{
       text-align:center;
-      line-height:1.1;
+      animation:popIn .28s ease both;
     }
 
-    .rankFigurePlace{
+    .top3Mini img{
+      object-fit:contain;
+      display:block;
+      margin:0 auto;
+      filter:drop-shadow(0 8px 18px rgba(0,0,0,.20));
+      animation:floaty 4.8s ease-in-out infinite alternate;
+    }
+
+    .top3Mini.rank1 img{ width:74px; height:74px; }
+    .top3Mini.rank2 img{ width:58px; height:58px; }
+    .top3Mini.rank3 img{ width:48px; height:48px; }
+
+    .top3MiniPlace{
+      margin-top:2px;
       font-size:18px;
       font-weight:1000;
-      color:#fff;
-      text-shadow:0 6px 18px rgba(0,0,0,.30);
+      line-height:1;
     }
 
-    .rankFigurePlace.rank1{ font-size:22px; color:#fff3b0; }
-    .rankFigurePlace.rank2{ font-size:17px; color:#edf2ff; }
-    .rankFigurePlace.rank3{ font-size:16px; color:#ffd0ad; }
+    .top3Mini.rank1 .top3MiniPlace{ color:#ffe48d; }
+    .top3Mini.rank2 .top3MiniPlace{ color:#eef3ff; }
+    .top3Mini.rank3 .top3MiniPlace{ color:#ffca9c; }
 
-    .rankFigureName{
+    .top3MiniName{
       margin-top:3px;
-      font-size:12px;
+      font-size:16px;
       font-weight:900;
-      color:rgba(234,240,255,.86);
-      max-width:180px;
+      color:#edf3ff;
+      line-height:1.05;
+      white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      white-space:nowrap;
     }
 
-    /* ===== 1位ヒーローカード ===== */
-    .champion{
+    .list{
+      display:grid;
+      gap:12px;
+    }
+
+    /* 個人・クラスの1〜3位高さ統一 */
+    .boardRow{
       position:relative;
+      min-height:132px;
+      border-radius:24px;
       overflow:hidden;
       display:grid;
-      grid-template-columns:130px 1fr auto;
-      gap:18px;
+      grid-template-columns:110px 1fr 180px;
+      gap:14px;
       align-items:center;
-      padding:22px 20px 20px;
-      border-radius:28px;
-      margin-top:-12px; /* 画像をカードに寄せる */
-      margin-bottom:14px;
-      background:linear-gradient(90deg, rgba(255,213,74,.24), rgba(255,213,74,.08), rgba(255,255,255,.03));
-      border:1px solid rgba(255,213,74,.30);
-      box-shadow:0 0 32px rgba(255,213,74,.10), 0 18px 40px rgba(0,0,0,.16);
-      animation:popIn .35s ease both;
+      padding:18px 18px 18px 18px;
+      border:1px solid rgba(255,255,255,.10);
+      box-shadow:0 12px 26px rgba(0,0,0,.12);
+      animation:popIn .30s ease both;
     }
 
-    .champion::after{
+    .boardRow.rank1{
+      background:linear-gradient(90deg, rgba(255,213,74,.24), rgba(255,213,74,.08), rgba(255,255,255,.03));
+      border-color:rgba(255,213,74,.30);
+      box-shadow:0 0 26px rgba(255,213,74,.08), 0 16px 34px rgba(0,0,0,.15);
+    }
+
+    .boardRow.rank2{
+      background:linear-gradient(90deg, rgba(217,224,234,.16), rgba(217,224,234,.05));
+      border-color:rgba(217,224,234,.18);
+    }
+
+    .boardRow.rank3{
+      background:linear-gradient(90deg, rgba(216,155,99,.16), rgba(216,155,99,.05));
+      border-color:rgba(216,155,99,.18);
+    }
+
+    .boardRow::after{
       content:"";
       position:absolute;
       top:0;
       right:0;
       width:180px;
       height:100%;
-      background:linear-gradient(90deg, transparent, rgba(255,255,255,.10));
+      background:linear-gradient(90deg, transparent, rgba(255,255,255,.06));
       pointer-events:none;
     }
 
-    .championBadge{
-      text-align:center;
+    .rankBlock{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
       line-height:1;
+      z-index:2;
     }
 
-    .championBadge .crown{
-      font-size:62px;
-      display:block;
-      filter:drop-shadow(0 8px 16px rgba(255,213,74,.22));
-    }
-
-    .championBadge .place{
-      margin-top:6px;
-      font-size:28px;
+    .rankIcon{
+      font-size:54px;
       font-weight:1000;
-      color:#fff6cb;
-      letter-spacing:.04em;
     }
 
-    .championMain{ min-width:0; }
-
-    .championName{
-      font-size:34px;
+    .rankText{
+      font-size:22px;
       font-weight:1000;
-      line-height:1.05;
+      color:#f1f6ff;
+    }
+
+    .mainBlock{
+      min-width:0;
+      z-index:2;
+    }
+
+    .mainName{
+      font-size:32px;
+      font-weight:1000;
+      line-height:1.04;
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
-      color:#fff7d1;
-      text-shadow:0 6px 20px rgba(0,0,0,.25);
     }
 
-    .championMeta{
+    .mainMeta{
       margin-top:8px;
       display:flex;
       gap:10px;
@@ -376,179 +335,16 @@
     .chip{
       border-radius:999px;
       padding:8px 12px;
-      font-size:12px;
+      font-size:16px;
       font-weight:900;
       color:#0d1222;
-      background:rgba(255,255,255,.78);
+      background:rgba(255,255,255,.82);
     }
 
     .chip.dark{
       color:#e7eeff;
       background:rgba(255,255,255,.08);
       border:1px solid rgba(255,255,255,.12);
-    }
-
-    .championScore{
-      text-align:right;
-      min-width:150px;
-    }
-
-    .championScoreNum{
-      font-size:64px;
-      line-height:1;
-      font-weight:1000;
-      color:var(--gold);
-      text-shadow:0 8px 24px rgba(255,213,74,.16), 0 0 16px rgba(255,213,74,.18);
-    }
-
-    .championScoreUnit{
-      margin-top:8px;
-      color:var(--muted);
-      font-size:14px;
-      font-weight:900;
-      letter-spacing:.08em;
-    }
-
-    .list{
-      display:grid;
-      gap:10px;
-    }
-
-    .row{
-      display:grid;
-      grid-template-columns:90px 1fr auto;
-      gap:14px;
-      align-items:center;
-      padding:16px 16px;
-      border-radius:18px;
-      background:rgba(255,255,255,.045);
-      border:1px solid rgba(255,255,255,.08);
-      box-shadow:0 10px 22px rgba(0,0,0,.10);
-      animation:popIn .30s ease both;
-    }
-
-    .row.rank2{
-      background:linear-gradient(90deg, rgba(217,224,234,.16), rgba(217,224,234,.05));
-      border-color:rgba(217,224,234,.18);
-    }
-
-    .row.rank3{
-      background:linear-gradient(90deg, rgba(216,155,99,.17), rgba(216,155,99,.05));
-      border-color:rgba(216,155,99,.18);
-    }
-
-    .rank{
-      text-align:center;
-      font-size:28px;
-      line-height:1;
-      font-weight:1000;
-    }
-
-    .rankText{
-      margin-top:6px;
-      font-size:15px;
-      font-weight:1000;
-      color:#eaf0ff;
-    }
-
-    .name{
-      font-size:28px;
-      line-height:1.08;
-      font-weight:1000;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .meta{
-      margin-top:5px;
-      color:var(--muted);
-      font-size:14px;
-      font-weight:800;
-    }
-
-    .score{
-      text-align:right;
-      white-space:nowrap;
-      min-width:140px;
-    }
-
-    .scoreNum{
-      font-size:38px;
-      line-height:1;
-      font-weight:1000;
-    }
-
-    .scoreUnit{
-      margin-top:6px;
-      color:var(--muted);
-      font-size:12px;
-      font-weight:900;
-      letter-spacing:.08em;
-    }
-
-    /* ===== クラス1位ヒーロー ===== */
-    .classHero{
-      position:relative;
-      overflow:hidden;
-      display:grid;
-      grid-template-columns:120px 1fr auto;
-      gap:16px;
-      align-items:center;
-      padding:20px 18px 18px;
-      border-radius:24px;
-      background:linear-gradient(90deg, rgba(103,169,255,.22), rgba(103,169,255,.07), rgba(255,255,255,.03));
-      border:1px solid rgba(103,169,255,.25);
-      box-shadow:0 0 28px rgba(103,169,255,.08), 0 16px 36px rgba(0,0,0,.14);
-      margin-top:-10px;
-      margin-bottom:14px;
-      animation:popIn .35s ease both;
-    }
-
-    .classHero::after{
-      content:"";
-      position:absolute;
-      top:0;
-      right:0;
-      width:160px;
-      height:100%;
-      background:linear-gradient(90deg, transparent, rgba(255,255,255,.08));
-      pointer-events:none;
-    }
-
-    .classIcon{
-      text-align:center;
-      line-height:1;
-    }
-
-    .classIcon .emoji{
-      font-size:56px;
-      display:block;
-    }
-
-    .classIcon .label{
-      margin-top:6px;
-      font-size:28px;
-      font-weight:1000;
-      color:#f0f6ff;
-    }
-
-    .classMain{ min-width:0; }
-
-    .className{
-      font-size:34px;
-      font-weight:1000;
-      line-height:1.05;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-
-    .classMeta{
-      margin-top:8px;
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
     }
 
     .goalWrap{
@@ -559,13 +355,13 @@
 
     .goalRow{
       display:grid;
-      grid-template-columns:68px 1fr 84px;
+      grid-template-columns:64px 1fr 92px;
       gap:10px;
       align-items:center;
     }
 
     .goalLabel{
-      font-size:14px;
+      font-size:15px;
       font-weight:1000;
       white-space:nowrap;
     }
@@ -585,31 +381,97 @@
 
     .goalValue{
       text-align:right;
-      font-size:14px;
+      font-size:15px;
       font-weight:900;
       color:#dfe9ff;
       white-space:nowrap;
     }
 
-    .classAvg{
-      text-align:right;
-      min-width:150px;
-    }
-
-    .classAvgNum{
-      font-size:58px;
-      line-height:1;
-      font-weight:1000;
-      color:var(--blue2);
-      text-shadow:0 8px 22px rgba(103,169,255,.14), 0 0 14px rgba(103,169,255,.14);
-    }
-
-    .classAvgUnit{
+    .subMeta{
       margin-top:8px;
       color:var(--muted);
-      font-size:13px;
+      font-size:16px;
+      font-weight:800;
+    }
+
+    /* スコアを少し左へ、右側に画像 */
+    .scoreBlock{
+      position:relative;
+      display:flex;
+      align-items:center;
+      justify-content:flex-start;
+      gap:12px;
+      min-width:0;
+      padding-right:6px;
+      z-index:2;
+    }
+
+    .scoreVisual{
+      position:absolute;
+      right:2px;
+      top:50%;
+      transform:translateY(-50%);
+      pointer-events:none;
+      opacity:.98;
+      filter:drop-shadow(0 8px 20px rgba(0,0,0,.20));
+    }
+
+    .scoreVisual img{
+      object-fit:contain;
+      display:block;
+      animation:floaty 4.8s ease-in-out infinite alternate;
+    }
+
+    .boardRow.rank1 .scoreVisual img{
+      width:96px;
+      height:96px;
+    }
+
+    .boardRow.rank2 .scoreVisual img{
+      width:74px;
+      height:74px;
+    }
+
+    .boardRow.rank3 .scoreVisual img{
+      width:62px;
+      height:62px;
+    }
+
+    .scoreValueWrap{
+      position:relative;
+      z-index:2;
+      text-align:left;
+      padding-right:84px;
+      margin-left:8px;
+    }
+
+    .boardRow.rank1 .scoreValueWrap{
+      padding-right:102px;
+    }
+
+    .scoreValue{
+      font-size:64px;
+      line-height:1;
+      font-weight:1000;
+      white-space:nowrap;
+    }
+
+    .scoreUnit{
+      margin-top:8px;
+      font-size:16px;
       font-weight:900;
       letter-spacing:.08em;
+      color:var(--muted);
+    }
+
+    .personalScore{
+      color:var(--gold);
+      text-shadow:0 8px 24px rgba(255,213,74,.16), 0 0 14px rgba(255,213,74,.16);
+    }
+
+    .classScore{
+      color:var(--blue2);
+      text-shadow:0 8px 22px rgba(103,169,255,.14), 0 0 14px rgba(103,169,255,.14);
     }
 
     .footer{
@@ -622,13 +484,11 @@
     }
 
     @media (max-width: 1500px){
-      .champion{
-        grid-template-columns:112px 1fr auto;
+      .boardRow{
+        grid-template-columns:96px 1fr 164px;
       }
-      .championScoreNum{ font-size:56px; }
-      .championName{ font-size:30px; }
-      .heroTop3Stage{ min-height:156px; }
-      .rankFigure.rank1 img{ width:144px; height:144px; }
+      .mainName{ font-size:28px; }
+      .scoreValue{ font-size:56px; }
     }
 
     @media (max-width: 1200px){
@@ -640,24 +500,22 @@
     @media (max-width: 760px){
       .title{ font-size:36px; }
       .panelTitle h2{ font-size:24px; }
-      .heroTop3Stage{ gap:8px; min-height:138px; }
-      .rankFigure.rank1 img{ width:118px; height:118px; }
-      .rankFigure.rank2 img{ width:82px; height:82px; }
-      .rankFigure.rank3 img{ width:68px; height:68px; }
-      .champion{
-        grid-template-columns:92px 1fr;
+      .boardRow{
+        grid-template-columns:88px 1fr;
       }
-      .championScore{
+      .scoreBlock{
         grid-column:1 / -1;
-        text-align:left;
+        margin-top:6px;
       }
-      .classHero{
-        grid-template-columns:92px 1fr;
+      .scoreVisual{
+        right:8px;
       }
-      .classAvg{
-        grid-column:1 / -1;
-        text-align:left;
+      .scoreValueWrap{
+        padding-right:92px;
       }
+      .top3Mini.rank1 img{ width:60px; height:60px; }
+      .top3Mini.rank2 img{ width:46px; height:46px; }
+      .top3Mini.rank3 img{ width:40px; height:40px; }
     }
   </style>
 </head>
@@ -682,21 +540,19 @@
     </div>
 
     <div class="grid">
-      <section class="panel" id="personalPanel">
+      <section class="panel">
         <div class="panelTitle">
           <h2>個人ランキング</h2>
           <div class="badgeMini">BEST SCORE</div>
         </div>
-
         <div id="personalBoard"></div>
       </section>
 
-      <section class="panel" id="classPanel">
+      <section class="panel">
         <div class="panelTitle">
           <h2>クラス対抗（平均）</h2>
           <div class="badgeMini">CLASS BATTLE</div>
         </div>
-
         <div id="classBoard"></div>
       </section>
     </div>
@@ -706,15 +562,12 @@
     </div>
   </div>
 
-  <script src="./js/config.js?v=20260402a"></script>
-  <script src="./js/api.js?v=20260402a"></script>
+  <script src="./js/config.js?v=20260402b"></script>
+  <script src="./js/api.js?v=20260402b"></script>
   <script>
     const PERSONAL_GRADE_IMAGES = {
       J1: ["./images/signage/personal/J1.png"],
-      J2: [
-        "./images/signage/personal/J2-1.png",
-        "./images/signage/personal/J2-2.png"
-      ],
+      J2: ["./images/signage/personal/J2-1.png", "./images/signage/personal/J2-2.png"],
       J3: ["./images/signage/personal/J3.png"],
       H1: ["./images/signage/personal/H1.png"],
       H2: ["./images/signage/personal/H2.png"],
@@ -723,10 +576,7 @@
 
     const CLASS_GRADE_IMAGES = {
       J1: ["./images/signage/class/J1.png"],
-      J2: [
-        "./images/signage/class/J2-1.png",
-        "./images/signage/class/J2-2.png"
-      ],
+      J2: ["./images/signage/class/J2-1.png", "./images/signage/class/J2-2.png"],
       J3: ["./images/signage/class/J3.png"],
       H1: ["./images/signage/class/H1.png"],
       H2: ["./images/signage/class/H2.png"],
@@ -758,28 +608,22 @@
 
       const year = Number(m[1]);
       const week = Number(m[2]);
-
       const jan4 = new Date(Date.UTC(year, 0, 4));
       const jan4Day = jan4.getUTCDay() || 7;
       const monday = new Date(jan4);
       monday.setUTCDate(jan4.getUTCDate() - (jan4Day - 1) + (week - 1) * 7);
-
       const month = monday.getUTCMonth() + 1;
       const day = monday.getUTCDate();
       const weekInMonth = Math.floor((day - 1) / 7) + 1;
-
       return `${month}月${weekInMonth}週`;
     }
 
     function extractGradeCode(value) {
       const s = String(value || "").trim();
-
       let m = s.match(/\b(J[1-3]|H[1-3])\b/i);
       if (m) return m[1].toUpperCase();
-
       m = s.match(/^([123])[-－]/);
       if (m) return `J${m[1]}`;
-
       return null;
     }
 
@@ -788,41 +632,43 @@
       return imageMap[gradeCode][0];
     }
 
-    function getGradeFromPersonalRow(row) {
+    function personalGrade(row) {
       return extractGradeCode(row.class_code) || extractGradeCode(row.nickname) || extractGradeCode(row.player_id);
     }
 
-    function getGradeFromClassRow(row) {
+    function classGrade(row) {
       return extractGradeCode(row.class_code);
     }
 
-    function top3VisualHtml(rows, imageMap, gradeFn, kindLabel) {
+    function rankIcon(rank) {
+      if (rank === 1) return "👑";
+      if (rank === 2) return "🥈";
+      if (rank === 3) return "🥉";
+      return String(rank);
+    }
+
+    function top3StripHtml(rows, imageMap, gradeFn) {
       const top3 = (rows || []).slice(0, 3);
-      if (top3.length === 0) return "";
-
-      const items = top3.map((row, idx) => {
-        const rank = idx + 1;
-        const grade = gradeFn(row);
-        const img = getFirstImage(imageMap, grade);
-        const name = row.nickname || row.class_code || row.player_id || row.user_id || "-";
-        const placeText = `${rank}位`;
-
-        return `
-          <div class="rankFigure rank${rank}">
-            ${img ? `<img src="${img}" alt="${escapeHtml(placeText)}">` : ""}
-            <div class="rankFigureLabel">
-              <div class="rankFigurePlace rank${rank}">${rank === 1 ? "👑 " : rank === 2 ? "🥈 " : "🥉 "}${placeText}</div>
-              <div class="rankFigureName">${escapeHtml(name)}</div>
-            </div>
-          </div>
-        `;
-      }).join("");
+      if (!top3.length) return "";
 
       return `
-        <div class="heroTop3">
-          <div class="heroTop3Stage">
-            ${items}
-          </div>
+        <div class="top3Strip">
+          ${[0,1,2].map(i => {
+            const row = top3[i];
+            if (!row) return `<div></div>`;
+            const rank = i + 1;
+            const grade = gradeFn(row);
+            const img = getFirstImage(imageMap, grade);
+            const name = row.nickname || row.class_code || row.player_id || row.user_id || "-";
+
+            return `
+              <div class="top3Mini rank${rank}">
+                ${img ? `<img src="${img}" alt="${rank}位">` : ""}
+                <div class="top3MiniPlace">${rankIcon(rank)} ${rank}位</div>
+                <div class="top3MiniName">${escapeHtml(name)}</div>
+              </div>
+            `;
+          }).join("")}
         </div>
       `;
     }
@@ -841,156 +687,102 @@
       `;
     }
 
-    function personalHtml(rows) {
-      if (!rows || rows.length === 0) {
-        return `<div class="row"><div class="rank">-</div><div><div class="name">まだデータなし</div></div><div class="score"><div class="scoreNum">-</div></div></div>`;
-      }
+    function personalRowHtml(row, rank) {
+      const name = row.nickname || row.player_id || row.user_id || "-";
+      const points = Number(row.points ?? row.score ?? 0);
+      const combo = Number(row.max_combo ?? 0);
+      const grade = personalGrade(row);
+      const img = getFirstImage(PERSONAL_GRADE_IMAGES, grade);
 
-      const first = rows[0];
-      const championName = first.nickname || first.player_id || first.user_id || "-";
-      const championPoints = Number(first.points ?? first.score ?? 0);
-      const championCombo = Number(first.max_combo ?? 0);
-
-      const top3Visual = top3VisualHtml(rows, PERSONAL_GRADE_IMAGES, getGradeFromPersonalRow, "ランキング");
-
-      const champion = `
-        ${top3Visual}
-
-        <div class="champion">
-          <div class="championBadge">
-            <span class="crown">👑</span>
-            <span class="place">1位</span>
+      return `
+        <div class="boardRow rank${rank}">
+          <div class="rankBlock">
+            <div class="rankIcon">${rankIcon(rank)}</div>
+            <div class="rankText">${rank}位</div>
           </div>
 
-          <div class="championMain">
-            <div class="championName">${escapeHtml(championName)}</div>
-            <div class="championMeta">
-              <span class="chip">CHAMPION</span>
-              <span class="chip dark">COMBO ${championCombo}</span>
+          <div class="mainBlock">
+            <div class="mainName">${escapeHtml(name)}</div>
+            <div class="mainMeta">
+              ${rank === 1 ? `<span class="chip">CHAMPION</span>` : `<span class="chip dark">${rank === 2 ? "2ND PLACE" : "3RD PLACE"}</span>`}
+              <span class="chip dark">COMBO ${combo}</span>
             </div>
           </div>
 
-          <div class="championScore">
-            <div class="championScoreNum">${championPoints}</div>
-            <div class="championScoreUnit">POINTS</div>
+          <div class="scoreBlock">
+            <div class="scoreValueWrap">
+              <div class="scoreValue personalScore">${points}</div>
+              <div class="scoreUnit">POINTS</div>
+            </div>
+            ${img ? `<div class="scoreVisual"><img src="${img}" alt="${rank}位"></div>` : ""}
           </div>
         </div>
       `;
+    }
 
-      const rest = rows.slice(1, 5).map((r, idx) => {
-        const rank = idx + 2;
-        const cls = rank === 2 ? "row rank2" : rank === 3 ? "row rank3" : "row";
-        const name = r.nickname || r.player_id || r.user_id || "-";
-        const points = Number(r.points ?? r.score ?? 0);
-        const combo = Number(r.max_combo ?? 0);
-        const badge = rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
-        const metaLabel = rank === 2 ? "2ND PLACE" : rank === 3 ? "3RD PLACE" : `TOP ${rank}`;
+    function classRowHtml(row, rank) {
+      const className = row.class_code || "-";
+      const avg = Number(row.avg_score ?? 0);
+      const players = Number(row.players ?? 0);
+      const best = Number(row.best_score ?? 0);
+      const grade = classGrade(row);
+      const img = getFirstImage(CLASS_GRADE_IMAGES, grade);
 
-        return `
-          <div class="${cls}">
-            <div class="rank">
-              <div>${badge}</div>
-              <div class="rankText">${rank}位</div>
-            </div>
-            <div>
-              <div class="name">${escapeHtml(name)}</div>
-              <div class="meta">${metaLabel} / COMBO ${combo}</div>
-            </div>
-            <div class="score">
-              <div class="scoreNum">${points}</div>
-              <div class="scoreUnit">POINTS</div>
-            </div>
+      let stageLabel = "挑戦中";
+      if (avg >= 300) stageLabel = "金ランク";
+      else if (avg >= 240) stageLabel = "銀ランク";
+      else if (avg >= 180) stageLabel = "銅ランク";
+
+      return `
+        <div class="boardRow rank${rank}">
+          <div class="rankBlock">
+            <div class="rankIcon">${rank === 1 ? "🎯" : rankIcon(rank)}</div>
+            <div class="rankText">${rank}位</div>
           </div>
-        `;
-      }).join("");
 
-      return champion + `<div class="list">${rest}</div>`;
+          <div class="mainBlock">
+            <div class="mainName">${escapeHtml(className)}</div>
+            ${rank === 1 ? `
+              <div class="mainMeta">
+                <span class="chip dark">参加 ${players}人</span>
+                <span class="chip dark">最高 ${best}点</span>
+                <span class="chip dark">${stageLabel}</span>
+              </div>
+              <div class="goalWrap">
+                ${goalBar(avg, 180, { label: "🥉 180", bg: "linear-gradient(90deg, #d89b63, #a76533)" })}
+                ${goalBar(avg, 240, { label: "🥈 240", bg: "linear-gradient(90deg, #d9e0ea, #aab4c3)" })}
+                ${goalBar(avg, 300, { label: "🥇 300", bg: "linear-gradient(90deg, #ffd54a, #ffb400)" })}
+              </div>
+            ` : `
+              <div class="subMeta">参加 ${players}人 / 最高 ${best}点</div>
+            `}
+          </div>
+
+          <div class="scoreBlock">
+            <div class="scoreValueWrap">
+              <div class="scoreValue classScore">${avg.toFixed(1)}</div>
+              <div class="scoreUnit">AVG</div>
+            </div>
+            ${img ? `<div class="scoreVisual"><img src="${img}" alt="${rank}位"></div>` : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    function personalHtml(rows) {
+      if (!rows || !rows.length) {
+        return `<div class="subMeta">まだデータなし</div>`;
+      }
+      return top3StripHtml(rows, PERSONAL_GRADE_IMAGES, personalGrade)
+        + `<div class="list">${rows.slice(0,3).map((row, i) => personalRowHtml(row, i + 1)).join("")}</div>`;
     }
 
     function classHtml(rows) {
-      if (!rows || rows.length === 0) {
-        return `<div class="row"><div class="rank">-</div><div><div class="name">まだデータなし</div></div><div class="score"><div class="scoreNum">-</div></div></div>`;
+      if (!rows || !rows.length) {
+        return `<div class="subMeta">まだデータなし</div>`;
       }
-
-      const first = rows[0];
-      const className = first.class_code || "-";
-      const avg = Number(first.avg_score ?? 0);
-      const players = Number(first.players ?? 0);
-      const best = Number(first.best_score ?? 0);
-
-      let stageEmoji = "🎯";
-      let stageLabel = "挑戦中";
-      if (avg >= 300) {
-        stageEmoji = "🥇";
-        stageLabel = "金ランク";
-      } else if (avg >= 240) {
-        stageEmoji = "🥈";
-        stageLabel = "銀ランク";
-      } else if (avg >= 180) {
-        stageEmoji = "🥉";
-        stageLabel = "銅ランク";
-      }
-
-      const top3Visual = top3VisualHtml(rows, CLASS_GRADE_IMAGES, getGradeFromClassRow, "クラス対抗");
-
-      const hero = `
-        ${top3Visual}
-
-        <div class="classHero">
-          <div class="classIcon">
-            <span class="emoji">${stageEmoji}</span>
-            <span class="label">1位</span>
-          </div>
-
-          <div class="classMain">
-            <div class="className">${escapeHtml(className)}</div>
-            <div class="classMeta">
-              <span class="chip dark">参加 ${players}人</span>
-              <span class="chip dark">最高 ${best}点</span>
-              <span class="chip dark">${stageLabel}</span>
-            </div>
-
-            <div class="goalWrap">
-              ${goalBar(avg, 180, { label: "🥉 180", bg: "linear-gradient(90deg, #d89b63, #a76533)" })}
-              ${goalBar(avg, 240, { label: "🥈 240", bg: "linear-gradient(90deg, #d9e0ea, #aab4c3)" })}
-              ${goalBar(avg, 300, { label: "🥇 300", bg: "linear-gradient(90deg, #ffd54a, #ffb400)" })}
-            </div>
-          </div>
-
-          <div class="classAvg">
-            <div class="classAvgNum">${avg.toFixed(1)}</div>
-            <div class="classAvgUnit">AVG</div>
-          </div>
-        </div>
-      `;
-
-      const rest = rows.slice(1, 5).map((r, idx) => {
-        const rank = idx + 2;
-        const cls = rank === 2 ? "row rank2" : rank === 3 ? "row rank3" : "row";
-        const avg2 = Number(r.avg_score ?? 0);
-        const players2 = Number(r.players ?? 0);
-        const best2 = Number(r.best_score ?? 0);
-        const badge = rank === 2 ? "🥈" : rank === 3 ? "🥉" : rank;
-
-        return `
-          <div class="${cls}">
-            <div class="rank">
-              <div>${badge}</div>
-              <div class="rankText">${rank}位</div>
-            </div>
-            <div>
-              <div class="name">${escapeHtml(r.class_code || "-")}</div>
-              <div class="meta">参加 ${players2}人 / 最高 ${best2}点</div>
-            </div>
-            <div class="score">
-              <div class="scoreNum">${avg2.toFixed(1)}</div>
-              <div class="scoreUnit">AVG</div>
-            </div>
-          </div>
-        `;
-      }).join("");
-
-      return hero + `<div class="list">${rest}</div>`;
+      return top3StripHtml(rows, CLASS_GRADE_IMAGES, classGrade)
+        + `<div class="list">${rows.slice(0,3).map((row, i) => classRowHtml(row, i + 1)).join("")}</div>`;
     }
 
     async function updateBoard() {
