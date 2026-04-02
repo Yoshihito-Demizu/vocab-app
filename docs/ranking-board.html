@@ -12,6 +12,7 @@
       --muted:#aeb9d9;
       --gold:#ffd54a;
       --gold2:#ffb400;
+      --gold3:#fff0a8;
       --silver:#dfe7f5;
       --bronze:#d89b63;
       --blue:#7ec6ff;
@@ -82,8 +83,8 @@
       }
       100%{
         filter:
-          drop-shadow(0 0 24px rgba(255,213,74,.36))
-          drop-shadow(0 0 42px rgba(255,255,255,.10));
+          drop-shadow(0 0 28px rgba(255,213,74,.42))
+          drop-shadow(0 0 52px rgba(255,255,255,.12));
       }
     }
 
@@ -108,8 +109,8 @@
       }
       100%{
         text-shadow:
-          0 0 24px rgba(255,213,74,.28),
-          0 0 42px rgba(255,255,255,.12);
+          0 0 28px rgba(255,213,74,.30),
+          0 0 46px rgba(255,255,255,.14);
       }
     }
 
@@ -135,7 +136,7 @@
         opacity:1;
       }
       100%{
-        transform: translateY(280px) rotate(300deg);
+        transform: translateY(320px) rotate(320deg);
         opacity:0;
       }
     }
@@ -304,13 +305,13 @@
     .boardRow.rank1{
       min-height:250px;
       background:
-        radial-gradient(circle at 12% 50%, rgba(255,213,74,.16), transparent 30%),
-        radial-gradient(circle at 84% 48%, rgba(255,213,74,.10), transparent 30%),
-        linear-gradient(90deg, rgba(255,213,74,.26), rgba(255,213,74,.08), rgba(255,255,255,.03));
-      border-color:rgba(255,213,74,.32);
+        radial-gradient(circle at 10% 50%, rgba(255,240,168,.26), transparent 28%),
+        radial-gradient(circle at 84% 48%, rgba(255,213,74,.16), transparent 30%),
+        linear-gradient(90deg, rgba(255,224,104,.34), rgba(255,201,40,.14), rgba(255,255,255,.04));
+      border-color:rgba(255,224,104,.42);
       box-shadow:
-        0 0 34px rgba(255,213,74,.10),
-        0 20px 42px rgba(0,0,0,.18);
+        0 0 42px rgba(255,213,74,.14),
+        0 22px 44px rgba(0,0,0,.20);
     }
 
     .boardRow.rank2{
@@ -341,23 +342,34 @@
 
     .hero-number{
       position:absolute;
-      right:165px;
-      top:50%;
-      transform:translateY(-55%);
-      font-size:220px;
+      left:52%;
+      top:52%;
+      transform:translate(-50%,-50%);
       font-weight:1000;
       line-height:1;
-      color:rgba(255,255,255,.07);
       z-index:0;
       pointer-events:none;
-      letter-spacing:-.06em;
+      letter-spacing:-.08em;
       user-select:none;
     }
 
+    .boardRow.rank1 .hero-number{
+      font-size:260px;
+      color:rgba(255,242,173,.14);
+    }
+
+    .boardRow.rank2 .hero-number{
+      font-size:220px;
+      color:rgba(223,231,245,.12);
+    }
+
+    .boardRow.rank3 .hero-number{
+      font-size:220px;
+      color:rgba(216,155,99,.13);
+    }
+
     .boardRow.classRow.rank1 .hero-number{
-      right:195px;
-      top:42%;
-      color:rgba(126,198,255,.09);
+      color:rgba(255,232,122,.16);
     }
 
     .hero-beam{
@@ -375,7 +387,7 @@
       left:-30%;
       width:36%;
       height:160%;
-      background:linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0));
+      background:linear-gradient(180deg, rgba(255,255,255,.24), rgba(255,255,255,0));
       filter:blur(10px);
       opacity:.0;
       animation:heroBeam 4.2s linear infinite;
@@ -405,21 +417,27 @@
       animation: confettiFall 3.2s linear infinite;
     }
 
-    .fx-confetti.gold span:nth-child(1){ left:8%;  top:-8%;  background:#ffd54a; animation-delay:0s;   }
-    .fx-confetti.gold span:nth-child(2){ left:18%; top:-12%; background:#ff7fd1; animation-delay:.4s; }
-    .fx-confetti.gold span:nth-child(3){ left:30%; top:-6%;  background:#8fd3ff; animation-delay:.9s; }
-    .fx-confetti.gold span:nth-child(4){ left:42%; top:-10%; background:#63f0ba; animation-delay:.2s; }
-    .fx-confetti.gold span:nth-child(5){ left:55%; top:-14%; background:#ffd54a; animation-delay:1.1s; }
-    .fx-confetti.gold span:nth-child(6){ left:68%; top:-7%;  background:#ffffff; animation-delay:.7s; }
-    .fx-confetti.gold span:nth-child(7){ left:80%; top:-12%; background:#ffb400; animation-delay:1.5s; }
-    .fx-confetti.gold span:nth-child(8){ left:90%; top:-9%;  background:#ff7fd1; animation-delay:1.9s; }
+    .fx-confetti.gold span:nth-child(1){ left:4%;  top:-8%;  background:#ffd54a; animation-delay:0s; }
+    .fx-confetti.gold span:nth-child(2){ left:10%; top:-12%; background:#ff7fd1; animation-delay:.3s; }
+    .fx-confetti.gold span:nth-child(3){ left:18%; top:-6%;  background:#8fd3ff; animation-delay:.8s; }
+    .fx-confetti.gold span:nth-child(4){ left:26%; top:-10%; background:#63f0ba; animation-delay:.2s; }
+    .fx-confetti.gold span:nth-child(5){ left:34%; top:-14%; background:#ffd54a; animation-delay:1.0s; }
+    .fx-confetti.gold span:nth-child(6){ left:44%; top:-7%;  background:#ffffff; animation-delay:.6s; }
+    .fx-confetti.gold span:nth-child(7){ left:54%; top:-12%; background:#ffb400; animation-delay:1.3s; }
+    .fx-confetti.gold span:nth-child(8){ left:64%; top:-9%;  background:#ff7fd1; animation-delay:1.8s; }
+    .fx-confetti.gold span:nth-child(9){ left:74%; top:-13%; background:#63f0ba; animation-delay:.9s; }
+    .fx-confetti.gold span:nth-child(10){ left:82%; top:-6%; background:#ffffff; animation-delay:1.4s; }
+    .fx-confetti.gold span:nth-child(11){ left:90%; top:-10%; background:#ffd54a; animation-delay:.5s; }
+    .fx-confetti.gold span:nth-child(12){ left:96%; top:-14%; background:#8fd3ff; animation-delay:1.9s; }
 
-    .fx-confetti.blue span:nth-child(1){ left:10%; top:-8%;  background:#8fd3ff; animation-delay:0s;   }
-    .fx-confetti.blue span:nth-child(2){ left:22%; top:-12%; background:#ffffff; animation-delay:.5s; }
-    .fx-confetti.blue span:nth-child(3){ left:36%; top:-7%;  background:#63f0ba; animation-delay:.9s; }
-    .fx-confetti.blue span:nth-child(4){ left:50%; top:-11%; background:#8fd3ff; animation-delay:.3s; }
-    .fx-confetti.blue span:nth-child(5){ left:64%; top:-6%;  background:#d9e0ea; animation-delay:1.2s; }
-    .fx-confetti.blue span:nth-child(6){ left:78%; top:-13%; background:#ffffff; animation-delay:1.6s; }
+    .fx-confetti.blue span:nth-child(1){ left:6%; top:-8%; background:#8fd3ff; animation-delay:0s; }
+    .fx-confetti.blue span:nth-child(2){ left:16%; top:-12%; background:#ffffff; animation-delay:.4s; }
+    .fx-confetti.blue span:nth-child(3){ left:26%; top:-7%; background:#63f0ba; animation-delay:.8s; }
+    .fx-confetti.blue span:nth-child(4){ left:38%; top:-11%; background:#8fd3ff; animation-delay:.3s; }
+    .fx-confetti.blue span:nth-child(5){ left:50%; top:-6%; background:#d9e0ea; animation-delay:1.1s; }
+    .fx-confetti.blue span:nth-child(6){ left:62%; top:-13%; background:#ffffff; animation-delay:1.5s; }
+    .fx-confetti.blue span:nth-child(7){ left:74%; top:-9%; background:#8fd3ff; animation-delay:.7s; }
+    .fx-confetti.blue span:nth-child(8){ left:86%; top:-14%; background:#63f0ba; animation-delay:1.7s; }
 
     .fx-sparkles{
       position:absolute;
@@ -597,8 +615,8 @@
     }
 
     .boardRow.classRow.rank1 .scoreValueWrap{
-      padding-right:210px;
-      transform:translate(-18px,-16px);
+      padding-right:218px;
+      transform:translate(-32px,-22px);
     }
 
     .scoreValue{
@@ -622,11 +640,11 @@
     }
 
     .personalScore{
-      color:var(--gold);
+      color:var(--gold3);
       animation:scoreFlashGold .8s ease-out both;
       text-shadow:
-        0 8px 24px rgba(255,213,74,.16),
-        0 0 18px rgba(255,213,74,.16);
+        0 8px 24px rgba(255,213,74,.18),
+        0 0 20px rgba(255,213,74,.20);
     }
 
     .classScore{
@@ -655,6 +673,10 @@
       right:6px;
     }
 
+    .boardRow.classRow.rank1 .scoreVisual{
+      right:-14px;
+    }
+
     .scoreVisual img{
       object-fit:contain;
       display:block;
@@ -666,8 +688,8 @@
       width:200px;
       height:200px;
       filter:
-        drop-shadow(0 0 26px rgba(255,213,74,.42))
-        drop-shadow(0 0 48px rgba(255,255,255,.12))
+        drop-shadow(0 0 28px rgba(255,213,74,.46))
+        drop-shadow(0 0 54px rgba(255,255,255,.14))
         drop-shadow(0 14px 30px rgba(0,0,0,.28));
       animation:floaty 4.4s ease-in-out infinite alternate, championPulse .8s ease-out both;
     }
@@ -804,8 +826,8 @@
     </div>
   </div>
 
-  <script src="./js/config.js?v=20260402e"></script>
-  <script src="./js/api.js?v=20260402e"></script>
+  <script src="./js/config.js?v=20260402f"></script>
+  <script src="./js/api.js?v=20260402f"></script>
   <script>
     const PERSONAL_GRADE_IMAGES = {
       J1: ["./images/signage/personal/J1.png"],
@@ -890,14 +912,15 @@
     }
 
     function rowEffects(rank, theme) {
+      const number = String(rank);
       if (rank === 1) {
         return `
           <div class="hero-beam"></div>
-          <div class="hero-number">1</div>
+          <div class="hero-number">${number}</div>
           <div class="fx-layer">
             <div class="fx-confetti ${theme}">
-              <span></span><span></span><span></span><span></span>
-              <span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span><span></span>
             </div>
             <div class="fx-sparkles ${theme}">
               <i></i><i></i><i></i><i></i><i></i>
@@ -906,17 +929,14 @@
         `;
       }
 
-      if (rank === 2 || rank === 3) {
-        return `
-          <div class="fx-layer">
-            <div class="fx-sparkles ${theme}">
-              <i></i><i></i><i></i>
-            </div>
+      return `
+        <div class="hero-number">${number}</div>
+        <div class="fx-layer">
+          <div class="fx-sparkles ${theme}">
+            <i></i><i></i><i></i>
           </div>
-        `;
-      }
-
-      return "";
+        </div>
+      `;
     }
 
     function goalBar(current, target, fillCss) {
