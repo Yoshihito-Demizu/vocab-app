@@ -5,12 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>聖語彙タイムアタック</title>
 
-  <!-- PWA -->
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="theme-color" content="#0b1020">
   <meta name="mobile-web-app-capable" content="yes">
 
-  <!-- iOS -->
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -69,7 +67,6 @@
     }
     .btn2:active{ transform:scale(.99); }
 
-    /* START */
     #startPane{
       min-height:100vh;
       background:
@@ -141,6 +138,7 @@
       font-size:12px;
       color:var(--muted);
       white-space:pre-wrap;
+      line-height:1.55;
     }
 
     .row{
@@ -151,7 +149,6 @@
       margin-top:10px;
     }
 
-    /* BATTLE */
     .hud{
       display:flex;
       gap:10px;
@@ -212,21 +209,20 @@
     }
     #choices button:active{ transform:scale(.98); }
 
-    /* RESULT */
     #resultPane{ padding:12px 10px 24px; }
 
-   .resultHero{
-  position:relative;
-  overflow:hidden;
-  background:
-    radial-gradient(circle at top right, rgba(255,255,255,.10), transparent 30%),
-    linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
-  border:1px solid rgba(255,255,255,.12);
-  border-radius:22px;
-  padding:14px;
-  box-shadow:0 20px 50px rgba(0,0,0,.28);
-  margin-bottom:10px;
-}
+    .resultHero{
+      position:relative;
+      overflow:hidden;
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,.10), transparent 30%),
+        linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:22px;
+      padding:14px;
+      box-shadow:0 20px 50px rgba(0,0,0,.28);
+      margin-bottom:10px;
+    }
 
     .resultHeroTitle{
       text-align:center;
@@ -238,12 +234,12 @@
     }
 
     .resultScoreBig{
-  text-align:center;
-  font-size:44px;
-  font-weight:1000;
-  line-height:1;
-  margin:4px 0 4px;
-}
+      text-align:center;
+      font-size:44px;
+      font-weight:1000;
+      line-height:1;
+      margin:4px 0 4px;
+    }
 
     .resultSub{
       text-align:center;
@@ -259,12 +255,12 @@
       gap:12px;
     }
 
-   .resultStatCard{
-  background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.10);
-  border-radius:16px;
-  padding:10px;
-}
+    .resultStatCard{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:16px;
+      padding:10px;
+    }
 
     .resultStatLabel{
       color:var(--muted);
@@ -292,13 +288,13 @@
       box-shadow:0 18px 40px rgba(255,59,48,.30);
     }
 
-   .panelCard{
-  background:rgba(255,255,255,.06);
-  border:1px solid rgba(255,255,255,.10);
-  border-radius:18px;
-  padding:10px;
-  margin-top:10px;
-}
+    .panelCard{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:18px;
+      padding:10px;
+      margin-top:10px;
+    }
 
     .panelTitle{
       font-size:20px;
@@ -345,44 +341,6 @@
       gap:8px;
     }
 
-    .rankRow{
-      display:grid;
-      grid-template-columns:44px 1fr auto;
-      gap:10px;
-      align-items:center;
-      padding:10px 12px;
-      border-radius:14px;
-      background:rgba(255,255,255,.05);
-      border:1px solid rgba(255,255,255,.08);
-    }
-
-    .rankNo{
-      font-weight:1000;
-      font-size:16px;
-      text-align:center;
-      color:#fff;
-    }
-
-    .rankName{
-      font-weight:900;
-      font-size:14px;
-      line-height:1.2;
-      word-break:break-word;
-    }
-
-    .rankMeta{
-      color:var(--muted);
-      font-size:12px;
-      margin-top:2px;
-      font-weight:700;
-    }
-
-    .rankScore{
-      font-weight:1000;
-      font-size:16px;
-      white-space:nowrap;
-    }
-
     .classRankList{
       display:flex;
       flex-direction:column;
@@ -390,34 +348,10 @@
       white-space:normal;
     }
 
-    .classRankRow{
-      padding:10px 12px;
-      border-radius:14px;
-      background:rgba(255,255,255,.05);
-      border:1px solid rgba(255,255,255,.08);
-      line-height:1.35;
-      font-weight:800;
-      font-size:14px;
-    }
-
     .youCard{
       text-align:center;
     }
 
-    .youRankBig{
-      font-size:28px;
-      font-weight:1000;
-      line-height:1;
-      margin:8px 0 6px;
-    }
-
-    .youScore{
-      font-size:16px;
-      font-weight:900;
-      color:var(--ink);
-    }
-
-    /* OVERLAY */
     #overlay{
       position:fixed;
       inset:0;
@@ -474,11 +408,10 @@
 
 <body>
 
-  <!-- START -->
   <div id="startPane">
     <div class="startCard">
       <div class="title">聖語彙タイムアタック</div>
-　　　<p class="sub">個人・クラス対抗！ 60秒で何問正解できるか勝負！</p>
+      <p class="sub">個人・クラス対抗！ 60秒で何問正解できるか勝負！</p>
 
       <div class="loginBox" id="loginBox">
         <div style="font-weight:900; margin-bottom:6px;">ログイン（本番送信に必須）</div>
@@ -500,15 +433,16 @@
       </div>
 
       <button id="startBtn" class="btn">▶ START</button>
+
       <div class="msg">
 ※ホーム画面に追加するとアプリとして使えます<br>
 iPhone：共有 →「ホーム画面に追加」<br>
 Android：︙メニュー →「ホーム画面に追加」<br>
 PC：アドレスバー右の「インストール」アイコン
-</div>
+      </div>
+    </div>
   </div>
 
-  <!-- BATTLE -->
   <div id="battlePane" class="hidden">
     <div class="wrap">
       <div class="hud">
@@ -526,7 +460,6 @@ PC：アドレスバー右の「インストール」アイコン
     </div>
   </div>
 
-  <!-- RESULT -->
   <div id="resultPane" class="hidden">
     <div class="wrap">
 
@@ -585,17 +518,14 @@ PC：アドレスバー右の「インストール」アイコン
     </div>
   </div>
 
-  <!-- OVERLAY -->
   <div id="overlay" class="hidden"><div class="panel"></div></div>
 
-  <!-- JS -->
   <script src="./js/config.js?v=20260312d"></script>
   <script src="./js/api.js?v=20260312d"></script>
   <script src="./js/ranking.js?v=20260312d"></script>
   <script src="./js/quiz.js?v=20260312d"></script>
   <script src="./js/main.js?v=20260312d"></script>
 
-  <!-- SW登録 -->
   <script>
     (function () {
       if (!("serviceWorker" in navigator)) return;
@@ -626,13 +556,3 @@ PC：アドレスバー右の「インストール」アイコン
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
