@@ -1,6 +1,6 @@
 {
-  "name": "語彙タイムアタック",
-  "short_name": "語彙TA",
+  "name": "聖語彙タイムアタック",
+  "short_name": "聖語彙TA",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
