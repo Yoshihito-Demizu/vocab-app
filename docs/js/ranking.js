@@ -69,6 +69,7 @@ function fmtTopRowHtml(i, row){
           font-size:${is1 ? "46px" : "36px"};
           font-weight:1000;
           line-height:1.1;
+          word-break:break-word;
         ">
           ${escapeHtml(name)}
         </div>
@@ -114,10 +115,12 @@ function fmtClassRowHtml(i, row){
         display:flex;
         justify-content:space-between;
         align-items:center;
+        gap:12px;
       ">
         <div style="
           font-size:32px;
           font-weight:1000;
+          word-break:break-word;
         ">
           ${rankIcon(i)} ${escapeHtml(classCode)}
         </div>
@@ -137,7 +140,7 @@ function fmtClassRowHtml(i, row){
   `;
 }
 
-/* ===== あなたカード（強化版） ===== */
+/* ===== あなたカード ===== */
 function renderMyCard(mine){
   if(!mine){
     return `
@@ -200,30 +203,35 @@ function renderMyCard(mine){
         font-weight:900;
         letter-spacing:.08em;
         opacity:.92;
-        margin-bottom:22px;
+        margin-bottom:20px;
       ">
         YOUR RANK
       </div>
 
       <div style="
-        font-size:86px;
+        font-size:90px;
         font-weight:1000;
         line-height:1;
+        margin-bottom:20px;
+        display:flex;
+        align-items:flex-end;
+        justify-content:center;
+        gap:6px;
         color:#f3f6ff;
         text-shadow:
           0 0 10px rgba(255,255,255,.18),
           0 0 28px rgba(255,215,0,.18);
-        margin-bottom:22px;
       ">
-        ${rank}位
+        <span>${rank}</span>
+        <span style="font-size:48px; line-height:1;">位</span>
       </div>
 
       <div style="
-        width:88px;
-        height:4px;
+        width:80px;
+        height:3px;
         border-radius:999px;
-        background:linear-gradient(90deg, transparent, rgba(255,215,0,.95), transparent);
-        margin-bottom:26px;
+        background:linear-gradient(90deg,transparent,#ffd54a,transparent);
+        margin-bottom:24px;
       "></div>
 
       <div style="
@@ -241,6 +249,7 @@ function renderMyCard(mine){
   `;
 }
 
+/* ===== クラス1位表示 ===== */
 function renderClassGoal(klass){
   const el = byId2("classGoal");
   if(!el) return;
@@ -254,11 +263,12 @@ function renderClassGoal(klass){
   el.textContent = `現在1位：${top.class_code}（平均 ${Number(top.avg_score ?? 0).toFixed(1)}点）`;
 }
 
+/* ===== 週セレクト ===== */
 function fillWeekSelect(weeks, selected){
   const sel = byId2("weekSelect");
   if(!sel) return;
 
-  const list = [...new Set(weeks.filter(Boolean))];
+  const list = [...new Set((weeks || []).filter(Boolean))];
   sel.innerHTML = list.map(w => `<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`).join("");
   sel.value = list.includes(selected) ? selected : (list[0] || "");
 }
@@ -269,6 +279,7 @@ async function loadWeekOptions(){
   fillWeekSelect(weeks, now);
 }
 
+/* ===== メイン ===== */
 async function loadRankings(){
   const week = getSelectedWeek();
 
@@ -281,22 +292,34 @@ async function loadRankings(){
       window.api.fetchClassWeeklyRanking?.(week, 10) ?? []
     ]);
 
+    const topRows = Array.isArray(top) ? top.slice(0, 10) : [];
+    const classRows = Array.isArray(klass) ? klass.slice(0, 10) : [];
+
     byId2("weeklyTop").innerHTML =
-      top?.slice(0, 10).map((row, i) => fmtTopRowHtml(i, row)).join("") || "（まだデータなし）";
+      topRows.length
+        ? topRows.map((row, i) => fmtTopRowHtml(i, row)).join("")
+        : "（まだデータなし）";
 
     byId2("myRank").innerHTML = renderMyCard(mine);
 
     byId2("classRank").innerHTML =
-      klass?.slice(0, 10).map((row, i) => fmtClassRowHtml(i, row)).join("") || "（まだデータなし）";
+      classRows.length
+        ? classRows.map((row, i) => fmtClassRowHtml(i, row)).join("")
+        : "（まだデータなし）";
 
-    renderClassGoal(klass);
+    renderClassGoal(classRows);
     setRankMsg(`${week} のランキング`);
   }catch(e){
     console.warn("[ranking] loadRankings failed:", e);
     setRankMsg("取得失敗");
+
+    if(byId2("weeklyTop")) byId2("weeklyTop").innerHTML = "（取得失敗）";
+    if(byId2("myRank")) byId2("myRank").innerHTML = "（取得失敗）";
+    if(byId2("classRank")) byId2("classRank").innerHTML = "（取得失敗）";
   }
 }
 
+/* ===== スタイル注入 ===== */
 if(!document.getElementById("ranking-style")){
   const style = document.createElement("style");
   style.id = "ranking-style";
