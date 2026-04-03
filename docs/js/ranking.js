@@ -15,14 +15,14 @@ function rankIcon(i){
   if(i===0) return "👑";
   if(i===1) return "🥈";
   if(i===2) return "🥉";
-  return i+1;
+  return i + 1;
 }
 
 function scoreLabel(p){
-  p=Number(p)||0;
-  if(p>=300) return "LEGEND";
-  if(p>=240) return "EXCELLENT";
-  if(p>=180) return "GREAT";
+  p = Number(p) || 0;
+  if(p >= 300) return "LEGEND";
+  if(p >= 240) return "EXCELLENT";
+  if(p >= 180) return "GREAT";
   return "TRY";
 }
 
@@ -38,27 +38,26 @@ function getSelectedWeek(){
   return sel.value || now;
 }
 
-/* ===== Top ===== */
-function fmtTopRowHtml(i,row){
-  const name=row?.nickname||row?.player_id||"-";
-  const pts=Number(row?.points??row?.score??0);
-  const combo=Number(row?.max_combo??0);
-  const is1=i===0;
+/* ===== Top10 ===== */
+function fmtTopRowHtml(i, row){
+  const name = row?.nickname || row?.player_id || "-";
+  const pts = Number(row?.points ?? row?.score ?? 0);
+  const combo = Number(row?.max_combo ?? 0);
+  const is1 = i === 0;
 
   return `
     <div style="
       display:grid;
-      grid-template-columns:${is1?"100px":"80px"} 1fr auto;
+      grid-template-columns:${is1 ? "100px" : "80px"} 1fr auto;
       align-items:center;
-      padding:${is1?"26px":"20px"};
+      padding:${is1 ? "26px" : "20px"};
       border-radius:18px;
       margin-bottom:14px;
-      background:${is1?"linear-gradient(90deg,rgba(255,215,0,.25),rgba(255,215,0,.08))":"rgba(255,255,255,.07)"};
+      background:${is1 ? "linear-gradient(90deg,rgba(255,215,0,.25),rgba(255,215,0,.08))" : "rgba(255,255,255,.07)"};
       animation:pop .3s ease;
     ">
-
       <div style="
-        font-size:${is1?"64px":"48px"};
+        font-size:${is1 ? "64px" : "48px"};
         font-weight:1000;
         text-align:center;
       ">
@@ -67,7 +66,7 @@ function fmtTopRowHtml(i,row){
 
       <div>
         <div style="
-          font-size:${is1?"46px":"36px"};
+          font-size:${is1 ? "46px" : "36px"};
           font-weight:1000;
           line-height:1.1;
         ">
@@ -75,7 +74,7 @@ function fmtTopRowHtml(i,row){
         </div>
 
         <div style="
-          font-size:${is1?"22px":"18px"};
+          font-size:${is1 ? "22px" : "18px"};
           opacity:.8;
           margin-top:6px;
         ">
@@ -84,23 +83,24 @@ function fmtTopRowHtml(i,row){
       </div>
 
       <div style="
-        font-size:${is1?"56px":"44px"};
+        font-size:${is1 ? "56px" : "44px"};
         font-weight:1000;
         background:linear-gradient(180deg,#fff,#ffd54a);
         -webkit-background-clip:text;
         color:transparent;
         text-shadow:0 0 18px rgba(255,215,0,.4);
+        white-space:nowrap;
       ">
         ${pts}点
       </div>
-
     </div>
   `;
 }
 
-/* ===== クラス ===== */
-function fmtClassRowHtml(i,row){
-  const avg=Number(row?.avg_score??0);
+/* ===== クラス対抗 ===== */
+function fmtClassRowHtml(i, row){
+  const avg = Number(row?.avg_score ?? 0);
+  const classCode = row?.class_code || "-";
 
   return `
     <div style="
@@ -115,8 +115,11 @@ function fmtClassRowHtml(i,row){
         justify-content:space-between;
         align-items:center;
       ">
-        <div style="font-size:32px;font-weight:1000;">
-          ${rankIcon(i)} ${row?.class_code||"-"}
+        <div style="
+          font-size:32px;
+          font-weight:1000;
+        ">
+          ${rankIcon(i)} ${escapeHtml(classCode)}
         </div>
 
         <div style="
@@ -125,6 +128,7 @@ function fmtClassRowHtml(i,row){
           background:linear-gradient(180deg,#fff,#9ecbff);
           -webkit-background-clip:text;
           color:transparent;
+          white-space:nowrap;
         ">
           ${avg.toFixed(1)}点
         </div>
@@ -133,124 +137,170 @@ function fmtClassRowHtml(i,row){
   `;
 }
 
-/* ===== ★ あなたカード（復活版） ===== */
+/* ===== あなたカード（強化版） ===== */
 function renderMyCard(mine){
   if(!mine){
     return `
       <div style="
-        padding:20px;
-        border-radius:18px;
-        background:rgba(255,255,255,.05);
+        min-height:420px;
+        border-radius:28px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
         text-align:center;
+        background:
+          radial-gradient(circle at 50% 20%, rgba(255,215,0,.18), transparent 35%),
+          linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+        border:1px solid rgba(255,255,255,.10);
+        color:rgba(255,255,255,.75);
+        font-size:26px;
+        font-weight:900;
       ">
         まだ順位がありません
       </div>
     `;
   }
 
+  const rank = Number(mine.rank ?? 0);
+  const points = Number(mine.points ?? mine.score ?? 0);
+
   return `
     <div style="
-      padding:26px;
-      border-radius:22px;
-      background:linear-gradient(135deg,rgba(255,215,0,.35),rgba(255,255,255,.05));
-      text-align:center;
-      animation:pop .3s ease;
-      height:100%;
+      min-height:420px;
+      border-radius:28px;
+      padding:24px;
+      position:relative;
+      overflow:hidden;
       display:flex;
       flex-direction:column;
-      justify-content:center;
       align-items:center;
-      box-shadow:0 0 30px rgba(255,215,0,.25);
+      justify-content:center;
+      text-align:center;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(255,245,180,.28), transparent 26%),
+        linear-gradient(135deg, rgba(255,215,0,.38), rgba(255,255,255,.04) 55%, rgba(255,215,0,.12));
+      border:1px solid rgba(255,215,0,.28);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.12),
+        0 0 34px rgba(255,215,0,.18),
+        0 18px 45px rgba(0,0,0,.22);
+      animation:pop .35s ease;
     ">
+      <div style="
+        position:absolute;
+        inset:auto -30% 62% -30%;
+        height:120px;
+        background:linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+        transform:rotate(-8deg);
+        pointer-events:none;
+      "></div>
 
       <div style="
-        font-size:64px;
+        font-size:18px;
+        font-weight:900;
+        letter-spacing:.08em;
+        opacity:.92;
+        margin-bottom:22px;
+      ">
+        YOUR RANK
+      </div>
+
+      <div style="
+        font-size:86px;
         font-weight:1000;
         line-height:1;
-        margin-bottom:10px;
+        color:#f3f6ff;
+        text-shadow:
+          0 0 10px rgba(255,255,255,.18),
+          0 0 28px rgba(255,215,0,.18);
+        margin-bottom:22px;
       ">
-        ${mine.rank}位
+        ${rank}位
       </div>
 
       <div style="
-        font-size:42px;
-        font-weight:1000;
-        color:#ffd54a;
-        text-shadow:0 0 18px rgba(255,215,0,.6);
-      ">
-        ${mine.points}点
-      </div>
+        width:88px;
+        height:4px;
+        border-radius:999px;
+        background:linear-gradient(90deg, transparent, rgba(255,215,0,.95), transparent);
+        margin-bottom:26px;
+      "></div>
 
+      <div style="
+        font-size:54px;
+        font-weight:1000;
+        line-height:1.1;
+        color:#ffd54a;
+        text-shadow:
+          0 0 12px rgba(255,215,0,.45),
+          0 0 24px rgba(255,215,0,.18);
+      ">
+        ${points}点
+      </div>
     </div>
   `;
 }
 
-/* ===== 目標表示 ===== */
 function renderClassGoal(klass){
   const el = byId2("classGoal");
   if(!el) return;
 
   if(!klass?.length){
-    el.textContent="クラスデータはまだありません";
+    el.textContent = "クラスデータはまだありません";
     return;
   }
 
-  const top=klass[0];
-  el.textContent=`現在1位：${top.class_code}（平均 ${Number(top.avg_score).toFixed(1)}点）`;
+  const top = klass[0];
+  el.textContent = `現在1位：${top.class_code}（平均 ${Number(top.avg_score ?? 0).toFixed(1)}点）`;
 }
 
-/* ===== 週セレクト ===== */
-function fillWeekSelect(weeks,selected){
-  const sel=byId2("weekSelect");
+function fillWeekSelect(weeks, selected){
+  const sel = byId2("weekSelect");
   if(!sel) return;
 
-  const list=[...new Set(weeks.filter(Boolean))];
-
-  sel.innerHTML=list.map(w=>`<option value="${w}">${w}</option>`).join("");
-  sel.value=list.includes(selected)?selected:list[0];
+  const list = [...new Set(weeks.filter(Boolean))];
+  sel.innerHTML = list.map(w => `<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`).join("");
+  sel.value = list.includes(selected) ? selected : (list[0] || "");
 }
 
 async function loadWeekOptions(){
-  const now=window.api?.getWeekIdNow?.()||"";
-  const weeks=[now];
-  fillWeekSelect(weeks,now);
+  const now = window.api?.getWeekIdNow?.() || "";
+  const weeks = [now];
+  fillWeekSelect(weeks, now);
 }
 
-/* ===== メイン ===== */
 async function loadRankings(){
-  const week=getSelectedWeek();
+  const week = getSelectedWeek();
 
   try{
     setRankMsg("読み込み中...");
 
-    const [top,mine,klass]=await Promise.all([
+    const [top, mine, klass] = await Promise.all([
       window.api.fetchWeeklyTop?.(week) ?? [],
       window.api.fetchMyWeeklyRank?.(week) ?? null,
-      window.api.fetchClassWeeklyRanking?.(week,10) ?? []
+      window.api.fetchClassWeeklyRanking?.(week, 10) ?? []
     ]);
 
     byId2("weeklyTop").innerHTML =
-      top?.slice(0,10).map(fmtTopRowHtml).join("") || "（まだデータなし）";
+      top?.slice(0, 10).map((row, i) => fmtTopRowHtml(i, row)).join("") || "（まだデータなし）";
 
     byId2("myRank").innerHTML = renderMyCard(mine);
 
     byId2("classRank").innerHTML =
-      klass?.slice(0,10).map(fmtClassRowHtml).join("") || "（まだデータなし）";
+      klass?.slice(0, 10).map((row, i) => fmtClassRowHtml(i, row)).join("") || "（まだデータなし）";
 
     renderClassGoal(klass);
     setRankMsg(`${week} のランキング`);
-
   }catch(e){
-    console.warn(e);
+    console.warn("[ranking] loadRankings failed:", e);
     setRankMsg("取得失敗");
   }
 }
 
-/* ===== 起動 ===== */
 if(!document.getElementById("ranking-style")){
-  const style=document.createElement("style");
-  style.id="ranking-style";
-  style.innerHTML=`
+  const style = document.createElement("style");
+  style.id = "ranking-style";
+  style.innerHTML = `
     @keyframes pop{
       0%{transform:scale(.95);opacity:.6;}
       100%{transform:scale(1);opacity:1;}
@@ -262,11 +312,11 @@ if(!document.getElementById("ranking-style")){
 window.loadWeekOptions = loadWeekOptions;
 window.loadRankings = loadRankings;
 
-document.addEventListener("DOMContentLoaded",()=>{
-  const t=setInterval(async()=>{
-    if(!window.api)return;
+document.addEventListener("DOMContentLoaded", () => {
+  const t = setInterval(async () => {
+    if(!window.api) return;
     clearInterval(t);
     await loadWeekOptions();
     await loadRankings();
-  },50);
+  }, 50);
 });
