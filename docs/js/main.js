@@ -5,6 +5,7 @@
  * - QRの ?id= から自動読込
  * - localStorage に保存
  * - 次回以降も同じ端末で自動維持
+ * - J / K 系IDを両対応
  */
 
 console.log("[main] loaded! (id-mode + qr-autosave)");
@@ -16,6 +17,10 @@ console.log("[main] loaded! (id-mode + qr-autosave)");
     const el = byId("loginMsg");
     if (el) el.textContent = t || "";
   };
+
+  function normalizePlayerId(raw) {
+    return String(raw || "").trim().replace(/\s+/g, "").toUpperCase();
+  }
 
   const refreshLoginBox = async () => {
     const box = byId("loginBox");
@@ -50,10 +55,10 @@ console.log("[main] loaded! (id-mode + qr-autosave)");
     }
 
     const idLabel = byId("loginId")?.previousElementSibling;
-    if (idLabel) idLabel.textContent = "プレイヤーID（例：2-3-01-k9f2）";
+    if (idLabel) idLabel.textContent = "プレイヤーID（例：J2-3-01-K9F2 / K1-1-01-CYRM）";
 
     const idInput = byId("loginId");
-    if (idInput) idInput.placeholder = "2-3-01-k9f2";
+    if (idInput) idInput.placeholder = "J2-3-01-K9F2";
 
     const loginBtn = byId("loginBtn");
     if (loginBtn) loginBtn.textContent = "ID保存";
@@ -64,7 +69,7 @@ console.log("[main] loaded! (id-mode + qr-autosave)");
 
   async function saveIdFromUrlIfExists() {
     const params = new URLSearchParams(window.location.search);
-    const urlId = (params.get("id") || "").trim();
+    const urlId = normalizePlayerId(params.get("id"));
 
     if (!urlId) return false;
 
@@ -80,7 +85,6 @@ console.log("[main] loaded! (id-mode + qr-autosave)");
 
       setLoginMsg("QRからIDを保存しました");
 
-      // URLをきれいにする（?id= を消す）
       const cleanUrl = location.origin + location.pathname;
       history.replaceState({}, "", cleanUrl);
 
@@ -124,13 +128,16 @@ console.log("[main] loaded! (id-mode + qr-autosave)");
 
   byId("loginBtn")?.addEventListener("click", async () => {
     try {
-      const playerId = byId("loginId")?.value || "";
+      const playerId = normalizePlayerId(byId("loginId")?.value || "");
       const res = await window.api.signIn(playerId);
 
       if (!res?.ok) {
         setLoginMsg(res?.message || "ID保存失敗");
         return;
       }
+
+      const idInput = byId("loginId");
+      if (idInput) idInput.value = playerId;
 
       setLoginMsg("IDを保存しました");
       await refreshLoginBox();
@@ -156,10 +163,8 @@ console.log("[main] loaded! (id-mode + qr-autosave)");
   (async () => {
     prepareIdUi();
 
-    // 1. まずQRの ?id= を最優先で保存
     await saveIdFromUrlIfExists();
 
-    // 2. そのあと localStorage の既存IDを表示
     const currentId = await window.api.getMyUserId();
     const idInput = byId("loginId");
     if (idInput && currentId) idInput.value = currentId;
