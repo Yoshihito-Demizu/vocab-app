@@ -5,6 +5,7 @@
  * - Authなし
  * - player_id を localStorage に保存
  * - runs_public と public RPC を使う
+ * - 生徒ID / 教員ID の両対応
  */
 
 const fallbackVocab = [
@@ -167,14 +168,20 @@ function normalizePlayerId(s) {
   return String(s || "").trim().toLowerCase();
 }
 
+/**
+ * 対応するID例
+ * - 2-3-01-k9f2
+ * - j3-1-01-t11p
+ * - k1-1-01-cyrm
+ */
 function parseClassCodeFromPlayerId(playerId) {
-  const m = normalizePlayerId(playerId).match(/^(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
+  const m = normalizePlayerId(playerId).match(/^[a-z]?(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
   if (!m) return null;
   return `${m[1]}-${m[2]}`;
 }
 
 function makeNicknameFromPlayerId(playerId) {
-  const m = normalizePlayerId(playerId).match(/^(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
+  const m = normalizePlayerId(playerId).match(/^[a-z]?(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
   if (!m) return normalizePlayerId(playerId);
   return `${m[1]}-${m[2]}-${m[3].padStart(2, "0")}`;
 }
@@ -197,7 +204,7 @@ const api = {
     }
 
     if (!classCode) {
-      return { ok: false, message: "ID形式が違います（例：2-3-01-k9f2）" };
+      return { ok: false, message: "ID形式が違います（例：2-3-01-k9f2 / j3-1-01-t11p / k1-1-01-cyrm）" };
     }
 
     localStorage.setItem("player_id", normalized);
