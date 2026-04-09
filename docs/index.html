@@ -362,20 +362,27 @@
       z-index:9999;
     }
 
-    #overlay .panel{
-      width:min(520px, 92vw);
-      text-align:center;
-      font-weight:1000;
-      border-radius:22px;
-      padding:24px 18px;
-      background:rgba(10,16,36,.82);
-      border:1px solid rgba(255,255,255,.18);
-      box-shadow:0 28px 80px rgba(0,0,0,.45);
-      text-shadow:0 14px 40px rgba(0,0,0,.55);
-      font-size:78px;
-      line-height:1;
-      transform:translateY(-6px);
-    }
+   #overlay .panel{
+  width:min(520px, 92vw);
+  text-align:center;
+  font-weight:1000;
+  border-radius:22px;
+  padding:24px 18px;
+  background:rgba(10,16,36,.82);
+  border:1px solid rgba(255,255,255,.18);
+  box-shadow:0 28px 80px rgba(0,0,0,.45);
+  text-shadow:0 14px 40px rgba(0,0,0,.55);
+
+  /* 🔥 ここ重要（サイズ＆見切れ対策） */
+  font-size: clamp(36px, 12vw, 90px);
+  line-height:1.1;
+
+  /* 🔥 ここが今回の本題（下にずらす） */
+  position:absolute;
+  left:50%;
+  top:62%;
+  transform:translate(-50%, -50%);
+}
 
     #overlay .panel.count{ animation: pop .18s ease-out; }
     #overlay .panel.go{ color:var(--ok); animation: pop .18s ease-out; }
