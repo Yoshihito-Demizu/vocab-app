@@ -6,6 +6,7 @@
  * - player_id を localStorage に保存
  * - runs_public と public RPC を使う
  * - 生徒ID / 教員ID の両対応
+ * - 正解ハイライト用に window.__LAST_PUBLIC_CORRECT を更新
  */
 
 const fallbackVocab = [
@@ -235,7 +236,10 @@ const api = {
 
     const v = pickAvoidRecent(pool, (x) => x.word);
     const r = makeChoices(pool, v);
+
     state.lastCorrectLabel = r.correctLabel;
+    window.__LAST_PUBLIC_CORRECT = r.correctLabel;
+    window.__LAST_CORRECT = r.correctLabel;
 
     return {
       id: "csv-" + Date.now(),
@@ -252,6 +256,9 @@ const api = {
     const weekId = this.getWeekIdNow();
     const correct = state.lastCorrectLabel;
     const ok = String(chosenLabel).toUpperCase() === String(correct).toUpperCase();
+
+    window.__LAST_PUBLIC_CORRECT = correct || "";
+    window.__LAST_CORRECT = correct || "";
 
     return [
       {
