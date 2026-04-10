@@ -7,6 +7,7 @@
  * - runs_public と public RPC を使う
  * - 生徒ID / 教員ID の両対応
  * - 正解ハイライト用に window.__LAST_PUBLIC_CORRECT を更新
+ * - class_code は J1-1 / H2-3 形式で統一
  */
 
 const fallbackVocab = [
@@ -174,17 +175,29 @@ function normalizePlayerId(s) {
  * - 2-3-01-k9f2
  * - j3-1-01-t11p
  * - k1-1-01-cyrm
+ * - h2-4-12-abcd
  */
 function parseClassCodeFromPlayerId(playerId) {
-  const m = normalizePlayerId(playerId).match(/^[a-z]?(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
+  const m = normalizePlayerId(playerId).match(/^([a-z]?)(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
   if (!m) return null;
-  return `${m[1]}-${m[2]}`;
+
+  const prefix = (m[1] || "").toUpperCase();
+  const grade = m[2];
+  const classNo = m[3];
+
+  return `${prefix}${grade}-${classNo}`;
 }
 
 function makeNicknameFromPlayerId(playerId) {
-  const m = normalizePlayerId(playerId).match(/^[a-z]?(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
+  const m = normalizePlayerId(playerId).match(/^([a-z]?)(\d{1,2})-(\d{1,2})-(\d{1,2})-[a-z0-9]{4}$/);
   if (!m) return normalizePlayerId(playerId);
-  return `${m[1]}-${m[2]}-${m[3].padStart(2, "0")}`;
+
+  const prefix = (m[1] || "").toUpperCase();
+  const grade = m[2];
+  const classNo = m[3];
+  const number = m[4].padStart(2, "0");
+
+  return `${prefix}${grade}-${classNo}-${number}`;
 }
 
 const api = {
@@ -205,7 +218,7 @@ const api = {
     }
 
     if (!classCode) {
-      return { ok: false, message: "ID形式が違います（例：2-3-01-k9f2 / j3-1-01-t11p / k1-1-01-cyrm）" };
+      return { ok: false, message: "ID形式が違います（例：2-3-01-k9f2 / j3-1-01-t11p / h2-4-12-abcd / k1-1-01-cyrm）" };
     }
 
     localStorage.setItem("player_id", normalized);
@@ -324,10 +337,16 @@ const api = {
 
   async fetchClassWeeklyRanking(weekId, limit = 20) {
     const client = await ensureClientReady();
+    const now = new Date();
+    const schoolYear = now.getFullYear();
+
     const { data, error } = await client.rpc("get_public_class_weekly_ranking", {
       p_week_id: weekId,
       p_limit: limit,
+      p_school_year: schoolYear,
+      p_min_participants: 5,
     });
+
     if (error) throw error;
     return data || [];
   },
