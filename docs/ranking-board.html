@@ -762,7 +762,7 @@
 
       <section class="panel">
         <div class="panelTitle">
-          <h2>クラス対抗（平均）</h2>
+          <h2>クラス対抗（スコア）</h2>
           <div class="badgeMini">CLASS BATTLE</div>
         </div>
         <div id="classBoard"></div>
@@ -837,6 +837,24 @@
       m = s.match(/^([123])[-－]/);
       if (m) return `J${m[1]}`;
       return null;
+    }
+
+    function formatClassDisplay(code){
+      if(!code) return "-";
+
+      const m = String(code).trim().match(/^([A-Z]?)(\d+)-(\d+)$/i);
+      if(!m) return String(code);
+
+      const prefix = (m[1] || "").toUpperCase();
+      const grade = m[2];
+      const cls = Number(m[3]);
+
+      if(prefix === "H"){
+        const map = ["A","B","C","D","E","F"];
+        return `H${grade}-${map[cls - 1] || cls}`;
+      }
+
+      return `${prefix}${grade}-${cls}`;
     }
 
     function getFirstImage(imageMap, gradeCode) {
@@ -937,17 +955,19 @@
     }
 
     function classRowHtml(row, rank) {
-      const className = row.class_code || "-";
+      const className = formatClassDisplay(row.class_code || "-");
+      const score = Number(row.score ?? 0);
       const avg = Number(row.avg_score ?? 0);
-      const players = Number(row.players ?? 0);
-      const best = Number(row.best_score ?? 0);
+      const participants = Number(row.participants ?? row.players ?? 0);
+      const classSize = Number(row.class_size ?? 0);
       const grade = classGrade(row);
       const img = getFirstImage(CLASS_GRADE_IMAGES, grade);
+      const eligible = row.eligible !== false;
 
       let stageLabel = "挑戦中";
-      if (avg >= 300) stageLabel = "金ランク";
-      else if (avg >= 240) stageLabel = "銀ランク";
-      else if (avg >= 180) stageLabel = "銅ランク";
+      if (score >= 300) stageLabel = "金ランク";
+      else if (score >= 240) stageLabel = "銀ランク";
+      else if (score >= 180) stageLabel = "銅ランク";
 
       return `
         <div class="boardRow classRow rank${rank}">
@@ -959,27 +979,28 @@
           </div>
 
           <div class="mainBlock">
-            <div class="mainName">${escapeHtml(className)}</div>
+            <div class="mainName">${escapeHtml(className)}${!eligible ? "（参考）" : ""}</div>
             ${rank === 1 ? `
               <div class="mainMeta">
-                <span class="chip dark">参加 ${players}人</span>
-                <span class="chip dark">最高 ${best}点</span>
+                <span class="chip dark">平均 ${avg.toFixed(1)}点</span>
+                <span class="chip dark">参加 ${participants}人</span>
+                <span class="chip dark">${classSize}人中</span>
                 <span class="chip dark">${stageLabel}</span>
               </div>
               <div class="goalWrap">
-                ${goalBar(avg, 180, { label: "🥉 180", bg: "linear-gradient(90deg, #d89b63, #a76533)" })}
-                ${goalBar(avg, 240, { label: "🥈 240", bg: "linear-gradient(90deg, #d9e0ea, #aab4c3)" })}
-                ${goalBar(avg, 300, { label: "🥇 300", bg: "linear-gradient(90deg, #ffd54a, #ffb400)" })}
+                ${goalBar(score, 180, { label: "🥉 180", bg: "linear-gradient(90deg, #d89b63, #a76533)" })}
+                ${goalBar(score, 240, { label: "🥈 240", bg: "linear-gradient(90deg, #d9e0ea, #aab4c3)" })}
+                ${goalBar(score, 300, { label: "🥇 300", bg: "linear-gradient(90deg, #ffd54a, #ffb400)" })}
               </div>
             ` : `
-              <div class="subMeta">参加 ${players}人 / 最高 ${best}点</div>
+              <div class="subMeta">平均 ${avg.toFixed(1)}点 / 参加 ${participants}人 / ${classSize}人中</div>
             `}
           </div>
 
           <div class="scoreBlock">
             <div class="scoreValueWrap">
-              <div class="scoreValue classScore">${avg.toFixed(1)}</div>
-              <div class="scoreUnit">AVG</div>
+              <div class="scoreValue classScore">${score.toFixed(1)}</div>
+              <div class="scoreUnit">SCORE</div>
             </div>
             ${img ? `<div class="scoreVisual"><img src="${img}" alt="${rank}位"></div>` : ""}
           </div>
