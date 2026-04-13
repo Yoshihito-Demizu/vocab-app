@@ -846,6 +846,45 @@
       return null;
     }
 
+    function formatClassDisplay(code){
+      if(!code) return "-";
+
+      const m = String(code).trim().match(/^([A-Z]?)(\d+)-(\d+)$/i);
+      if(!m) return String(code);
+
+      const prefix = (m[1] || "").toUpperCase();
+      const grade = m[2];
+      const cls = Number(m[3]);
+
+      if(prefix === "H"){
+        const map = ["A","B","C","D","E","F"];
+        return `H${grade}-${map[cls - 1] || cls}`;
+      }
+
+      return `${prefix}${grade}-${cls}`;
+    }
+
+    function formatStudentDisplay(value){
+      if(!value) return "-";
+
+      const s = String(value).trim();
+      const m = s.match(/^([A-Z]?)(\d+)-(\d+)-(\d+)(.*)$/i);
+      if(!m) return s;
+
+      const prefix = (m[1] || "").toUpperCase();
+      const grade = m[2];
+      const cls = Number(m[3]);
+      const number = m[4];
+      const rest = m[5] || "";
+
+      if(prefix === "H"){
+        const map = ["A","B","C","D","E","F"];
+        return `H${grade}-${map[cls - 1] || cls}-${number}${rest}`;
+      }
+
+      return `${prefix}${grade}-${cls}-${number}${rest}`;
+    }
+
     function getFirstImage(imageMap, gradeCode) {
       if (!gradeCode || !imageMap[gradeCode] || imageMap[gradeCode].length === 0) return null;
       return imageMap[gradeCode][0];
@@ -909,7 +948,8 @@
     }
 
     function personalRowHtml(row, rank) {
-      const name = row.nickname || row.player_id || row.user_id || "-";
+      const rawName = row.nickname || row.player_id || row.user_id || "-";
+      const name = formatStudentDisplay(rawName);
       const points = Number(row.points ?? row.score ?? 0);
       const combo = Number(row.max_combo ?? 0);
       const grade = personalGrade(row);
@@ -944,10 +984,10 @@
     }
 
     function classRowHtml(row, rank) {
-      const className = row.class_code || "-";
+      const className = formatClassDisplay(row.class_code || "-");
       const avg = Number(row.avg_score ?? 0);
-      const players = Number(row.players ?? 0);
-      const best = Number(row.best_score ?? 0);
+      const players = Number(row.players ?? row.participants ?? 0);
+      const best = Number(row.best_score ?? row.score ?? 0);
       const grade = classGrade(row);
       const img = getFirstImage(CLASS_GRADE_IMAGES, grade);
 
