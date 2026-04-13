@@ -56,9 +56,31 @@ function formatClassDisplay(code){
   return `${prefix}${grade}-${cls}`;
 }
 
+function formatStudentDisplay(value){
+  if(!value) return "-";
+
+  const s = String(value).trim();
+  const m = s.match(/^([A-Z]?)(\d+)-(\d+)-(\d+)(.*)$/i);
+  if(!m) return s;
+
+  const prefix = (m[1] || "").toUpperCase();
+  const grade = m[2];
+  const cls = Number(m[3]);
+  const number = m[4];
+  const rest = m[5] || "";
+
+  if(prefix === "H"){
+    const map = ["A","B","C","D","E","F"];
+    return `H${grade}-${map[cls - 1] || cls}-${number}${rest}`;
+  }
+
+  return `${prefix}${grade}-${cls}-${number}${rest}`;
+}
+
 /* ===== Top10 ===== */
 function fmtTopRowHtml(i, row){
-  const name = row?.nickname || row?.player_id || "-";
+  const rawName = row?.nickname || row?.player_id || "-";
+  const name = formatStudentDisplay(rawName);
   const pts = Number(row?.points ?? row?.score ?? 0);
   const combo = Number(row?.max_combo ?? 0);
   const is1 = i === 0;
