@@ -57,35 +57,26 @@ function shuffle(arr) {
 }
 
 function makeChoices(vocabList, correctItem) {
-  const base = vocabList.slice();
-  const others = base
-    .filter((v) => v.word !== correctItem.word)
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 3);
+  const others = shuffle(
+    vocabList.filter((v) => v.word !== correctItem.word)
+  ).slice(0, 3);
 
-  const meanings = [correctItem.meaning, ...others.map((o) => o.meaning)];
-  const shuffledMeanings = shuffle(meanings);
+  const options = shuffle([
+    { meaning: correctItem.meaning, isCorrect: true },
+    ...others.map((o) => ({ meaning: o.meaning, isCorrect: false })),
+  ]);
 
   const labels = ["A", "B", "C", "D"];
-  let shuffledLabels = shuffle(labels);
+  const map = {};
+  let correctLabel = "A";
 
-  const correctIndex = shuffledMeanings.indexOf(correctItem.meaning);
-  const recent = new Set(state.recentCorrectLabels);
-
-  if (correctIndex >= 0 && recent.size > 0) {
-    for (let tries = 0; tries < 10; tries++) {
-      const candidateLabel = shuffledLabels[correctIndex];
-      if (!recent.has(candidateLabel)) break;
-      shuffledLabels = shuffle(labels);
+  for (let i = 0; i < 4; i++) {
+    map[labels[i]] = options[i].meaning;
+    if (options[i].isCorrect) {
+      correctLabel = labels[i];
     }
   }
 
-  const map = {};
-  for (let i = 0; i < 4; i++) {
-    map[shuffledLabels[i]] = shuffledMeanings[i];
-  }
-
-  const correctLabel = shuffledLabels[correctIndex];
   rememberCorrectLabel(correctLabel);
 
   return {
