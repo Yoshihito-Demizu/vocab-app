@@ -7,7 +7,7 @@
  * - 画像やアイコンだけキャッシュして体感を軽くする
  */
 
-const CACHE_VERSION = "vocab-ta-2026-04-13d";
+const CACHE_VERSION = "vocab-ta-2026-04-13e";
 const ASSET_CACHE = `${CACHE_VERSION}-assets`;
 
 // 画像/アイコンなど「キャッシュしてOK」な拡張子
