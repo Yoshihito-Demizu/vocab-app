@@ -737,7 +737,7 @@
       letter-spacing:.06em;
     }
 
-    /* 追加: 試作版ウォーターマーク（縦書き・中央・濃い） */
+    /* 追加: 試作版ウォーターマーク（縦に3文字並ぶ） */
     .trial-watermark{
       position: fixed;
       top: 50%;
@@ -747,14 +747,15 @@
       text-orientation: upright;
       font-size: 220px;
       font-weight: 1000;
-      letter-spacing: 0.18em;
-      color: rgba(255,255,255,0.26);
+      letter-spacing: 0.35em;
+      color: rgba(255,255,255,0.28);
       text-shadow:
-        0 0 14px rgba(255,255,255,0.20),
-        0 0 30px rgba(255,255,255,0.12);
+        0 0 14px rgba(255,255,255,0.22),
+        0 0 30px rgba(255,255,255,0.14);
       pointer-events: none;
       z-index: 9999;
       user-select: none;
+      white-space: nowrap;
     }
   </style>
 </head>
