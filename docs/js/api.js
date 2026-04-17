@@ -273,7 +273,7 @@ const api = {
     ];
   },
 
-  async submitRun(score, maxCombo) {
+  async submitRun(score, maxCombo, isFinished) {
     const client = await ensureClientReady();
 
     const playerId = normalizePlayerId(localStorage.getItem("player_id"));
@@ -292,6 +292,7 @@ const api = {
       p_week_id: weekId,
       p_score: Number(score) || 0,
       p_max_combo: Number(maxCombo) || 0,
+      p_is_finished: !!isFinished,
     });
 
     if (error) return { ok: false, error };
