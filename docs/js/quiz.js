@@ -87,7 +87,7 @@ function startTimer() {
     msLeft -= 100;
     syncTimeLeftUi();
 
-    if (msLeft <= 0) endGame();
+    if (msLeft <= 0) endGame(true);
   }, 100);
 }
 
@@ -298,7 +298,7 @@ async function answer(choiceLabel) {
       await showOverlay("ng", "× -2秒", 520);
 
       if (msLeft <= 0) {
-        endGame();
+        endGame(true);
         return;
       }
     }
@@ -357,7 +357,7 @@ async function startGame() {
   }
 }
 
-async function endGame() {
+async function endGame(isFinished = false) {
   if (!playing) return;
 
   playing = false;
@@ -389,7 +389,7 @@ async function endGame() {
 
   try {
     if (api && typeof api.submitRun === "function") {
-      await api.submitRun(score, maxCombo);
+      await api.submitRun(score, maxCombo, isFinished);
     }
   } catch (e) {
     console.warn("[quiz] submitRun failed:", e);
