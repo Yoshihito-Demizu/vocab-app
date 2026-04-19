@@ -194,8 +194,9 @@ function fmtClassRowHtml(i, row){
 }
 
 /* ===== あなたカード ===== */
-function renderMyCard(mine){
-  if(!mine){
+function renderMyCard(termStatus, termRange){
+  if(!termStatus){
+    const label = termRange?.label || "現在期間";
     return `
       <div style="
         min-height:420px;
@@ -209,16 +210,23 @@ function renderMyCard(mine){
           linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
         border:1px solid rgba(255,255,255,.10);
         color:rgba(255,255,255,.75);
-        font-size:26px;
+        font-size:24px;
         font-weight:900;
+        line-height:1.6;
+        padding:24px;
       ">
-        まだ順位がありません
+        <div>
+          <div style="font-size:16px; opacity:.8; margin-bottom:10px;">${escapeHtml(label)}</div>
+          <div>まだ学期データがありません</div>
+        </div>
       </div>
     `;
   }
 
-  const rank = Number(mine.rank ?? 0);
-  const points = Number(mine.points ?? mine.score ?? 0);
+  const label = termRange?.label || "現在期間";
+  const points = Number(termStatus.term_best_total ?? 0);
+  const rank = Number(termStatus.rank ?? 0);
+  const diff = Number(termStatus.diff_to_first ?? 0);
 
   return `
     <div style="
@@ -256,47 +264,57 @@ function renderMyCard(mine){
         font-weight:900;
         letter-spacing:.08em;
         opacity:.92;
-        margin-bottom:20px;
+        margin-bottom:10px;
       ">
-        YOUR RANK
+        ${escapeHtml(label)}
       </div>
 
       <div style="
-        font-size:90px;
-        font-weight:1000;
-        line-height:1;
+        font-size:16px;
+        font-weight:900;
+        opacity:.86;
         margin-bottom:20px;
-        display:flex;
-        align-items:flex-end;
-        justify-content:center;
-        gap:6px;
-        color:#f3f6ff;
-        text-shadow:
-          0 0 10px rgba(255,255,255,.18),
-          0 0 28px rgba(255,215,0,.18);
       ">
-        <span>${rank}</span>
-        <span style="font-size:48px; line-height:1;">位</span>
+        あなたの学期ポイント
       </div>
 
       <div style="
-        width:80px;
-        height:3px;
-        border-radius:999px;
-        background:linear-gradient(90deg,transparent,#ffd54a,transparent);
-        margin-bottom:24px;
-      "></div>
-
-      <div style="
-        font-size:54px;
+        font-size:56px;
         font-weight:1000;
         line-height:1.1;
         color:#ffd54a;
         text-shadow:
           0 0 12px rgba(255,215,0,.45),
           0 0 24px rgba(255,215,0,.18);
+        margin-bottom:22px;
       ">
         ${points}点
+      </div>
+
+      <div style="
+        width:100%;
+        display:grid;
+        gap:12px;
+      ">
+        <div style="
+          border-radius:18px;
+          padding:16px 18px;
+          background:rgba(255,255,255,.12);
+          border:1px solid rgba(255,255,255,.12);
+        ">
+          <div style="font-size:14px; opacity:.82; margin-bottom:6px;">現在</div>
+          <div style="font-size:36px; font-weight:1000; line-height:1.1;">${rank}位</div>
+        </div>
+
+        <div style="
+          border-radius:18px;
+          padding:16px 18px;
+          background:rgba(255,255,255,.10);
+          border:1px solid rgba(255,255,255,.10);
+        ">
+          <div style="font-size:14px; opacity:.82; margin-bottom:6px;">1位まであと</div>
+          <div style="font-size:34px; font-weight:1000; line-height:1.1;">${diff}点</div>
+        </div>
       </div>
     </div>
   `;
@@ -341,10 +359,12 @@ async function loadRankings(){
   try{
     setRankMsg("読み込み中...");
 
-    const [top, mine, klass] = await Promise.all([
+    const termRange = window.api?.getCurrentTermRange?.() || null;
+
+    const [top, klass, termStatus] = await Promise.all([
       window.api.fetchWeeklyTop?.(week) ?? [],
-      window.api.fetchMyWeeklyRank?.(week) ?? null,
-      window.api.fetchClassWeeklyRanking?.(week, 10) ?? []
+      window.api.fetchClassWeeklyRanking?.(week, 10) ?? [],
+      window.api.fetchMyTermBestStatus?.(termRange) ?? null
     ]);
 
     const topRows = Array.isArray(top) ? top.slice(0, 10) : [];
@@ -355,7 +375,7 @@ async function loadRankings(){
         ? topRows.map((row, i) => fmtTopRowHtml(i, row)).join("")
         : "（まだデータなし）";
 
-    byId2("myRank").innerHTML = renderMyCard(mine);
+    byId2("myRank").innerHTML = renderMyCard(termStatus, termRange);
 
     byId2("classRank").innerHTML =
       classRows.length
