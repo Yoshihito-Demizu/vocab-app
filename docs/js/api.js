@@ -200,6 +200,38 @@ const api = {
     return getISOWeekId(new Date());
   },
 
+  getCurrentTermRange(now = new Date()) {
+    const y = now.getFullYear();
+    const t = now.getTime();
+
+    const make = (start, end, label) => ({
+      start_at: start.toISOString(),
+      end_at: end.toISOString(),
+      label,
+    });
+
+    const ranges = [
+      make(new Date(y, 3, 1, 0, 0, 0, 0), new Date(y, 4, 7, 0, 0, 0, 0), `${y}年度 試作期間`),
+      make(new Date(y, 4, 7, 0, 0, 0, 0), new Date(y, 6, 22, 0, 0, 0, 0), `${y}年度 1学期`),
+      make(new Date(y, 6, 22, 0, 0, 0, 0), new Date(y, 7, 30, 0, 0, 0, 0), `${y}年度 夏休み`),
+      make(new Date(y, 8, 1, 0, 0, 0, 0), new Date(y, 11, 23, 0, 0, 0, 0), `${y}年度 2学期`),
+      make(new Date(y, 11, 23, 0, 0, 0, 0), new Date(y + 1, 2, 1, 0, 0, 0, 0), `${y}年度 3学期`),
+      make(new Date(y - 1, 11, 23, 0, 0, 0, 0), new Date(y, 2, 1, 0, 0, 0, 0), `${y - 1}年度 3学期`),
+    ];
+
+    for (const r of ranges) {
+      const start = new Date(r.start_at).getTime();
+      const end = new Date(r.end_at).getTime();
+      if (t >= start && t < end) return r;
+    }
+
+    return make(
+      new Date(y, 3, 1, 0, 0, 0, 0),
+      new Date(y, 4, 7, 0, 0, 0, 0),
+      `${y}年度 試作期間`
+    );
+  },
+
   async signIn(playerId) {
     const normalized = normalizePlayerId(playerId);
     const classCode = parseClassCodeFromPlayerId(normalized);
@@ -325,6 +357,23 @@ const api = {
     });
     if (error) throw error;
     return Array.isArray(data) ? data[0] : data;
+  },
+
+  async fetchMyTermBestStatus(termRange) {
+    const client = await ensureClientReady();
+    const playerId = normalizePlayerId(localStorage.getItem("player_id"));
+    if (!playerId) return null;
+
+    const range = termRange || this.getCurrentTermRange();
+
+    const { data, error } = await client.rpc("get_public_my_term_best_status", {
+      p_start: range.start_at,
+      p_end: range.end_at,
+      p_player_id: playerId,
+    });
+
+    if (error) throw error;
+    return Array.isArray(data) ? (data[0] || null) : data;
   },
 
   async fetchClassWeeklyRanking(weekId, limit = 20) {
