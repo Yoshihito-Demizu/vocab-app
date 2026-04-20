@@ -194,127 +194,217 @@ function fmtClassRowHtml(i, row){
 }
 
 /* ===== あなたカード ===== */
-function renderMyCard(termStatus, termRange){
-  if(!termStatus){
-    const label = termRange?.label || "現在期間";
+function renderMyCard(termStatus, termRange, weeklyMine, weeklyTop){
+  const label = termRange?.label || "現在期間";
+
+  if(termStatus){
+    const points = Number(termStatus.term_best_total ?? 0);
+    const rank = Number(termStatus.rank ?? 0);
+    const diff = Number(termStatus.diff_to_first ?? 0);
+
     return `
       <div style="
         min-height:420px;
         border-radius:28px;
+        padding:24px;
+        position:relative;
+        overflow:hidden;
         display:flex;
+        flex-direction:column;
         align-items:center;
         justify-content:center;
         text-align:center;
         background:
-          radial-gradient(circle at 50% 20%, rgba(255,215,0,.18), transparent 35%),
-          linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-        border:1px solid rgba(255,255,255,.10);
-        color:rgba(255,255,255,.75);
-        font-size:24px;
-        font-weight:900;
-        line-height:1.6;
-        padding:24px;
+          radial-gradient(circle at 50% 18%, rgba(255,245,180,.28), transparent 26%),
+          linear-gradient(135deg, rgba(255,215,0,.38), rgba(255,255,255,.04) 55%, rgba(255,215,0,.12));
+        border:1px solid rgba(255,215,0,.28);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,.12),
+          0 0 34px rgba(255,215,0,.18),
+          0 18px 45px rgba(0,0,0,.22);
+        animation:pop .35s ease;
       ">
-        <div>
-          <div style="font-size:16px; opacity:.8; margin-bottom:10px;">${escapeHtml(label)}</div>
-          <div>まだ学期データがありません</div>
+        <div style="
+          position:absolute;
+          inset:auto -30% 62% -30%;
+          height:120px;
+          background:linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+          transform:rotate(-8deg);
+          pointer-events:none;
+        "></div>
+
+        <div style="
+          font-size:18px;
+          font-weight:900;
+          letter-spacing:.08em;
+          opacity:.92;
+          margin-bottom:10px;
+        ">
+          ${escapeHtml(label)}
+        </div>
+
+        <div style="
+          font-size:16px;
+          font-weight:900;
+          opacity:.86;
+          margin-bottom:20px;
+        ">
+          あなたの学期ポイント
+        </div>
+
+        <div style="
+          font-size:56px;
+          font-weight:1000;
+          line-height:1.1;
+          color:#ffd54a;
+          text-shadow:
+            0 0 12px rgba(255,215,0,.45),
+            0 0 24px rgba(255,215,0,.18);
+          margin-bottom:22px;
+        ">
+          ${points}点
+        </div>
+
+        <div style="
+          width:100%;
+          display:grid;
+          gap:12px;
+        ">
+          <div style="
+            border-radius:18px;
+            padding:16px 18px;
+            background:rgba(255,255,255,.12);
+            border:1px solid rgba(255,255,255,.12);
+          ">
+            <div style="font-size:14px; opacity:.82; margin-bottom:6px;">現在</div>
+            <div style="font-size:36px; font-weight:1000; line-height:1.1;">${rank}位</div>
+          </div>
+
+          <div style="
+            border-radius:18px;
+            padding:16px 18px;
+            background:rgba(255,255,255,.10);
+            border:1px solid rgba(255,255,255,.10);
+          ">
+            <div style="font-size:14px; opacity:.82; margin-bottom:6px;">1位まであと</div>
+            <div style="font-size:34px; font-weight:1000; line-height:1.1;">${diff}点</div>
+          </div>
         </div>
       </div>
     `;
   }
 
-  const label = termRange?.label || "現在期間";
-  const points = Number(termStatus.term_best_total ?? 0);
-  const rank = Number(termStatus.rank ?? 0);
-  const diff = Number(termStatus.diff_to_first ?? 0);
+  if(weeklyMine){
+    const rank = Number(weeklyMine.rank ?? 0);
+    const points = Number(weeklyMine.points ?? weeklyMine.score ?? 0);
+    const first = Array.isArray(weeklyTop) && weeklyTop.length
+      ? Number(weeklyTop[0]?.points ?? weeklyTop[0]?.score ?? 0)
+      : points;
+    const diff = Math.max(0, first - points);
+
+    return `
+      <div style="
+        min-height:420px;
+        border-radius:28px;
+        padding:24px;
+        position:relative;
+        overflow:hidden;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        background:
+          radial-gradient(circle at 50% 18%, rgba(255,245,180,.24), transparent 26%),
+          linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+        border:1px solid rgba(255,255,255,.12);
+        box-shadow:
+          inset 0 1px 0 rgba(255,255,255,.10),
+          0 18px 45px rgba(0,0,0,.20);
+        animation:pop .35s ease;
+      ">
+        <div style="
+          font-size:18px;
+          font-weight:900;
+          letter-spacing:.08em;
+          opacity:.92;
+          margin-bottom:10px;
+        ">
+          ${escapeHtml(label)}
+        </div>
+
+        <div style="
+          font-size:16px;
+          font-weight:900;
+          opacity:.86;
+          margin-bottom:20px;
+        ">
+          試作中ランキング（週）
+        </div>
+
+        <div style="
+          font-size:56px;
+          font-weight:1000;
+          line-height:1.1;
+          color:#ffd54a;
+          text-shadow:
+            0 0 12px rgba(255,215,0,.35),
+            0 0 24px rgba(255,215,0,.16);
+          margin-bottom:22px;
+        ">
+          ${points}点
+        </div>
+
+        <div style="
+          width:100%;
+          display:grid;
+          gap:12px;
+        ">
+          <div style="
+            border-radius:18px;
+            padding:16px 18px;
+            background:rgba(255,255,255,.12);
+            border:1px solid rgba(255,255,255,.12);
+          ">
+            <div style="font-size:14px; opacity:.82; margin-bottom:6px;">現在</div>
+            <div style="font-size:36px; font-weight:1000; line-height:1.1;">${rank}位</div>
+          </div>
+
+          <div style="
+            border-radius:18px;
+            padding:16px 18px;
+            background:rgba(255,255,255,.10);
+            border:1px solid rgba(255,255,255,.10);
+          ">
+            <div style="font-size:14px; opacity:.82; margin-bottom:6px;">1位まであと</div>
+            <div style="font-size:34px; font-weight:1000; line-height:1.1;">${diff}点</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
 
   return `
     <div style="
       min-height:420px;
       border-radius:28px;
-      padding:24px;
-      position:relative;
-      overflow:hidden;
       display:flex;
-      flex-direction:column;
       align-items:center;
       justify-content:center;
       text-align:center;
       background:
-        radial-gradient(circle at 50% 18%, rgba(255,245,180,.28), transparent 26%),
-        linear-gradient(135deg, rgba(255,215,0,.38), rgba(255,255,255,.04) 55%, rgba(255,215,0,.12));
-      border:1px solid rgba(255,215,0,.28);
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.12),
-        0 0 34px rgba(255,215,0,.18),
-        0 18px 45px rgba(0,0,0,.22);
-      animation:pop .35s ease;
+        radial-gradient(circle at 50% 20%, rgba(255,215,0,.18), transparent 35%),
+        linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
+      border:1px solid rgba(255,255,255,.10);
+      color:rgba(255,255,255,.75);
+      font-size:24px;
+      font-weight:900;
+      line-height:1.6;
+      padding:24px;
     ">
-      <div style="
-        position:absolute;
-        inset:auto -30% 62% -30%;
-        height:120px;
-        background:linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
-        transform:rotate(-8deg);
-        pointer-events:none;
-      "></div>
-
-      <div style="
-        font-size:18px;
-        font-weight:900;
-        letter-spacing:.08em;
-        opacity:.92;
-        margin-bottom:10px;
-      ">
-        ${escapeHtml(label)}
-      </div>
-
-      <div style="
-        font-size:16px;
-        font-weight:900;
-        opacity:.86;
-        margin-bottom:20px;
-      ">
-        あなたの学期ポイント
-      </div>
-
-      <div style="
-        font-size:56px;
-        font-weight:1000;
-        line-height:1.1;
-        color:#ffd54a;
-        text-shadow:
-          0 0 12px rgba(255,215,0,.45),
-          0 0 24px rgba(255,215,0,.18);
-        margin-bottom:22px;
-      ">
-        ${points}点
-      </div>
-
-      <div style="
-        width:100%;
-        display:grid;
-        gap:12px;
-      ">
-        <div style="
-          border-radius:18px;
-          padding:16px 18px;
-          background:rgba(255,255,255,.12);
-          border:1px solid rgba(255,255,255,.12);
-        ">
-          <div style="font-size:14px; opacity:.82; margin-bottom:6px;">現在</div>
-          <div style="font-size:36px; font-weight:1000; line-height:1.1;">${rank}位</div>
-        </div>
-
-        <div style="
-          border-radius:18px;
-          padding:16px 18px;
-          background:rgba(255,255,255,.10);
-          border:1px solid rgba(255,255,255,.10);
-        ">
-          <div style="font-size:14px; opacity:.82; margin-bottom:6px;">1位まであと</div>
-          <div style="font-size:34px; font-weight:1000; line-height:1.1;">${diff}点</div>
-        </div>
+      <div>
+        <div style="font-size:16px; opacity:.8; margin-bottom:10px;">${escapeHtml(label)}</div>
+        <div>まだランキングデータがありません</div>
       </div>
     </div>
   `;
@@ -361,8 +451,9 @@ async function loadRankings(){
 
     const termRange = window.api?.getCurrentTermRange?.() || null;
 
-    const [top, klass, termStatus] = await Promise.all([
+    const [top, mine, klass, termStatus] = await Promise.all([
       window.api.fetchWeeklyTop?.(week) ?? [],
+      window.api.fetchMyWeeklyRank?.(week) ?? null,
       window.api.fetchClassWeeklyRanking?.(week, 10) ?? [],
       window.api.fetchMyTermBestStatus?.(termRange) ?? null
     ]);
@@ -375,7 +466,7 @@ async function loadRankings(){
         ? topRows.map((row, i) => fmtTopRowHtml(i, row)).join("")
         : "（まだデータなし）";
 
-    byId2("myRank").innerHTML = renderMyCard(termStatus, termRange);
+    byId2("myRank").innerHTML = renderMyCard(termStatus, termRange, mine, topRows);
 
     byId2("classRank").innerHTML =
       classRows.length
