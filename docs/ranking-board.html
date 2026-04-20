@@ -264,7 +264,7 @@
       box-shadow:0 18px 44px rgba(0,0,0,.20);
       min-height:0;
       display:grid;
-      grid-template-rows:auto 1fr;
+      grid-template-rows:auto auto 1fr;
     }
 
     .panelTitle{
@@ -291,6 +291,61 @@
       background:rgba(255,255,255,.06);
       border:1px solid rgba(255,255,255,.10);
       white-space:nowrap;
+    }
+
+    .termRace{
+      display:grid;
+      gap:8px;
+      margin-bottom:12px;
+    }
+
+    .termRaceRow{
+      display:grid;
+      grid-template-columns:92px 1fr auto;
+      align-items:center;
+      gap:12px;
+      padding:12px 14px;
+      border-radius:16px;
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+    }
+
+    .termRaceRow.rank1{
+      background:linear-gradient(90deg, rgba(255,215,74,.18), rgba(255,255,255,.04));
+      border-color:rgba(255,215,74,.22);
+    }
+
+    .termRacePlace{
+      font-size:20px;
+      font-weight:1000;
+      white-space:nowrap;
+    }
+
+    .termRaceName{
+      font-size:22px;
+      font-weight:1000;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+
+    .termRaceScore{
+      text-align:right;
+      white-space:nowrap;
+    }
+
+    .termRaceMain{
+      font-size:24px;
+      font-weight:1000;
+      color:#ffd54a;
+      line-height:1.05;
+    }
+
+    .termRaceDiff{
+      margin-top:4px;
+      font-size:14px;
+      font-weight:900;
+      color:var(--muted);
     }
 
     .list{
@@ -785,6 +840,8 @@
           <h2>個人ランキング</h2>
           <div class="badgeMini">BEST SCORE</div>
         </div>
+
+        <div id="termRace" class="termRace"></div>
         <div id="personalBoard"></div>
       </section>
 
@@ -1051,6 +1108,37 @@
       `;
     }
 
+    function renderTermRace(rows) {
+      const el = document.getElementById("termRace");
+      if (!el) return;
+
+      const list = Array.isArray(rows) ? rows.slice(0, 3) : [];
+      if (!list.length) {
+        el.innerHTML = "";
+        return;
+      }
+
+      const first = Number(list[0].term_best_total ?? 0);
+
+      el.innerHTML = list.map((row, i) => {
+        const score = Number(row.term_best_total ?? 0);
+        const diff = Math.max(0, first - score);
+        const rawName = row.nickname || row.player_id || row.user_id || "-";
+        const name = formatStudentDisplay(rawName);
+
+        return `
+          <div class="termRaceRow ${i === 0 ? "rank1" : ""}">
+            <div class="termRacePlace">${rankIcon(i + 1)} ${i + 1}位</div>
+            <div class="termRaceName">${escapeHtml(name)}</div>
+            <div class="termRaceScore">
+              <div class="termRaceMain">${score}</div>
+              <div class="termRaceDiff">${i === 0 ? "現在トップ" : `あと${diff}点`}</div>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
     function personalHtml(rows) {
       if (!rows || !rows.length) {
         return `<div class="subMeta">まだデータなし</div>`;
@@ -1065,18 +1153,32 @@
       return `<div class="list">${rows.slice(0,3).map((row, i) => classRowHtml(row, i + 1)).join("")}</div>`;
     }
 
+    async function fetchTermTop3(termRange) {
+      if (!window.client) return [];
+      const { data, error } = await window.client.rpc("get_public_term_best_ranking", {
+        p_start: termRange.start_at,
+        p_end: termRange.end_at,
+        p_limit: 3
+      });
+      if (error) throw error;
+      return data || [];
+    }
+
     async function updateBoard() {
       try {
         const week = window.api.getWeekIdNow();
+        const termRange = window.api.getCurrentTermRange();
         document.getElementById("boardWeek").textContent = `📅 ${formatWeekJapanese(week)}`;
 
-        const [top, classRows] = await Promise.all([
+        const [top, classRows, termTop3] = await Promise.all([
           window.api.fetchWeeklyTop(week),
           typeof window.api.fetchClassWeeklyRanking === "function"
             ? window.api.fetchClassWeeklyRanking(week, 10)
-            : Promise.resolve([])
+            : Promise.resolve([]),
+          fetchTermTop3(termRange)
         ]);
 
+        renderTermRace(termTop3 || []);
         document.getElementById("personalBoard").innerHTML = personalHtml(top || []);
         document.getElementById("classBoard").innerHTML = classHtml(classRows || []);
         document.getElementById("boardUpdated").textContent = `最終更新: ${fmtTime(new Date())}`;
