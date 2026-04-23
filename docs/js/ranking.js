@@ -198,9 +198,10 @@ function renderMyCard(termStatus, termRange, weeklyMine, weeklyTop){
   const label = termRange?.label || "現在期間";
 
   if(termStatus){
-    const points = Number(termStatus.term_best_total ?? 0);
-    const rank = Number(termStatus.rank ?? 0);
-    const diff = Number(termStatus.diff_to_first ?? 0);
+    const termPoints =
+      Number(termStatus.term_best_total ?? termStatus.total_points ?? 0);
+    const myPosition = Number(termStatus.rank ?? 0);
+    const diffToFirst = Number(termStatus.diff_to_first ?? 0);
 
     return `
       <div style="
@@ -249,20 +250,7 @@ function renderMyCard(termStatus, termRange, weeklyMine, weeklyTop){
           opacity:.86;
           margin-bottom:20px;
         ">
-          あなたの学期ポイント
-        </div>
-
-        <div style="
-          font-size:56px;
-          font-weight:1000;
-          line-height:1.1;
-          color:#ffd54a;
-          text-shadow:
-            0 0 12px rgba(255,215,0,.45),
-            0 0 24px rgba(255,215,0,.18);
-          margin-bottom:22px;
-        ">
-          ${points}点
+          あなた
         </div>
 
         <div style="
@@ -276,8 +264,18 @@ function renderMyCard(termStatus, termRange, weeklyMine, weeklyTop){
             background:rgba(255,255,255,.12);
             border:1px solid rgba(255,255,255,.12);
           ">
+            <div style="font-size:14px; opacity:.82; margin-bottom:6px;">学期ポイント</div>
+            <div style="font-size:36px; font-weight:1000; line-height:1.1;">${termPoints}点</div>
+          </div>
+
+          <div style="
+            border-radius:18px;
+            padding:16px 18px;
+            background:rgba(255,255,255,.10);
+            border:1px solid rgba(255,255,255,.10);
+          ">
             <div style="font-size:14px; opacity:.82; margin-bottom:6px;">現在</div>
-            <div style="font-size:36px; font-weight:1000; line-height:1.1;">${rank}位</div>
+            <div style="font-size:34px; font-weight:1000; line-height:1.1;">${myPosition}位</div>
           </div>
 
           <div style="
@@ -287,7 +285,7 @@ function renderMyCard(termStatus, termRange, weeklyMine, weeklyTop){
             border:1px solid rgba(255,255,255,.10);
           ">
             <div style="font-size:14px; opacity:.82; margin-bottom:6px;">1位まであと</div>
-            <div style="font-size:34px; font-weight:1000; line-height:1.1;">${diff}点</div>
+            <div style="font-size:34px; font-weight:1000; line-height:1.1;">${diffToFirst}点</div>
           </div>
         </div>
       </div>
@@ -339,20 +337,7 @@ function renderMyCard(termStatus, termRange, weeklyMine, weeklyTop){
           opacity:.86;
           margin-bottom:20px;
         ">
-          試作中ランキング（週）
-        </div>
-
-        <div style="
-          font-size:56px;
-          font-weight:1000;
-          line-height:1.1;
-          color:#ffd54a;
-          text-shadow:
-            0 0 12px rgba(255,215,0,.35),
-            0 0 24px rgba(255,215,0,.16);
-          margin-bottom:22px;
-        ">
-          ${points}点
+          あなた
         </div>
 
         <div style="
@@ -366,8 +351,18 @@ function renderMyCard(termStatus, termRange, weeklyMine, weeklyTop){
             background:rgba(255,255,255,.12);
             border:1px solid rgba(255,255,255,.12);
           ">
+            <div style="font-size:14px; opacity:.82; margin-bottom:6px;">学期ポイント</div>
+            <div style="font-size:36px; font-weight:1000; line-height:1.1;">${points}点</div>
+          </div>
+
+          <div style="
+            border-radius:18px;
+            padding:16px 18px;
+            background:rgba(255,255,255,.10);
+            border:1px solid rgba(255,255,255,.10);
+          ">
             <div style="font-size:14px; opacity:.82; margin-bottom:6px;">現在</div>
-            <div style="font-size:36px; font-weight:1000; line-height:1.1;">${rank}位</div>
+            <div style="font-size:34px; font-weight:1000; line-height:1.1;">${rank}位</div>
           </div>
 
           <div style="
