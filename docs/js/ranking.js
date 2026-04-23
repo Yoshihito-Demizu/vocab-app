@@ -146,6 +146,9 @@ function fmtClassRowHtml(i, row){
   const avg = Number(row?.avg_score ?? 0);
   const participants = Number(row?.participants ?? row?.players ?? 0);
   const classSize = Number(row?.class_size ?? 0);
+  const participationRate = classSize > 0
+    ? Math.round((participants / classSize) * 100)
+    : 0;
   const classCode = formatClassDisplay(row?.class_code || "-");
   const eligible = row?.eligible !== false;
 
@@ -190,7 +193,7 @@ function fmtClassRowHtml(i, row){
         opacity:.82;
         line-height:1.35;
       ">
-        平均${avg.toFixed(1)}点 / 参加${participants}人 / ${classSize}人中
+        平均${avg.toFixed(1)}点 / 参加${participants}人 / ${classSize}人中 / 参加率${participationRate}%
       </div>
     </div>
   `;
