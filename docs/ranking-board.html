@@ -1020,13 +1020,22 @@
       `;
     }
 
-    function personalRowHtml(row, rank) {
+    function personalDiffText(rank, rows, points) {
+      if (!Array.isArray(rows) || rows.length === 0) return "POINTS";
+      const first = Number(rows[0]?.points ?? rows[0]?.score ?? 0);
+      const diff = Math.max(0, first - points);
+      if (rank === 1) return "POINTS";
+      return `POINTS / あと${diff}点`;
+    }
+
+    function personalRowHtml(row, rank, allRows) {
       const rawName = row.nickname || row.player_id || row.user_id || "-";
       const name = formatStudentDisplay(rawName);
       const points = Number(row.points ?? row.score ?? 0);
       const combo = Number(row.max_combo ?? 0);
       const grade = personalGrade(row);
       const img = getFirstImage(PERSONAL_GRADE_IMAGES, grade);
+      const diffText = personalDiffText(rank, allRows, points);
 
       return `
         <div class="boardRow rank${rank}">
@@ -1048,7 +1057,7 @@
           <div class="scoreBlock">
             <div class="scoreValueWrap">
               <div class="scoreValue personalScore">${points}</div>
-              <div class="scoreUnit">POINTS</div>
+              <div class="scoreUnit">${diffText}</div>
             </div>
             ${img ? `<div class="scoreVisual"><img src="${img}" alt="${rank}位"></div>` : ""}
           </div>
@@ -1142,7 +1151,8 @@
       if (!rows || !rows.length) {
         return `<div class="subMeta">まだデータなし</div>`;
       }
-      return `<div class="list">${rows.slice(0,3).map((row, i) => personalRowHtml(row, i + 1)).join("")}</div>`;
+      const top3 = rows.slice(0, 3);
+      return `<div class="list">${top3.map((row, i) => personalRowHtml(row, i + 1, top3)).join("")}</div>`;
     }
 
     function classHtml(rows) {
