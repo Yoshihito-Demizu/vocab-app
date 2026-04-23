@@ -354,13 +354,13 @@ async function startGame() {
 
     msLeft = GAME_SECONDS * 1000;
     startTimer();
-
+　
+    playBgm();
+    
     await showOverlay("count", "3", COUNT_MS);
     await showOverlay("count", "2", COUNT_MS);
     await showOverlay("count", "1", COUNT_MS);
     await showOverlay("go", "START", GO_MS);
-
-    playBgm();
 
     await loadQuestion();
   } catch (e) {
