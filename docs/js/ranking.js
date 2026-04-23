@@ -1,8 +1,10 @@
 "use strict";
 
-function byId2(id){ return document.getElementById(id); }
+/* ========= 共通 ========= */
 
-function escapeHtml(s){
+function byId(id){ return document.getElementById(id); }
+
+function esc(s){
   return String(s ?? "")
     .replaceAll("&","&amp;")
     .replaceAll("<","&lt;")
@@ -15,492 +17,151 @@ function rankIcon(i){
   if(i===0) return "👑";
   if(i===1) return "🥈";
   if(i===2) return "🥉";
-  return i + 1;
+  return i+1;
 }
 
-function scoreLabel(p){
-  p = Number(p) || 0;
-  if(p >= 300) return "LEGEND";
-  if(p >= 240) return "EXCELLENT";
-  if(p >= 180) return "GREAT";
-  return "TRY";
+function fmtName(row){
+  return esc(row?.nickname || row?.player_id || "-");
 }
 
-function setRankMsg(t){
-  const el = byId2("rankMsg");
-  if(el) el.textContent = t || "";
-}
+/* ========= Top10（既存） ========= */
 
-function getSelectedWeek(){
-  const sel = byId2("weekSelect");
-  const now = window.api?.getWeekIdNow?.() || "";
-  if(!sel) return now;
-  return sel.value || now;
-}
-
-function formatClassDisplay(code){
-  if(!code) return "-";
-
-  const m = String(code).trim().match(/^([A-Z]?)(\d+)-(\d+)$/i);
-  if(!m) return String(code);
-
-  const prefix = (m[1] || "").toUpperCase();
-  const grade = m[2];
-  const cls = Number(m[3]);
-
-  if(prefix === "H"){
-    const map = ["A","B","C","D","E","F"];
-    return `H${grade}-${map[cls - 1] || cls}`;
-  }
-
-  return `${prefix}${grade}-${cls}`;
-}
-
-function formatStudentDisplay(value){
-  if(!value) return "-";
-
-  const s = String(value).trim();
-  const m = s.match(/^([A-Z]?)(\d+)-(\d+)-(\d+)(.*)$/i);
-  if(!m) return s;
-
-  const prefix = (m[1] || "").toUpperCase();
-  const grade = m[2];
-  const cls = Number(m[3]);
-  const number = m[4];
-  const rest = m[5] || "";
-
-  if(prefix === "H"){
-    const map = ["A","B","C","D","E","F"];
-    return `H${grade}-${map[cls - 1] || cls}-${number}${rest}`;
-  }
-
-  return `${prefix}${grade}-${cls}-${number}${rest}`;
-}
-
-/* ===== Top10 ===== */
-function fmtTopRowHtml(i, row){
-  const rawName = row?.nickname || row?.player_id || "-";
-  const name = formatStudentDisplay(rawName);
-  const pts = Number(row?.points ?? row?.score ?? 0);
-  const combo = Number(row?.max_combo ?? 0);
-  const is1 = i === 0;
-
-  return `
-    <div style="
-      display:grid;
-      grid-template-columns:${is1 ? "100px" : "80px"} 1fr auto;
-      align-items:center;
-      padding:${is1 ? "26px" : "20px"};
-      border-radius:18px;
-      margin-bottom:14px;
-      background:${is1 ? "linear-gradient(90deg,rgba(255,215,0,.25),rgba(255,215,0,.08))" : "rgba(255,255,255,.07)"};
-      animation:pop .3s ease;
-    ">
-      <div style="
-        font-size:${is1 ? "64px" : "48px"};
-        font-weight:1000;
-        text-align:center;
-      ">
-        ${rankIcon(i)}
-      </div>
-
-      <div>
-        <div style="
-          font-size:${is1 ? "46px" : "36px"};
-          font-weight:1000;
-          line-height:1.1;
-          word-break:break-word;
-        ">
-          ${escapeHtml(name)}
-        </div>
-
-        <div style="
-          font-size:${is1 ? "22px" : "18px"};
-          opacity:.8;
-          margin-top:6px;
-        ">
-          COMBO ${combo} ・ ${scoreLabel(pts)}
-        </div>
-      </div>
-
-      <div style="
-        font-size:${is1 ? "56px" : "44px"};
-        font-weight:1000;
-        background:linear-gradient(180deg,#fff,#ffd54a);
-        -webkit-background-clip:text;
-        color:transparent;
-        text-shadow:0 0 18px rgba(255,215,0,.4);
-        white-space:nowrap;
-      ">
-        ${pts}点
-      </div>
-    </div>
-  `;
-}
-
-/* ===== クラス対抗 ===== */
-function fmtClassRowHtml(i, row){
-  const score = Number(row?.score ?? 0);
-  const avg = Number(row?.avg_score ?? 0);
-  const participants = Number(row?.participants ?? row?.players ?? 0);
-  const classSize = Number(row?.class_size ?? 0);
-  const classCode = formatClassDisplay(row?.class_code || "-");
-  const eligible = row?.eligible !== false;
-
-  return `
-    <div style="
-      padding:18px;
-      border-radius:16px;
-      margin-bottom:12px;
-      background:rgba(255,255,255,.06);
-      animation:pop .3s ease;
-    ">
-      <div style="
-        display:flex;
-        justify-content:space-between;
-        align-items:center;
-        gap:12px;
-      ">
-        <div style="
-          font-size:32px;
-          font-weight:1000;
-          word-break:break-word;
-        ">
-          ${rankIcon(i)} ${escapeHtml(classCode)}${!eligible ? "（参考）" : ""}
-        </div>
-
-        <div style="
-          font-size:36px;
-          font-weight:1000;
-          background:linear-gradient(180deg,#fff,#9ecbff);
-          -webkit-background-clip:text;
-          color:transparent;
-          white-space:nowrap;
-        ">
-          ${score.toFixed(1)}点
-        </div>
-      </div>
-
-      <div style="
-        margin-top:8px;
-        font-size:16px;
-        opacity:.82;
-        line-height:1.35;
-      ">
-        平均${avg.toFixed(1)}点 / 参加${participants}人 / ${classSize}人中
-      </div>
-    </div>
-  `;
-}
-
-/* ===== あなたカード ===== */
-function renderMyCard(termStatus, termRange, weeklyMine, weeklyTop){
-  const label = termRange?.label || "現在期間";
-
-  if(termStatus){
-    const termPoints =
-      Number(termStatus.term_best_total ?? termStatus.total_points ?? 0);
-    const myPosition = Number(termStatus.rank ?? 0);
-    const diffToFirst = Number(termStatus.diff_to_first ?? 0);
-
-    return `
-      <div style="
-        min-height:420px;
-        border-radius:28px;
-        padding:24px;
-        position:relative;
-        overflow:hidden;
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        justify-content:center;
-        text-align:center;
-        background:
-          radial-gradient(circle at 50% 18%, rgba(255,245,180,.28), transparent 26%),
-          linear-gradient(135deg, rgba(255,215,0,.38), rgba(255,255,255,.04) 55%, rgba(255,215,0,.12));
-        border:1px solid rgba(255,215,0,.28);
-        box-shadow:
-          inset 0 1px 0 rgba(255,255,255,.12),
-          0 0 34px rgba(255,215,0,.18),
-          0 18px 45px rgba(0,0,0,.22);
-        animation:pop .35s ease;
-      ">
-        <div style="
-          position:absolute;
-          inset:auto -30% 62% -30%;
-          height:120px;
-          background:linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
-          transform:rotate(-8deg);
-          pointer-events:none;
-        "></div>
-
-        <div style="
-          font-size:18px;
-          font-weight:900;
-          letter-spacing:.08em;
-          opacity:.92;
-          margin-bottom:10px;
-        ">
-          ${escapeHtml(label)}
-        </div>
-
-        <div style="
-          font-size:16px;
-          font-weight:900;
-          opacity:.86;
-          margin-bottom:20px;
-        ">
-          あなた
-        </div>
-
-        <div style="
-          width:100%;
-          display:grid;
-          gap:12px;
-        ">
-          <div style="
-            border-radius:18px;
-            padding:16px 18px;
-            background:rgba(255,255,255,.12);
-            border:1px solid rgba(255,255,255,.12);
-          ">
-            <div style="font-size:14px; opacity:.82; margin-bottom:6px;">学期ポイント</div>
-            <div style="font-size:36px; font-weight:1000; line-height:1.1;">${termPoints}点</div>
-          </div>
-
-          <div style="
-            border-radius:18px;
-            padding:16px 18px;
-            background:rgba(255,255,255,.10);
-            border:1px solid rgba(255,255,255,.10);
-          ">
-            <div style="font-size:14px; opacity:.82; margin-bottom:6px;">現在</div>
-            <div style="font-size:34px; font-weight:1000; line-height:1.1;">${myPosition}位</div>
-          </div>
-
-          <div style="
-            border-radius:18px;
-            padding:16px 18px;
-            background:rgba(255,255,255,.10);
-            border:1px solid rgba(255,255,255,.10);
-          ">
-            <div style="font-size:14px; opacity:.82; margin-bottom:6px;">1位まであと</div>
-            <div style="font-size:34px; font-weight:1000; line-height:1.1;">${diffToFirst}点</div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  if(weeklyMine){
-    const rank = Number(weeklyMine.rank ?? 0);
-    const points = Number(weeklyMine.points ?? weeklyMine.score ?? 0);
-    const first = Array.isArray(weeklyTop) && weeklyTop.length
-      ? Number(weeklyTop[0]?.points ?? weeklyTop[0]?.score ?? 0)
-      : points;
-    const diff = Math.max(0, first - points);
-
-    return `
-      <div style="
-        min-height:420px;
-        border-radius:28px;
-        padding:24px;
-        position:relative;
-        overflow:hidden;
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        justify-content:center;
-        text-align:center;
-        background:
-          radial-gradient(circle at 50% 18%, rgba(255,245,180,.24), transparent 26%),
-          linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
-        border:1px solid rgba(255,255,255,.12);
-        box-shadow:
-          inset 0 1px 0 rgba(255,255,255,.10),
-          0 18px 45px rgba(0,0,0,.20);
-        animation:pop .35s ease;
-      ">
-        <div style="
-          font-size:18px;
-          font-weight:900;
-          letter-spacing:.08em;
-          opacity:.92;
-          margin-bottom:10px;
-        ">
-          ${escapeHtml(label)}
-        </div>
-
-        <div style="
-          font-size:16px;
-          font-weight:900;
-          opacity:.86;
-          margin-bottom:20px;
-        ">
-          あなた
-        </div>
-
-        <div style="
-          width:100%;
-          display:grid;
-          gap:12px;
-        ">
-          <div style="
-            border-radius:18px;
-            padding:16px 18px;
-            background:rgba(255,255,255,.12);
-            border:1px solid rgba(255,255,255,.12);
-          ">
-            <div style="font-size:14px; opacity:.82; margin-bottom:6px;">学期ポイント</div>
-            <div style="font-size:36px; font-weight:1000; line-height:1.1;">${points}点</div>
-          </div>
-
-          <div style="
-            border-radius:18px;
-            padding:16px 18px;
-            background:rgba(255,255,255,.10);
-            border:1px solid rgba(255,255,255,.10);
-          ">
-            <div style="font-size:14px; opacity:.82; margin-bottom:6px;">現在</div>
-            <div style="font-size:34px; font-weight:1000; line-height:1.1;">${rank}位</div>
-          </div>
-
-          <div style="
-            border-radius:18px;
-            padding:16px 18px;
-            background:rgba(255,255,255,.10);
-            border:1px solid rgba(255,255,255,.10);
-          ">
-            <div style="font-size:14px; opacity:.82; margin-bottom:6px;">1位まであと</div>
-            <div style="font-size:34px; font-weight:1000; line-height:1.1;">${diff}点</div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  return `
-    <div style="
-      min-height:420px;
-      border-radius:28px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      text-align:center;
-      background:
-        radial-gradient(circle at 50% 20%, rgba(255,215,0,.18), transparent 35%),
-        linear-gradient(135deg, rgba(255,255,255,.06), rgba(255,255,255,.03));
-      border:1px solid rgba(255,255,255,.10);
-      color:rgba(255,255,255,.75);
-      font-size:24px;
-      font-weight:900;
-      line-height:1.6;
-      padding:24px;
-    ">
-      <div>
-        <div style="font-size:16px; opacity:.8; margin-bottom:10px;">${escapeHtml(label)}</div>
-        <div>まだランキングデータがありません</div>
-      </div>
-    </div>
-  `;
-}
-
-/* ===== クラス1位表示 ===== */
-function renderClassGoal(klass){
-  const el = byId2("classGoal");
+function renderWeeklyTop(rows){
+  const el = byId("weeklyTop");
   if(!el) return;
 
-  if(!klass?.length){
-    el.textContent = "クラスデータはまだありません";
+  if(!rows?.length){
+    el.innerHTML = "（まだデータなし）";
     return;
   }
 
-  const top = klass[0];
-  const score = Number(top.score ?? 0);
-
-  el.textContent = `現在1位：${formatClassDisplay(top.class_code)}（${score.toFixed(1)}点）`;
+  el.innerHTML = rows.slice(0,10).map((r,i)=>`
+    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+      <div>${rankIcon(i)} ${fmtName(r)}</div>
+      <div>${Number(r.points ?? r.score ?? 0)}点</div>
+    </div>
+  `).join("");
 }
 
-/* ===== 週セレクト ===== */
-function fillWeekSelect(weeks, selected){
-  const sel = byId2("weekSelect");
-  if(!sel) return;
+/* ========= クラス ========= */
 
-  const list = [...new Set((weeks || []).filter(Boolean))];
-  sel.innerHTML = list.map(w => `<option value="${escapeHtml(w)}">${escapeHtml(w)}</option>`).join("");
-  sel.value = list.includes(selected) ? selected : (list[0] || "");
+function renderClass(rows){
+  const el = byId("classRank");
+  if(!el) return;
+
+  if(!rows?.length){
+    el.innerHTML = "（まだデータなし）";
+    return;
+  }
+
+  el.innerHTML = rows.slice(0,10).map((r,i)=>`
+    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+      <div>${rankIcon(i)} ${esc(r.class_code)}</div>
+      <div>${Number(r.score ?? 0).toFixed(1)}点</div>
+    </div>
+  `).join("");
 }
 
-async function loadWeekOptions(){
-  const now = window.api?.getWeekIdNow?.() || "";
-  const weeks = [now];
-  fillWeekSelect(weeks, now);
+/* ========= あなた ========= */
+
+function renderMyCard(term, weekly, top){
+  const el = byId("myRank");
+  if(!el) return;
+
+  if(!weekly){
+    el.innerHTML = "（まだデータなし）";
+    return;
+  }
+
+  const my = Number(weekly.points ?? weekly.score ?? 0);
+  const first = Number(top?.[0]?.points ?? 0);
+  const diff = Math.max(0, first - my);
+
+  const termPoints = Number(term?.term_best_total ?? 0);
+  const rank = term?.rank ?? "-";
+
+  el.innerHTML = `
+    学期ポイント：${termPoints}点<br>
+    現在：${rank}位<br>
+    1位まであと：${diff}点
+  `;
 }
 
-/* ===== メイン ===== */
+/* ========= 🔥 追加：表彰 ========= */
+
+function renderTop3(id, rows, key){
+  const el = byId(id);
+  if(!el) return;
+
+  if(!rows?.length){
+    el.innerHTML = "（まだデータなし）";
+    return;
+  }
+
+  el.innerHTML = rows.slice(0,3).map((r,i)=>{
+    const val = Number(r[key] ?? r.points ?? r.score ?? 0);
+    return `
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <div>${rankIcon(i)} ${fmtName(r)}</div>
+        <div>${val}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+/* ========= メイン ========= */
+
 async function loadRankings(){
-  const week = getSelectedWeek();
+  const week = window.api.getWeekIdNow();
+  const term = window.api.getCurrentTermRange();
 
   try{
-    setRankMsg("読み込み中...");
+    const [
+      weeklyTop,
+      myWeekly,
+      classRank,
+      termTop,
+      effortTop,
+      myTerm
+    ] = await Promise.all([
+      window.api.fetchWeeklyTop(week),
+      window.api.fetchMyWeeklyRank(week),
+      window.api.fetchClassWeeklyRanking(week,10),
+      window.client.rpc("get_public_term_best_ranking", {
+        p_start: term.start_at,
+        p_end: term.end_at,
+        p_limit: 3
+      }).then(r=>r.data),
 
-    const termRange = window.api?.getCurrentTermRange?.() || null;
+      window.client.rpc("get_public_term_effort_ranking", {
+        p_start: term.start_at,
+        p_end: term.end_at,
+        p_limit: 3
+      }).then(r=>r.data),
 
-    const [top, mine, klass, termStatus] = await Promise.all([
-      window.api.fetchWeeklyTop?.(week) ?? [],
-      window.api.fetchMyWeeklyRank?.(week) ?? null,
-      window.api.fetchClassWeeklyRanking?.(week, 10) ?? [],
-      window.api.fetchMyTermBestStatus?.(termRange) ?? null
+      window.api.fetchMyTermBestStatus(term)
     ]);
 
-    const topRows = Array.isArray(top) ? top.slice(0, 10) : [];
-    const classRows = Array.isArray(klass) ? klass.slice(0, 10) : [];
+    renderWeeklyTop(weeklyTop);
+    renderClass(classRank);
+    renderMyCard(myTerm, myWeekly, weeklyTop);
 
-    byId2("weeklyTop").innerHTML =
-      topRows.length
-        ? topRows.map((row, i) => fmtTopRowHtml(i, row)).join("")
-        : "（まだデータなし）";
+    // 🔥 表彰
+    renderTop3("weeklyTop3", weeklyTop, "points");
+    renderTop3("termTop3", termTop, "term_best_total");
+    renderTop3("effortTop3", effortTop, "finished_count");
 
-    byId2("myRank").innerHTML = renderMyCard(termStatus, termRange, mine, topRows);
-
-    byId2("classRank").innerHTML =
-      classRows.length
-        ? classRows.map((row, i) => fmtClassRowHtml(i, row)).join("")
-        : "（まだデータなし）";
-
-    renderClassGoal(classRows);
-    setRankMsg(`${week} のランキング`);
   }catch(e){
-    console.warn("[ranking] loadRankings failed:", e);
-    setRankMsg("取得失敗");
-
-    if(byId2("weeklyTop")) byId2("weeklyTop").innerHTML = "（取得失敗）";
-    if(byId2("myRank")) byId2("myRank").innerHTML = "（取得失敗）";
-    if(byId2("classRank")) byId2("classRank").innerHTML = "（取得失敗）";
+    console.warn("ranking error", e);
   }
 }
 
-/* ===== スタイル注入 ===== */
-if(!document.getElementById("ranking-style")){
-  const style = document.createElement("style");
-  style.id = "ranking-style";
-  style.innerHTML = `
-    @keyframes pop{
-      0%{transform:scale(.95);opacity:.6;}
-      100%{transform:scale(1);opacity:1;}
-    }
-  `;
-  document.head.appendChild(style);
-}
+/* ========= 起動 ========= */
 
-window.loadWeekOptions = loadWeekOptions;
-window.loadRankings = loadRankings;
-
-document.addEventListener("DOMContentLoaded", () => {
-  const t = setInterval(async () => {
+document.addEventListener("DOMContentLoaded", ()=>{
+  const t = setInterval(()=>{
     if(!window.api) return;
     clearInterval(t);
-    await loadWeekOptions();
-    await loadRankings();
-  }, 50);
+    loadRankings();
+  },50);
 });
