@@ -324,7 +324,7 @@
 
     .rankGrid{
       display:grid;
-      grid-template-columns:1.15fr .85fr;
+      grid-template-columns:1fr 1fr;
       gap:12px;
     }
 
@@ -352,6 +352,12 @@
       text-align:center;
     }
 
+    .awardGrid{
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:10px;
+    }
+
     #overlay{
       position:fixed;
       inset:0;
@@ -372,10 +378,8 @@
       border:1px solid rgba(255,255,255,.18);
       box-shadow:0 28px 80px rgba(0,0,0,.45);
       text-shadow:0 14px 40px rgba(0,0,0,.55);
-
       font-size: clamp(36px, 12vw, 90px);
       line-height:1.1;
-
       position:absolute;
       left:50%;
       top:62%;
@@ -404,12 +408,12 @@
       #choices{ grid-template-columns:1fr; }
       .resultStats{ grid-template-columns:1fr; }
       .rankGrid{ grid-template-columns:1fr; }
+      .awardGrid{ grid-template-columns:1fr; }
       .resultScoreBig{ font-size:42px; }
       .retryBtnMain{ width:100%; }
       .rankControls{ align-items:flex-start; }
     }
 
-    /* 追加: 試作版ウォーターマーク */
     .trial-watermark{
       position: fixed;
       top: 50%;
@@ -502,16 +506,17 @@ PC：アドレスバー右の「インストール」アイコン
         </div>
       </div>
 
+      <div class="panelCard">
+        <div class="panelTitle">あなた</div>
+        <div id="myRank" class="msg">（まだデータなし）</div>
+      </div>
+
       <div class="retryWrap">
         <button id="retryBtn" class="btn retryBtnMain">もう一回！</button>
       </div>
 
       <div id="rankPane" class="panelCard">
         <div class="panelTitle">🏆 ランキング</div>
-
-        <div class="sectionTitle">🏫 クラス対抗（平均）</div>
-        <div id="classGoal" class="msg"></div>
-        <div id="classRank" class="classRankList">（まだデータなし）</div>
 
         <div class="rankControls">
           <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
@@ -525,14 +530,36 @@ PC：アドレスバー右の「インストール」アイコン
         </div>
 
         <div class="rankGrid">
-          <div class="miniCard">
+          <div>
+            <div class="sectionTitle">🏫 クラス対抗（平均）</div>
+            <div id="classGoal" class="msg"></div>
+            <div id="classRank" class="classRankList">（まだデータなし）</div>
+          </div>
+
+          <div>
             <div class="sectionTitle">Top10</div>
             <div id="weeklyTop" class="rankList">（まだデータなし）</div>
           </div>
+        </div>
+      </div>
 
-          <div class="miniCard youCard">
-            <div class="sectionTitle">あなた</div>
-            <div id="myRank" class="msg">（まだデータなし）</div>
+      <div class="panelCard">
+        <div class="panelTitle">🏆 表彰ランキング</div>
+
+        <div class="awardGrid">
+          <div class="miniCard">
+            <div class="sectionTitle">週間ベストスコア Top3</div>
+            <div id="weeklyTop3" class="msg">（まだデータなし）</div>
+          </div>
+
+          <div class="miniCard">
+            <div class="sectionTitle">最優秀賞 学期累計 Top3</div>
+            <div id="termTop3" class="msg">（まだデータなし）</div>
+          </div>
+
+          <div class="miniCard">
+            <div class="sectionTitle">努力賞 Top3</div>
+            <div id="effortTop3" class="msg">（まだデータなし）</div>
           </div>
         </div>
       </div>
@@ -542,11 +569,11 @@ PC：アドレスバー右の「インストール」アイコン
 
   <div id="overlay" class="hidden"><div class="panel"></div></div>
 
-  <script src="./js/config.js?v=20260312d"></script>
-  <script src="./js/api.js?v=20260312d"></script>
-  <script src="./js/ranking.js?v=20260312d"></script>
-  <script src="./js/quiz.js?v=20260312d"></script>
-  <script src="./js/main.js?v=20260312d"></script>
+  <script src="./js/config.js?v=20260424-resultlayout1"></script>
+  <script src="./js/api.js?v=20260424-resultlayout1"></script>
+  <script src="./js/ranking.js?v=20260424-resultlayout1"></script>
+  <script src="./js/quiz.js?v=20260424-resultlayout1"></script>
+  <script src="./js/main.js?v=20260424-resultlayout1"></script>
 
   <script>
     (function () {
