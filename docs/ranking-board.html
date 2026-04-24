@@ -608,5 +608,95 @@
   </script>
 
   <div class="trial-watermark">試作版</div>
+  <script>
+(function(){
+  const style = document.createElement("style");
+  style.textContent = `
+    .title{
+      font-size:52px !important;
+    }
+
+    .sub{
+      font-size:24px !important;
+    }
+
+    .week{
+      font-size:42px !important;
+    }
+
+    .updated{
+      font-size:20px !important;
+    }
+
+    .panelTitle h2{
+      font-size:38px !important;
+    }
+
+    .badgeMini{
+      font-size:20px !important;
+      padding:10px 18px !important;
+    }
+
+    .rowCard{
+      min-height:118px !important;
+      padding:16px 22px !important;
+    }
+
+    .rowCard.rank1{
+      min-height:140px !important;
+    }
+
+    .rankIcon{
+      font-size:52px !important;
+    }
+
+    .name{
+      font-size:42px !important;
+      font-weight:1000 !important;
+    }
+
+    .meta{
+      font-size:22px !important;
+      font-weight:900 !important;
+    }
+
+    .score{
+      font-size:54px !important;
+      font-weight:1000 !important;
+    }
+
+    .scoreVisual img{
+      width:100px !important;
+      height:100px !important;
+    }
+
+    .rank1 .scoreVisual img{
+      width:125px !important;
+      height:125px !important;
+    }
+
+    .compact .rowCard{
+      min-height:86px !important;
+    }
+
+    .compact .name{
+      font-size:30px !important;
+    }
+
+    .compact .meta{
+      font-size:18px !important;
+    }
+
+    .compact .score{
+      font-size:36px !important;
+    }
+
+    .compact .rankIcon{
+      font-size:36px !important;
+    }
+  `;
+  document.head.appendChild(style);
+})();
+</script>
 </body>
 </html>
