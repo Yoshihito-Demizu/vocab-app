@@ -34,8 +34,6 @@
     body{ padding:12px; }
 
     .wrap{
-      position:relative;
-      z-index:1;
       width:min(100%, 980px);
       height:calc(100vh - 24px);
       margin:0 auto;
@@ -60,7 +58,6 @@
     .hero{
       border-radius:24px;
       padding:14px 18px;
-      overflow:hidden;
     }
 
     .title{
@@ -68,15 +65,12 @@
       font-size:36px;
       line-height:1;
       font-weight:1000;
-      letter-spacing:.02em;
       text-shadow:0 8px 18px rgba(0,0,0,.28);
     }
 
     .sei{
       color:#2ec4a6;
-      text-shadow:
-        0 0 4px rgba(46,196,166,.5),
-        0 0 10px rgba(46,196,166,.3);
+      text-shadow:0 0 4px rgba(46,196,166,.5),0 0 10px rgba(46,196,166,.3);
     }
 
     .sub{
@@ -93,13 +87,12 @@
       text-align:right;
     }
 
-    .status .week{
+    .week{
       font-size:28px;
       font-weight:1000;
-      line-height:1.1;
     }
 
-    .status .updated{
+    .updated{
       margin-top:8px;
       color:var(--muted);
       font-size:14px;
@@ -109,7 +102,7 @@
     .grid{
       display:grid;
       grid-template-columns:1fr 1fr;
-      grid-template-rows:1fr 1fr;
+      grid-template-rows:1.35fr .75fr;
       gap:12px;
       min-height:0;
     }
@@ -142,7 +135,6 @@
       padding:7px 11px;
       font-size:12px;
       font-weight:1000;
-      color:#e6efff;
       background:rgba(255,255,255,.06);
       border:1px solid rgba(255,255,255,.10);
       white-space:nowrap;
@@ -155,28 +147,47 @@
     }
 
     .rowCard{
+      position:relative;
+      overflow:hidden;
       display:grid;
-      grid-template-columns:76px 1fr auto;
+      grid-template-columns:70px 1fr 126px;
       gap:10px;
       align-items:center;
-      min-height:74px;
-      padding:10px 12px;
+      min-height:82px;
+      padding:10px 10px;
       border-radius:18px;
       background:rgba(255,255,255,.06);
       border:1px solid rgba(255,255,255,.10);
     }
 
     .rowCard.rank1{
+      min-height:104px;
       background:
         radial-gradient(circle at 8% 50%, rgba(255,240,168,.24), transparent 28%),
         linear-gradient(90deg, rgba(255,224,104,.26), rgba(255,255,255,.05));
       border-color:rgba(255,224,104,.36);
     }
 
+    .compact .rowCard{
+      min-height:52px;
+      grid-template-columns:54px 1fr auto;
+      padding:7px 10px;
+      border-radius:14px;
+    }
+
+    .compact .rowCard.rank1{
+      min-height:58px;
+    }
+
     .rankIcon{
       font-size:34px;
       font-weight:1000;
       text-align:center;
+      z-index:2;
+    }
+
+    .compact .rankIcon{
+      font-size:24px;
     }
 
     .name{
@@ -187,6 +198,11 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
+      z-index:2;
+    }
+
+    .compact .name{
+      font-size:17px;
     }
 
     .meta{
@@ -198,6 +214,12 @@
       white-space:nowrap;
       overflow:hidden;
       text-overflow:ellipsis;
+      z-index:2;
+    }
+
+    .compact .meta{
+      margin-top:2px;
+      font-size:11px;
     }
 
     .score{
@@ -207,6 +229,11 @@
       white-space:nowrap;
       text-align:right;
       text-shadow:0 0 18px rgba(255,213,74,.22);
+      z-index:2;
+    }
+
+    .compact .score{
+      font-size:20px;
     }
 
     .score.blue{
@@ -217,6 +244,31 @@
     .score.green{
       color:#63f0ba;
       text-shadow:0 0 18px rgba(99,240,186,.18);
+    }
+
+    .scoreVisual{
+      position:absolute;
+      right:6px;
+      top:50%;
+      transform:translateY(-50%);
+      pointer-events:none;
+      z-index:1;
+      opacity:.95;
+    }
+
+    .scoreVisual img{
+      width:74px;
+      height:74px;
+      object-fit:contain;
+      filter:drop-shadow(0 12px 24px rgba(0,0,0,.28));
+    }
+
+    .rank1 .scoreVisual img{
+      width:98px;
+      height:98px;
+      filter:
+        drop-shadow(0 0 22px rgba(255,213,74,.38))
+        drop-shadow(0 14px 30px rgba(0,0,0,.28));
     }
 
     .footer{
@@ -238,9 +290,7 @@
       font-weight: 1000;
       letter-spacing: 0.35em;
       color: rgba(255,255,255,0.22);
-      text-shadow:
-        0 0 14px rgba(255,255,255,0.18),
-        0 0 30px rgba(255,255,255,0.10);
+      text-shadow:0 0 14px rgba(255,255,255,0.18),0 0 30px rgba(255,255,255,0.10);
       pointer-events: none;
       z-index: 9999;
       user-select: none;
@@ -280,7 +330,7 @@
         <div id="classBoard" class="list">（まだデータなし）</div>
       </section>
 
-      <section class="panel">
+      <section class="panel compact">
         <div class="panelTitle">
           <h2>最優秀賞 学期累計 Top3</h2>
           <div class="badgeMini">TERM TOTAL</div>
@@ -288,7 +338,7 @@
         <div id="termBoard" class="list">（まだデータなし）</div>
       </section>
 
-      <section class="panel">
+      <section class="panel compact">
         <div class="panelTitle">
           <h2>努力賞 Top3</h2>
           <div class="badgeMini">FINISH COUNT</div>
@@ -302,10 +352,28 @@
     </div>
   </div>
 
-  <script src="./js/config.js?v=20260424-signage-sync1"></script>
-  <script src="./js/api.js?v=20260424-signage-sync1"></script>
+  <script src="./js/config.js?v=20260424-signage-sync2"></script>
+  <script src="./js/api.js?v=20260424-signage-sync2"></script>
 
   <script>
+    const PERSONAL_GRADE_IMAGES = {
+      J1: ["./images/signage/personal/J1.png"],
+      J2: ["./images/signage/personal/J2-1.png", "./images/signage/personal/J2-2.png"],
+      J3: ["./images/signage/personal/J3.png"],
+      H1: ["./images/signage/personal/H1.png"],
+      H2: ["./images/signage/personal/H2.png"],
+      H3: ["./images/signage/personal/H3.png"]
+    };
+
+    const CLASS_GRADE_IMAGES = {
+      J1: ["./images/signage/class/J1.png"],
+      J2: ["./images/signage/class/J2-1.png", "./images/signage/class/J2-2.png"],
+      J3: ["./images/signage/class/J3.png"],
+      H1: ["./images/signage/class/H1.png"],
+      H2: ["./images/signage/class/H2.png"],
+      H3: ["./images/signage/class/H3.png"]
+    };
+
     function escapeHtml(s) {
       return String(s ?? "")
         .replaceAll("&", "&amp;")
@@ -328,7 +396,6 @@
     function formatWeekJapanese(weekId) {
       const m = String(weekId || "").match(/^(\d{4})-W(\d{2})$/);
       if (!m) return weekId || "-";
-
       const year = Number(m[1]);
       const week = Number(m[2]);
       const jan4 = new Date(Date.UTC(year, 0, 4));
@@ -348,15 +415,22 @@
       return String(rank);
     }
 
+    function extractGradeCode(value) {
+      const s = String(value || "").trim();
+      let m = s.match(/\b(J[1-3]|H[1-3])\b/i);
+      if (m) return m[1].toUpperCase();
+      m = s.match(/^([123])[-－]/);
+      if (m) return `J${m[1]}`;
+      return null;
+    }
+
     function formatClassDisplay(code) {
       if (!code) return "-";
       const m = String(code).trim().match(/^([A-Z]?)(\d+)-(\d+)$/i);
       if (!m) return String(code);
-
       const prefix = (m[1] || "").toUpperCase();
       const grade = m[2];
       const cls = Number(m[3]);
-
       if (prefix === "H") {
         const map = ["A", "B", "C", "D", "E", "F"];
         return `H${grade}-${map[cls - 1] || cls}`;
@@ -366,26 +440,35 @@
 
     function formatStudentDisplay(value) {
       if (!value) return "-";
-
       const s = String(value).trim();
       const m = s.match(/^([A-Z]?)(\d+)-(\d+)-(\d+)(.*)$/i);
       if (!m) return s;
-
       const prefix = (m[1] || "").toUpperCase();
       const grade = m[2];
       const cls = Number(m[3]);
       const number = m[4];
       const rest = m[5] || "";
-
       if (prefix === "H") {
         const map = ["A", "B", "C", "D", "E", "F"];
         return `H${grade}-${map[cls - 1] || cls}-${number}${rest}`;
       }
-
       return `${prefix}${grade}-${cls}-${number}${rest}`;
     }
 
-    function rowHtml({ rank, name, meta, value, colorClass }) {
+    function getFirstImage(imageMap, gradeCode) {
+      if (!gradeCode || !imageMap[gradeCode] || imageMap[gradeCode].length === 0) return null;
+      return imageMap[gradeCode][0];
+    }
+
+    function personalGrade(row) {
+      return extractGradeCode(row.class_code) || extractGradeCode(row.nickname) || extractGradeCode(row.player_id);
+    }
+
+    function classGrade(row) {
+      return extractGradeCode(row.class_code);
+    }
+
+    function rowHtml({ rank, name, meta, value, colorClass, img }) {
       return `
         <div class="rowCard rank${rank}">
           <div class="rankIcon">${rankIcon(rank)}</div>
@@ -394,45 +477,30 @@
             <div class="meta">${escapeHtml(meta || "")}</div>
           </div>
           <div class="score ${colorClass || ""}">${escapeHtml(value)}</div>
+          ${img ? `<div class="scoreVisual"><img src="${img}" alt="${rank}位"></div>` : ""}
         </div>
       `;
     }
 
     function renderWeekly(rows) {
       const el = document.getElementById("weeklyBoard");
-      if (!el) return;
-
       const list = Array.isArray(rows) ? rows.slice(0, 3) : [];
-      if (!list.length) {
-        el.innerHTML = "（まだデータなし）";
-        return;
-      }
+      if (!list.length) { el.innerHTML = "（まだデータなし）"; return; }
 
       el.innerHTML = list.map((row, i) => {
         const rank = i + 1;
         const name = formatStudentDisplay(row.nickname || row.player_id || "-");
         const points = Number(row.points ?? row.score ?? 0);
         const combo = Number(row.max_combo ?? 0);
-
-        return rowHtml({
-          rank,
-          name,
-          meta: `COMBO ${combo}`,
-          value: `${points}点`,
-          colorClass: ""
-        });
+        const img = getFirstImage(PERSONAL_GRADE_IMAGES, personalGrade(row));
+        return rowHtml({ rank, name, meta:`COMBO ${combo}`, value:`${points}点`, colorClass:"", img });
       }).join("");
     }
 
     function renderClass(rows) {
       const el = document.getElementById("classBoard");
-      if (!el) return;
-
       const list = Array.isArray(rows) ? rows.slice(0, 3) : [];
-      if (!list.length) {
-        el.innerHTML = "（まだデータなし）";
-        return;
-      }
+      if (!list.length) { el.innerHTML = "（まだデータなし）"; return; }
 
       el.innerHTML = list.map((row, i) => {
         const rank = i + 1;
@@ -442,66 +510,44 @@
         const participants = Number(row.participants ?? row.players ?? 0);
         const classSize = Number(row.class_size ?? 0);
         const rate = classSize > 0 ? Math.round((participants / classSize) * 100) : 0;
+        const img = getFirstImage(CLASS_GRADE_IMAGES, classGrade(row));
 
         return rowHtml({
           rank,
-          name: className,
-          meta: `平均${avg.toFixed(1)}点 / 参加${participants}人 / 参加率${rate}%`,
-          value: `${score.toFixed(1)}点`,
-          colorClass: "blue"
+          name:className,
+          meta:`平均${avg.toFixed(1)}点 / 参加${participants}人 / 参加率${rate}%`,
+          value:`${score.toFixed(1)}点`,
+          colorClass:"blue",
+          img
         });
       }).join("");
     }
 
     function renderTerm(rows) {
       const el = document.getElementById("termBoard");
-      if (!el) return;
-
       const list = Array.isArray(rows) ? rows.slice(0, 3) : [];
-      if (!list.length) {
-        el.innerHTML = "（まだデータなし）";
-        return;
-      }
+      if (!list.length) { el.innerHTML = "（まだデータなし）"; return; }
 
       el.innerHTML = list.map((row, i) => {
         const rank = i + 1;
         const name = formatStudentDisplay(row.nickname || row.player_id || "-");
         const total = Number(row.term_best_total ?? 0);
         const cls = formatClassDisplay(row.class_code || "");
-
-        return rowHtml({
-          rank,
-          name,
-          meta: cls ? `所属 ${cls}` : "",
-          value: `${total}点`,
-          colorClass: ""
-        });
+        return rowHtml({ rank, name, meta:cls ? `所属 ${cls}` : "", value:`${total}点`, colorClass:"" });
       }).join("");
     }
 
     function renderEffort(rows) {
       const el = document.getElementById("effortBoard");
-      if (!el) return;
-
       const list = Array.isArray(rows) ? rows.slice(0, 3) : [];
-      if (!list.length) {
-        el.innerHTML = "（まだデータなし）";
-        return;
-      }
+      if (!list.length) { el.innerHTML = "（まだデータなし）"; return; }
 
       el.innerHTML = list.map((row, i) => {
         const rank = i + 1;
         const name = formatStudentDisplay(row.nickname || row.player_id || "-");
         const count = Number(row.finished_count ?? 0);
         const cls = formatClassDisplay(row.class_code || "");
-
-        return rowHtml({
-          rank,
-          name,
-          meta: cls ? `所属 ${cls}` : "",
-          value: `${count}回`,
-          colorClass: "green"
-        });
+        return rowHtml({ rank, name, meta:cls ? `所属 ${cls}` : "", value:`${count}回`, colorClass:"green" });
       }).join("");
     }
 
