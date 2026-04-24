@@ -1,7 +1,7 @@
 /* global api */
 "use strict";
 
-console.log("[quiz] loaded! (countdown + BGM + wrong-minus-2sec)");
+console.log("[quiz] loaded! (countdown + BGM + SE + wrong-minus-2sec)");
 
 const $ = (id) => document.getElementById(id);
 
@@ -26,20 +26,46 @@ const els = {
   overlayPanel: $("overlay") ? $("overlay").querySelector(".panel") : null,
 };
 
-// ===== BGM =====
+// ===== sound =====
+function playAudio(id, volume = 0.5, reset = true) {
+  const a = document.getElementById(id);
+  if (!a) return;
+  try {
+    if (reset) a.currentTime = 0;
+    a.volume = volume;
+    a.play().catch(() => {});
+  } catch {}
+}
+
+function stopAudio(id, reset = true) {
+  const a = document.getElementById(id);
+  if (!a) return;
+  try {
+    a.pause();
+    if (reset) a.currentTime = 0;
+  } catch {}
+}
+
 function playBgm() {
-  const bgm = document.getElementById("bgm");
-  if (!bgm) return;
-  bgm.currentTime = 0;
-  bgm.volume = 0.4;
-  bgm.play().catch(() => {});
+  stopAudio("bgmResult");
+  playAudio("bgm", 0.4, true);
 }
 
 function stopBgm() {
-  const bgm = document.getElementById("bgm");
-  if (!bgm) return;
-  bgm.pause();
-  bgm.currentTime = 0;
+  stopAudio("bgm");
+}
+
+function playResultBgm() {
+  stopAudio("bgm");
+  playAudio("bgmResult", 0.45, true);
+}
+
+function stopResultBgm() {
+  stopAudio("bgmResult");
+}
+
+function playSe(id) {
+  playAudio(id, 0.6, true);
 }
 
 // ===== state =====
@@ -283,6 +309,8 @@ async function answer(choiceLabel) {
     if (correctLabel) markButtons(correctLabel, chosen);
 
     if (isCorrect) {
+      playSe("seCorrect");
+
       combo += 1;
       maxCombo = Math.max(maxCombo, combo);
 
@@ -299,6 +327,8 @@ async function answer(choiceLabel) {
       const overlayText = fastLabel ? `${fastLabel} +${gained}` : `〇 +${gained}`;
       await showOverlay("ok", overlayText, 520);
     } else {
+      playSe("seWrong");
+
       combo = 0;
 
       msLeft = Math.max(0, msLeft - WRONG_PENALTY_MS);
@@ -333,6 +363,8 @@ async function startGame() {
 
     ensureResultUi();
 
+    stopResultBgm();
+
     playing = true;
     answering = false;
 
@@ -354,12 +386,19 @@ async function startGame() {
 
     msLeft = GAME_SECONDS * 1000;
     startTimer();
-　
+
     playBgm();
-    
+
+    playSe("seCount3");
     await showOverlay("count", "3", COUNT_MS);
+
+    playSe("seCount2");
     await showOverlay("count", "2", COUNT_MS);
+
+    playSe("seCount1");
     await showOverlay("count", "1", COUNT_MS);
+
+    playSe("seCountGo");
     await showOverlay("go", "START", GO_MS);
 
     await loadQuestion();
@@ -368,6 +407,7 @@ async function startGame() {
     playing = false;
     stopTimer();
     stopBgm();
+    stopResultBgm();
     showPane("start");
   }
 }
@@ -379,6 +419,7 @@ async function endGame(isFinished = false) {
   answering = false;
   stopTimer();
   stopBgm();
+  playResultBgm();
 
   const avgSec = answeredCount > 0 ? (totalAnswerMs / answeredCount / 1000) : 0;
   const fastestSec = fastestAnswerMs !== null ? (fastestAnswerMs / 1000) : 0;
