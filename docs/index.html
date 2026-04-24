@@ -429,74 +429,86 @@
       z-index: 9998;
       user-select: none;
     }
-    /* =========================
-   🔥 サイネージ用 拡大モード
-   ========================= */
+/* ===== サイネージ文字拡大：実クラス対応版 ===== */
 
-body {
-  font-size: 1.4vw; /* 全体ベースアップ */
+.title{
+  font-size: 42px !important;
 }
 
-/* タイトル */
-h1, .title {
-  font-size: 3.2vw !important;
-  font-weight: 900;
+.sub{
+  font-size: 18px !important;
 }
 
-/* セクション見出し */
-.section-title {
-  font-size: 2.2vw !important;
-  font-weight: 800;
+.week{
+  font-size: 34px !important;
 }
 
-/* Top3カード */
-.rank-card {
-  padding: 1.2vw 1.5vw !important;
-  margin-bottom: 1vw !important;
-  border-radius: 18px;
+.updated{
+  font-size: 16px !important;
 }
 
-/* 順位番号 */
-.rank-card .rank {
-  font-size: 2vw !important;
+.panelTitle h2{
+  font-size: 30px !important;
 }
 
-/* 名前 */
-.rank-card .name {
-  font-size: 1.8vw !important;
-  font-weight: 900;
+.badgeMini{
+  font-size: 15px !important;
+  padding: 8px 14px !important;
 }
 
-/* スコア */
-.rank-card .score {
-  font-size: 2.4vw !important;
-  font-weight: 900;
+.rowCard{
+  min-height: 96px !important;
+  padding: 12px 16px !important;
 }
 
-/* サブ情報（comboとか） */
-.rank-card .sub {
-  font-size: 1.2vw !important;
-  opacity: 0.9;
+.rowCard.rank1{
+  min-height: 118px !important;
 }
 
-/* クラス対抗の小文字（平均・参加率） */
-.class-meta {
-  font-size: 1.1vw !important;
+.rankIcon{
+  font-size: 42px !important;
 }
 
-/* 右上の日付 */
-.header-right {
-  font-size: 1.3vw !important;
+.name{
+  font-size: 32px !important;
 }
 
-/* 下段（最優秀賞・努力賞） */
-.award-card {
-  font-size: 1.4vw !important;
+.meta{
+  font-size: 18px !important;
 }
 
-/* 余白圧縮（縦伸び防止） */
-.section {
-  margin-bottom: 1.2vw !important;
+.score{
+  font-size: 42px !important;
+}
+
+.scoreVisual img{
+  width: 86px !important;
+  height: 86px !important;
+}
+
+.rank1 .scoreVisual img{
+  width: 108px !important;
+  height: 108px !important;
+}
+
+.compact .rowCard{
+  min-height: 70px !important;
+}
+
+.compact .name{
+  font-size: 24px !important;
+}
+
+.compact .meta{
+  font-size: 15px !important;
+}
+
+.compact .score{
+  font-size: 28px !important;
+}
+
+.compact .rankIcon{
+  font-size: 30px !important;
 }
   </style>
 </head>
