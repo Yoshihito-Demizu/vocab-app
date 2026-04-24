@@ -1,7 +1,7 @@
 /* global api */
 "use strict";
 
-console.log("[quiz] loaded! (countdown display + play BGM fix)");
+console.log("[quiz] loaded! (countdown + BGM timing fix + SE + wrong-minus-2sec)");
 
 const $ = (id) => document.getElementById(id);
 
@@ -374,6 +374,9 @@ async function startGame() {
   try {
     if (playing) return;
 
+    // STARTボタン直後にプレイ中BGMを起動
+    playBgm();
+
     ensureResultUi();
 
     stopResultBgm();
@@ -399,8 +402,6 @@ async function startGame() {
 
     msLeft = GAME_SECONDS * 1000;
     startTimer();
-
-    playBgm();
 
     playSe("seCount3");
     await showOverlay("count", "3", COUNT_MS);
