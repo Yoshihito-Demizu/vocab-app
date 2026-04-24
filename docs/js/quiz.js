@@ -1,7 +1,7 @@
 /* global api */
 "use strict";
 
-console.log("[quiz] loaded! (BEST BGM timing)");
+console.log("[quiz] loaded! (BEST BGM timing + overlay score)");
 
 const $ = (id) => document.getElementById(id);
 
@@ -46,21 +46,21 @@ function playSe(id) {
   playAudio(id, 0.7, true);
 }
 
-// ===== BGM（重要）=====
+// ===== BGM =====
 let bgm = null;
 
 function initBgmSilentStart() {
   bgm = document.getElementById("bgm");
   if (!bgm) return;
 
-  bgm.volume = 0; // 🔥 無音でスタート
+  bgm.volume = 0;
   bgm.currentTime = 0;
   bgm.play().catch(() => {});
 }
 
 function enableBgm() {
   if (!bgm) return;
-  bgm.volume = 0.4; // 🔥 GOで音出す
+  bgm.volume = 0.4;
 }
 
 function stopBgm() {
@@ -102,7 +102,7 @@ function setText(el, v) {
 }
 
 async function showOverlay(type, text, ms) {
-  if (!els.overlay) return;
+  if (!els.overlay || !els.overlayPanel) return;
 
   els.overlay.classList.remove("hidden");
   els.overlayPanel.className = "panel " + type;
@@ -114,16 +114,25 @@ async function showOverlay(type, text, ms) {
 
 // ===== TIMER =====
 function startTimer() {
+  stopTimer();
+
   timerId = setInterval(() => {
     msLeft -= 100;
+
+    if (msLeft < 0) msLeft = 0;
     setText(els.timeLeft, Math.ceil(msLeft / 1000));
 
-    if (msLeft <= 0) endGame(true);
+    if (msLeft <= 0) {
+      endGame();
+    }
   }, 100);
 }
 
 function stopTimer() {
-  clearInterval(timerId);
+  if (timerId) {
+    clearInterval(timerId);
+    timerId = null;
+  }
 }
 
 // ===== GAME =====
@@ -131,6 +140,7 @@ async function startGame() {
   if (playing) return;
 
   playing = true;
+  answering = true;
 
   score = 0;
   combo = 0;
@@ -145,10 +155,8 @@ async function startGame() {
   msLeft = GAME_SECONDS * 1000;
   startTimer();
 
-  // 🔥 ここが最重要
   initBgmSilentStart();
 
-  // ===== COUNTDOWN =====
   playSe("seCount3");
   await showOverlay("count", "3", COUNT_MS);
 
@@ -161,21 +169,29 @@ async function startGame() {
   playSe("seCountGo");
   await showOverlay("go", "GO", GO_MS);
 
-  // 🔥 GOの瞬間にBGMオン
   enableBgm();
 
+  answering = false;
   await loadQuestion();
 }
 
 // ===== QUESTION =====
 async function loadQuestion() {
+  if (!playing) return;
+
   currentQ = await api.fetchLatestQuestion();
 
   els.q.innerHTML = `<h3>${currentQ.word}</h3>`;
 
-  els.choices.innerHTML = ["A","B","C","D"].map((c)=>`
-    <button onclick="answer('${c}')">${currentQ["choice_"+c.toLowerCase()]}</button>
-  `).join("");
+  els.choices.innerHTML = ["A", "B", "C", "D"]
+    .map(
+      (c) => `
+        <button onclick="answer('${c}')">
+          ${currentQ["choice_" + c.toLowerCase()]}
+        </button>
+      `
+    )
+    .join("");
 }
 
 // ===== ANSWER =====
@@ -188,19 +204,36 @@ async function answer(choice) {
 
   if (ok) {
     playSe("seCorrect");
+
     combo++;
+    maxCombo = Math.max(maxCombo, combo);
     score += 10;
+
+    setText(els.scoreNow, score);
+    setText(els.comboNow, combo);
+
+    await showOverlay("correct", "○ +10", 280);
   } else {
     playSe("seWrong");
+
     combo = 0;
     msLeft -= WRONG_PENALTY_MS;
+    if (msLeft < 0) msLeft = 0;
+
+    setText(els.scoreNow, score);
+    setText(els.comboNow, combo);
+    setText(els.timeLeft, Math.ceil(msLeft / 1000));
+
+    await showOverlay("wrong", "× -2秒", 280);
   }
 
-  setText(els.scoreNow, score);
-  setText(els.comboNow, combo);
-
-  await loadQuestion();
-  answering = false;
+  if (playing && msLeft > 0) {
+    await loadQuestion();
+    answering = false;
+  } else {
+    answering = false;
+    endGame();
+  }
 }
 
 // ===== END =====
@@ -208,17 +241,20 @@ async function endGame() {
   if (!playing) return;
 
   playing = false;
+  answering = true;
 
   stopTimer();
   stopBgm();
   playResultBgm();
 
   setText(els.finalScore, score);
-  setText(els.finalCombo, combo);
+  setText(els.finalCombo, maxCombo);
 
   showPane("result");
 
-  await api.submitRun(score, combo, true);
+  await api.submitRun(score, maxCombo, true);
+
+  answering = false;
 }
 
 window.startGame = startGame;
