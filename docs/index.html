@@ -13,28 +13,568 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
-  <!-- ★ここからCSS（変更なし） -->
   <style>
-  /* ★あなたの元コードそのまま（長いので省略なしで使ってOK） */
+    :root{
+      --bg:#0b1020;
+      --card:#121a33;
+      --card2:#172142;
+      --ink:#eaf0ff;
+      --muted:#b8c3e6;
+      --accent:#ff3b30;
+      --ok:#00d38a;
+      --ng:#ff4d7d;
+      --line:rgba(255,255,255,.10);
+      --soft:rgba(255,255,255,.06);
+      --shadow:0 18px 50px rgba(0,0,0,.28);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ min-height:100%; }
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+      background:
+        radial-gradient(circle at top, rgba(55,74,160,.18), transparent 30%),
+        linear-gradient(180deg, #0b1020 0%, #09101d 100%);
+      color:var(--ink);
+    }
+
+    .hidden{ display:none !important; }
+    .wrap{ max-width:960px; margin:0 auto; padding:12px; }
+
+    .btn{
+      border:none;
+      border-radius:999px;
+      padding:14px 24px;
+      font-weight:900;
+      font-size:18px;
+      cursor:pointer;
+      color:#fff;
+      background:linear-gradient(180deg,#ff544b 0%, #ff3b30 100%);
+      box-shadow:0 12px 28px rgba(255,59,48,.28);
+    }
+    .btn:active{ transform:scale(.98); }
+
+    .btn2{
+      border:none;
+      border-radius:12px;
+      padding:10px 14px;
+      font-weight:800;
+      cursor:pointer;
+      background:rgba(255,255,255,.10);
+      color:var(--ink);
+      border:1px solid rgba(255,255,255,.10);
+    }
+    .btn2:active{ transform:scale(.99); }
+
+    #startPane{
+      min-height:100vh;
+      background:
+        linear-gradient(rgba(0,0,0,.40), rgba(0,0,0,.58)),
+        url("./icons/start-bg.jpg") center/cover no-repeat;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+    }
+
+    .startCard{
+      width:min(560px, 100%);
+      background:rgba(11,16,32,.72);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:20px;
+      padding:18px;
+      backdrop-filter: blur(8px);
+      box-shadow:0 18px 50px rgba(0,0,0,.35);
+      text-align:center;
+    }
+
+    .title{
+      font-size:30px;
+      font-weight:900;
+      margin:6px 0 8px;
+      text-shadow:0 8px 30px rgba(0,0,0,.55);
+    }
+
+    .sub{
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.45;
+      margin:0 0 12px;
+    }
+
+    .loginBox{
+      margin:12px auto 10px;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background:rgba(255,255,255,.06);
+      text-align:left;
+    }
+
+    .loginRow{ display:flex; gap:10px; flex-wrap:wrap; }
+
+    label{
+      font-weight:800;
+      font-size:12px;
+      color:var(--muted);
+      display:block;
+      margin:6px 0 4px;
+    }
+
+    input{
+      width:100%;
+      padding:12px 12px;
+      border-radius:12px;
+      border:1px solid rgba(255,255,255,.16);
+      background:rgba(255,255,255,.08);
+      color:var(--ink);
+      font-weight:800;
+      outline:none;
+    }
+
+    .msg{
+      margin-top:8px;
+      font-size:12px;
+      color:var(--muted);
+      white-space:pre-wrap;
+      line-height:1.55;
+    }
+
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top:10px;
+    }
+
+    .hud{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin:10px 0 8px;
+    }
+
+    .stat{
+      background:var(--soft);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px 12px;
+      font-weight:800;
+      box-shadow:var(--shadow);
+    }
+    .stat b{ font-size:18px; }
+
+    #q{
+      background:var(--soft);
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:14px;
+      margin-top:8px;
+      box-shadow:var(--shadow);
+    }
+
+    #q h3{
+      margin:0 0 6px;
+      font-size:24px;
+    }
+
+    .prompt{
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    #choices{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+      margin-top:12px;
+    }
+
+    #choices button{
+      border:none;
+      border-radius:16px;
+      padding:16px 12px;
+      min-height:78px;
+      font-size:16px;
+      font-weight:900;
+      color:var(--ink);
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.12);
+      box-shadow:0 10px 24px rgba(0,0,0,.22);
+      cursor:pointer;
+      text-align:left;
+      line-height:1.2;
+    }
+    #choices button:active{ transform:scale(.98); }
+
+    #resultPane{ padding:12px 10px 24px; }
+
+    .resultHero{
+      position:relative;
+      overflow:hidden;
+      background:
+        radial-gradient(circle at top right, rgba(255,255,255,.10), transparent 30%),
+        linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      border:1px solid rgba(255,255,255,.12);
+      border-radius:22px;
+      padding:14px;
+      box-shadow:0 20px 50px rgba(0,0,0,.28);
+      margin-bottom:10px;
+    }
+
+    .resultHeroTitle{
+      text-align:center;
+      font-size:18px;
+      font-weight:900;
+      color:#fff;
+      letter-spacing:.04em;
+      margin-bottom:8px;
+    }
+
+    .resultScoreBig{
+      text-align:center;
+      font-size:44px;
+      font-weight:1000;
+      line-height:1;
+      margin:4px 0 4px;
+    }
+
+    .resultSub{
+      text-align:center;
+      color:var(--muted);
+      font-size:14px;
+      font-weight:700;
+      margin-bottom:14px;
+    }
+
+    .resultStats{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+
+    .resultStatCard{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:16px;
+      padding:10px;
+    }
+
+    .resultStatLabel{
+      color:var(--muted);
+      font-size:12px;
+      font-weight:800;
+      margin-bottom:6px;
+    }
+
+    .resultStatValue{
+      font-size:28px;
+      font-weight:1000;
+      color:var(--ink);
+    }
+
+    .retryWrap{
+      display:flex;
+      justify-content:center;
+      margin:14px 0 16px;
+    }
+
+    .retryBtnMain{
+      min-width:220px;
+      font-size:20px;
+      padding:16px 28px;
+      box-shadow:0 18px 40px rgba(255,59,48,.30);
+    }
+
+    .panelCard{
+      background:rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:18px;
+      padding:10px;
+      margin-top:10px;
+    }
+
+    .panelTitle{
+      font-size:20px;
+      font-weight:900;
+      text-align:center;
+      margin:2px 0 12px;
+    }
+
+    .sectionTitle{
+      font-weight:900;
+      margin:6px 0 8px;
+      font-size:15px;
+    }
+
+    #classGoal{
+      margin:6px 0 10px;
+    }
+
+    .rankControls{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-bottom:10px;
+    }
+
+    .rankGrid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:12px;
+    }
+
+    .miniCard{
+      background:rgba(255,255,255,.05);
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:16px;
+      padding:12px;
+    }
+
+    .rankList{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .classRankList{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      white-space:normal;
+    }
+
+    .youCard{
+      text-align:center;
+    }
+
+    .awardGrid{
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr;
+      gap:10px;
+    }
+
+    #overlay{
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(0,0,0,.35);
+      z-index:9999;
+    }
+
+    #overlay .panel{
+      width:min(520px, 92vw);
+      text-align:center;
+      font-weight:1000;
+      border-radius:22px;
+      padding:24px 18px;
+      background:rgba(10,16,36,.82);
+      border:1px solid rgba(255,255,255,.18);
+      box-shadow:0 28px 80px rgba(0,0,0,.45);
+      text-shadow:0 14px 40px rgba(0,0,0,.55);
+      font-size: clamp(36px, 12vw, 90px);
+      line-height:1.1;
+      position:absolute;
+      left:50%;
+      top:62%;
+      transform:translate(-50%, -50%);
+    }
+
+    #overlay .panel.count{ animation: pop .18s ease-out; }
+    #overlay .panel.go{ color:var(--ok); animation: pop .18s ease-out; }
+    #overlay .panel.ok{ color:var(--ok); font-size:90px; animation: pop .14s ease-out; }
+    #overlay .panel.ng{ color:var(--ng); font-size:90px; animation: shake .28s ease-in-out; }
+    #overlay .panel.warn{ color:#ffd54a; font-size:34px; line-height:1.2; }
+
+    @keyframes pop{
+      from{ transform:translateY(-6px) scale(.92); opacity:.3; }
+      to{ transform:translateY(-6px) scale(1); opacity:1; }
+    }
+
+    @keyframes shake{
+      0%,100%{ transform: translateY(-6px) translateX(0); }
+      25%{ transform: translateY(-6px) translateX(-10px); }
+      50%{ transform: translateY(-6px) translateX(10px); }
+      75%{ transform: translateY(-6px) translateX(-6px); }
+    }
+
+    @media (max-width: 760px){
+      #choices{ grid-template-columns:1fr; }
+      .resultStats{ grid-template-columns:1fr; }
+      .rankGrid{ grid-template-columns:1fr; }
+      .awardGrid{ grid-template-columns:1fr; }
+      .resultScoreBig{ font-size:42px; }
+      .retryBtnMain{ width:100%; }
+      .rankControls{ align-items:flex-start; }
+    }
+
+    .trial-watermark{
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      writing-mode: vertical-rl;
+      text-orientation: upright;
+      font-size: 180px;
+      font-weight: 1000;
+      letter-spacing: 0.15em;
+      color: rgba(255,255,255,0.12);
+      pointer-events: none;
+      z-index: 9998;
+      user-select: none;
+    }
   </style>
 </head>
 
 <body>
 
-  <!-- ★ここからUI（変更なし） -->
-  <!-- startPane / battlePane / resultPane など全部そのまま -->
-  <!-- （あなたの今のコードをそのまま維持） -->
+  <div id="startPane">
+    <div class="startCard">
+      <div class="title">聖語彙タイムアタック</div>
+      <p class="sub">個人・クラス対抗！ 60秒で何問正解できるか勝負！</p>
+
+      <div class="loginBox" id="loginBox">
+        <div style="font-weight:900; margin-bottom:6px;">ログイン（本番送信に必須）</div>
+        <div class="loginRow">
+          <div style="flex:1; min-width:220px;">
+            <label>ログインID</label>
+            <input id="loginId" placeholder="login id">
+          </div>
+          <div style="flex:1; min-width:220px;">
+            <label>パスワード</label>
+            <input id="loginPw" type="password" placeholder="password">
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button id="loginBtn" class="btn2">ログイン</button>
+          <button id="logoutBtn" class="btn2">ログアウト</button>
+        </div>
+        <div id="loginMsg" class="msg"></div>
+      </div>
+
+      <button id="startBtn" class="btn">▶ START</button>
+
+      <div class="msg">
+※ホーム画面に追加するとアプリとして使えます<br>
+iPhone：共有 →「ホーム画面に追加」<br>
+Android：︙メニュー →「ホーム画面に追加」<br>
+PC：アドレスバー右の「インストール」アイコン
+      </div>
+    </div>
+  </div>
+
+  <div id="battlePane" class="hidden">
+    <div class="wrap">
+      <div class="hud">
+        <div class="stat">残り <b id="timeLeft">60</b> 秒</div>
+        <div class="stat">スコア <b id="scoreNow">0</b></div>
+        <div class="stat">COMBO <b id="comboNow">0</b></div>
+      </div>
+
+      <div id="q"></div>
+      <div id="choices"></div>
+
+      <div class="row">
+        <button id="stopBtn" class="btn2">終了</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="resultPane" class="hidden">
+    <div class="wrap">
+
+      <div class="resultHero">
+        <div class="resultHeroTitle">🎉 RESULT</div>
+        <div class="resultScoreBig"><span id="finalScore">0</span> 点</div>
+        <div class="resultSub">今回のチャレンジ結果</div>
+
+        <div class="resultStats">
+          <div class="resultStatCard">
+            <div class="resultStatLabel">スコア</div>
+            <div class="resultStatValue" id="finalScoreCard">0</div>
+          </div>
+          <div class="resultStatCard">
+            <div class="resultStatLabel">最大COMBO</div>
+            <div class="resultStatValue" id="finalCombo">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panelCard">
+        <div class="panelTitle">あなた</div>
+        <div id="myRank" class="msg">（まだデータなし）</div>
+      </div>
+
+      <div class="retryWrap">
+        <button id="retryBtn" class="btn retryBtnMain">もう一回！</button>
+      </div>
+
+      <div id="rankPane" class="panelCard">
+        <div class="panelTitle">🏆 ランキング</div>
+
+        <div class="rankControls">
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <label style="margin:0; font-size:12px; color:var(--muted);">週</label>
+            <select id="weekSelect" class="btn2" style="padding:10px 12px;">
+              <option value="">loading...</option>
+            </select>
+            <button id="rankReloadBtn" class="btn2">更新</button>
+          </div>
+          <div id="rankMsg" class="msg" style="margin:0;">—</div>
+        </div>
+
+        <div class="rankGrid">
+          <div>
+            <div class="sectionTitle">🏫 クラス対抗（平均）</div>
+            <div id="classGoal" class="msg"></div>
+            <div id="classRank" class="classRankList">（まだデータなし）</div>
+          </div>
+
+          <div>
+            <div class="sectionTitle">Top10</div>
+            <div id="weeklyTop" class="rankList">（まだデータなし）</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panelCard">
+        <div class="panelTitle">🏆 表彰ランキング</div>
+
+        <div class="awardGrid">
+          <div class="miniCard">
+            <div class="sectionTitle">週間ベストスコア Top3</div>
+            <div id="weeklyTop3" class="msg">（まだデータなし）</div>
+          </div>
+
+          <div class="miniCard">
+            <div class="sectionTitle">最優秀賞 学期累計 Top3</div>
+            <div id="termTop3" class="msg">（まだデータなし）</div>
+          </div>
+
+          <div class="miniCard">
+            <div class="sectionTitle">努力賞 Top3</div>
+            <div id="effortTop3" class="msg">（まだデータなし）</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
 
   <div id="overlay" class="hidden"><div class="panel"></div></div>
 
-  <!-- ===== JS（変更なし） ===== -->
-  <script src="./js/config.js?v=20260424sound2"></script>
-  <script src="./js/api.js?v=20260424sound2"></script>
-  <script src="./js/ranking.js?v=20260424sound2"></script>
-  <script src="./js/quiz.js?v=20260424sound2"></script>
-  <script src="./js/main.js?v=20260424sound2"></script>
+  <script src="./js/config.js?v=20260424b"></script>
+  <script src="./js/api.js?v=20260424b"></script>
+  <script src="./js/ranking.js?v=20260424b"></script>
+  <script src="./js/quiz.js?v=20260424b"></script>
+  <script src="./js/main.js?v=20260424b"></script>
 
-  <!-- ===== Service Worker（変更なし） ===== -->
   <script>
     (function () {
       if (!("serviceWorker" in navigator)) return;
@@ -64,12 +604,8 @@
   </script>
 
   <div class="trial-watermark">試作版</div>
-
-  <!-- ================================= -->
-  <!-- 🔥 ここが唯一の変更（音を追加） -->
-  <!-- ================================= -->
-
-  <!-- プレイ中BGM -->
+　<!-- ===== BGM ===== -->
+　  <!-- プレイ中BGM -->
   <audio id="bgm" src="./js/sound/bgm_play_retro_loop.mp3" loop preload="auto"></audio>
 
   <!-- リザルトBGM -->
