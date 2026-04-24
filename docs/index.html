@@ -429,87 +429,111 @@
       z-index: 9998;
       user-select: none;
     }
-/* ===== サイネージ文字拡大：実クラス対応版 ===== */
+<style>
+/* =========================
+   🔥 サイネージ最強拡大モード（確実に効く）
+   ========================= */
 
-.title{
-  font-size: 42px !important;
+/* 全体ベース */
+body * {
+  font-size: 1.25em !important;
 }
 
-.sub{
-  font-size: 18px !important;
+/* タイトル */
+.title {
+  font-size: 3.2em !important;
+  font-weight: 900 !important;
 }
 
-.week{
-  font-size: 34px !important;
+/* 上部の週表示 */
+.week {
+  font-size: 2em !important;
 }
 
-.updated{
-  font-size: 16px !important;
+/* 更新日時 */
+.updated {
+  font-size: 1.2em !important;
 }
 
-.panelTitle h2{
-  font-size: 30px !important;
+/* セクション見出し */
+.panelTitle h2 {
+  font-size: 2.4em !important;
+  font-weight: 800 !important;
 }
 
-.badgeMini{
-  font-size: 15px !important;
-  padding: 8px 14px !important;
+/* バッジ */
+.badgeMini {
+  font-size: 1.2em !important;
+  padding: 8px 16px !important;
 }
 
-.rowCard{
-  min-height: 96px !important;
-  padding: 12px 16px !important;
+/* カード全体 */
+.rowCard {
+  min-height: 110px !important;
+  padding: 14px 18px !important;
 }
 
-.rowCard.rank1{
-  min-height: 118px !important;
+/* 1位だけさらに大きく */
+.rowCard.rank1 {
+  min-height: 140px !important;
 }
 
-.rankIcon{
-  font-size: 42px !important;
+/* 順位アイコン */
+.rankIcon {
+  font-size: 2.5em !important;
 }
 
-.name{
-  font-size: 32px !important;
+/* 名前 */
+.name {
+  font-size: 2em !important;
+  font-weight: 900 !important;
 }
 
-.meta{
-  font-size: 18px !important;
+/* 補足（平均・参加率など） */
+.meta {
+  font-size: 1.3em !important;
 }
 
-.score{
-  font-size: 42px !important;
+/* スコア（最重要） */
+.score {
+  font-size: 3em !important;
+  font-weight: 900 !important;
+  letter-spacing: 1px;
 }
 
-.scoreVisual img{
-  width: 86px !important;
-  height: 86px !important;
+/* キャラ画像 */
+.scoreVisual img {
+  width: 90px !important;
+  height: 90px !important;
 }
 
-.rank1 .scoreVisual img{
-  width: 108px !important;
-  height: 108px !important;
+/* 1位の画像 */
+.rank1 .scoreVisual img {
+  width: 120px !important;
+  height: 120px !important;
 }
 
-.compact .rowCard{
-  min-height: 70px !important;
+/* 下段（コンパクト枠） */
+.compact .rowCard {
+  min-height: 75px !important;
 }
 
-.compact .name{
-  font-size: 24px !important;
+.compact .name {
+  font-size: 1.5em !important;
 }
 
-.compact .meta{
-  font-size: 15px !important;
+.compact .meta {
+  font-size: 1.1em !important;
 }
 
-.compact .score{
-  font-size: 28px !important;
+.compact .score {
+  font-size: 2em !important;
 }
 
-.compact .rankIcon{
-  font-size: 30px !important;
+.compact .rankIcon {
+  font-size: 1.8em !important;
 }
+</style>
   </style>
 </head>
 
