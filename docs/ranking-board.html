@@ -694,6 +694,36 @@
     .compact .rankIcon{
       font-size:36px !important;
     }
+    /* クラス対抗だけ調整 */
+#classBoard .rowCard{
+  grid-template-columns:70px minmax(0, 1fr) 96px !important;
+}
+
+#classBoard .meta{
+  font-size:clamp(16px, 1.15vw, 20px) !important;
+  line-height:1.15 !important;
+  white-space:nowrap !important;
+}
+
+#classBoard .score{
+  font-size:42px !important;
+}
+
+/* 画像を後ろに回す */
+.scoreVisual{
+  z-index:0 !important;
+  opacity:.55 !important;
+}
+
+.rowCard > div:not(.scoreVisual){
+  position:relative;
+  z-index:2;
+}
+
+.rowCard .score{
+  position:relative;
+  z-index:3;
+}
   `;
   document.head.appendChild(style);
 })();
