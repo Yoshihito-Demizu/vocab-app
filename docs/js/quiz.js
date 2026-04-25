@@ -212,7 +212,9 @@ async function answer(choice) {
     setText(els.scoreNow, score);
     setText(els.comboNow, combo);
 
-    await showOverlay("correct", "○ +10", 280);
+    // 👇 昔の○に戻す
+    await showOverlay("correct", "○", 280);
+
   } else {
     playSe("seWrong");
 
@@ -224,7 +226,8 @@ async function answer(choice) {
     setText(els.comboNow, combo);
     setText(els.timeLeft, Math.ceil(msLeft / 1000));
 
-    await showOverlay("wrong", "× -2秒", 280);
+    // 👇 昔の×に戻す
+    await showOverlay("wrong", "×", 280);
   }
 
   if (playing && msLeft > 0) {
@@ -235,7 +238,6 @@ async function answer(choice) {
     endGame();
   }
 }
-
 // ===== END =====
 async function endGame() {
   if (!playing) return;
