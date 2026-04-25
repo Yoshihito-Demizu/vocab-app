@@ -1,7 +1,7 @@
 /* global api */
 "use strict";
 
-console.log("[quiz] loaded! (BEST BGM timing)");
+console.log("[quiz] loaded! (BEST BGM timing + QUICK score FX restored)");
 
 const $ = (id) => document.getElementById(id);
 
@@ -14,11 +14,14 @@ const panes = {
 const els = {
   q: $("q"),
   choices: $("choices"),
+
   timeLeft: $("timeLeft"),
   scoreNow: $("scoreNow"),
   comboNow: $("comboNow"),
+
   finalScore: $("finalScore"),
   finalCombo: $("finalCombo"),
+
   overlay: $("overlay"),
   overlayPanel: $("overlay")?.querySelector(".panel"),
 };
@@ -28,39 +31,43 @@ function playAudio(id, volume = 0.5, reset = true) {
   const a = document.getElementById(id);
   if (!a) return;
 
-  if (reset) a.currentTime = 0;
-  a.volume = volume;
-
-  const p = a.play();
-  if (p) p.catch(() => {});
+  try {
+    if (reset) a.currentTime = 0;
+    a.volume = volume;
+    const p = a.play();
+    if (p) p.catch(() => {});
+  } catch {}
 }
 
-function stopAudio(id) {
+function stopAudio(id, reset = true) {
   const a = document.getElementById(id);
   if (!a) return;
-  a.pause();
-  a.currentTime = 0;
+
+  try {
+    a.pause();
+    if (reset) a.currentTime = 0;
+  } catch {}
 }
 
 function playSe(id) {
   playAudio(id, 0.7, true);
 }
 
-// ===== BGM（重要）=====
+// ===== BGM（GO後に音を出す）=====
 let bgm = null;
 
 function initBgmSilentStart() {
   bgm = document.getElementById("bgm");
   if (!bgm) return;
 
-  bgm.volume = 0; // 🔥 無音でスタート
+  bgm.volume = 0;
   bgm.currentTime = 0;
   bgm.play().catch(() => {});
 }
 
 function enableBgm() {
   if (!bgm) return;
-  bgm.volume = 0.4; // 🔥 GOで音出す
+  bgm.volume = 0.4;
 }
 
 function stopBgm() {
@@ -72,6 +79,10 @@ function stopBgm() {
 function playResultBgm() {
   stopBgm();
   playAudio("bgmResult", 0.45, true);
+}
+
+function stopResultBgm() {
+  stopAudio("bgmResult");
 }
 
 // ===== STATE =====
@@ -86,6 +97,14 @@ let maxCombo = 0;
 let timerId = null;
 let msLeft = 0;
 
+let seenQuestionIds = new Set();
+
+let qShownAt = 0;
+let totalAnswerMs = 0;
+let answeredCount = 0;
+let fastestAnswerMs = null;
+
+// ===== SETTINGS =====
 const GAME_SECONDS = 60;
 const COUNT_MS = 600;
 const GO_MS = 700;
@@ -101,124 +120,377 @@ function setText(el, v) {
   if (el) el.textContent = String(v);
 }
 
+function clampLabel(x) {
+  return String(x || "").trim().toUpperCase();
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 async function showOverlay(type, text, ms) {
-  if (!els.overlay) return;
+  if (!els.overlay || !els.overlayPanel) return;
 
   els.overlay.classList.remove("hidden");
-  els.overlayPanel.className = "panel " + type;
-  els.overlayPanel.textContent = text;
+  els.overlayPanel.className = "panel " + (type || "");
+  els.overlayPanel.textContent = text || "";
 
-  await new Promise((r) => setTimeout(r, ms));
+  await new Promise((r) => setTimeout(r, ms || 400));
   els.overlay.classList.add("hidden");
 }
 
 // ===== TIMER =====
-function startTimer() {
-  timerId = setInterval(() => {
-    msLeft -= 100;
-    setText(els.timeLeft, Math.ceil(msLeft / 1000));
+function syncTimeLeftUi() {
+  setText(els.timeLeft, Math.max(0, Math.ceil(msLeft / 1000)));
+}
 
-    if (msLeft <= 0) endGame(true);
+function startTimer() {
+  stopTimer();
+
+  timerId = setInterval(() => {
+    if (!playing) return;
+
+    msLeft -= 100;
+    if (msLeft < 0) msLeft = 0;
+
+    syncTimeLeftUi();
+
+    if (msLeft <= 0) {
+      endGame(true);
+    }
   }, 100);
 }
 
 function stopTimer() {
-  clearInterval(timerId);
+  if (timerId) {
+    clearInterval(timerId);
+    timerId = null;
+  }
+}
+
+// ===== RESULT UI =====
+function ensureResultUi() {
+  const resultStats = document.querySelector(".resultStats");
+  if (!resultStats) return;
+
+  if (!document.getElementById("finalAvgTime")) {
+    const card = document.createElement("div");
+    card.className = "resultStatCard";
+    card.innerHTML = `
+      <div class="resultStatLabel">平均回答時間</div>
+      <div class="resultStatValue" id="finalAvgTime">0.00秒</div>
+    `;
+    resultStats.appendChild(card);
+  }
+
+  if (!document.getElementById("finalFastestTime")) {
+    const card = document.createElement("div");
+    card.className = "resultStatCard";
+    card.innerHTML = `
+      <div class="resultStatLabel">最速回答</div>
+      <div class="resultStatValue" id="finalFastestTime">0.00秒</div>
+    `;
+    resultStats.appendChild(card);
+  }
+}
+
+// ===== SCORING =====
+function getComboBonus(nextCombo) {
+  if (nextCombo >= 15) return 4;
+  if (nextCombo >= 10) return 3;
+  if (nextCombo >= 5) return 2;
+  if (nextCombo >= 3) return 1;
+  return 0;
+}
+
+function getSpeedBonus(answerMs) {
+  const answerSec = answerMs / 1000;
+  const step = Math.floor(answerSec / 0.25);
+  return Math.max(0, 10 - step);
+}
+
+function getFastLabel(answerMs) {
+  const sec = answerMs / 1000;
+  if (sec <= 0.5) return "GOD SPEED";
+  if (sec <= 1.0) return "FAST!";
+  if (sec <= 1.5) return "QUICK!";
+  return "";
+}
+
+// ===== CHOICE MARK =====
+function getCorrectLabel() {
+  const a = clampLabel(window.__LAST_MOCK_CORRECT);
+  const b = clampLabel(window.__LAST_PROD_CORRECT);
+  const c = clampLabel(window.__LAST_CORRECT);
+  const d = clampLabel(window.__LAST_PUBLIC_CORRECT);
+  return a || b || c || d || "";
+}
+
+function markButtons(correctLabel, chosenLabel) {
+  if (!els.choices) return;
+
+  const btns = Array.from(els.choices.querySelectorAll("button"));
+
+  for (const b of btns) {
+    const lbl = clampLabel(b.dataset.choice);
+
+    b.style.outline = "none";
+    b.style.filter = "none";
+    b.style.opacity = "1";
+
+    if (lbl === correctLabel) {
+      b.style.outline = "3px solid rgba(0,211,138,.95)";
+    }
+
+    if (lbl === chosenLabel && chosenLabel !== correctLabel) {
+      b.style.outline = "3px solid rgba(255,77,125,.95)";
+      b.style.opacity = "0.92";
+    }
+
+    if (chosenLabel && lbl !== chosenLabel && lbl !== correctLabel) {
+      b.style.opacity = "0.65";
+    }
+  }
+}
+
+// ===== QUESTION =====
+function renderQuestion(q) {
+  if (!els.q || !els.choices) return;
+
+  els.q.innerHTML = `
+    <h3>${escapeHtml(q.word || "")}</h3>
+    <div class="prompt">${escapeHtml(q.prompt || "意味として正しいものは？")}</div>
+  `;
+
+  const items = [
+    ["A", q.choice_a],
+    ["B", q.choice_b],
+    ["C", q.choice_c],
+    ["D", q.choice_d],
+  ];
+
+  els.choices.innerHTML = "";
+
+  for (const [label, text] of items) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.dataset.choice = label;
+    btn.innerHTML = `
+      <div style="font-weight:1000">${label}</div>
+      <div style="margin-top:6px; font-weight:900">${escapeHtml(text || "")}</div>
+    `;
+    btn.addEventListener("click", () => answer(label));
+    els.choices.appendChild(btn);
+  }
+
+  qShownAt = performance.now();
+}
+
+async function loadQuestion() {
+  if (!playing) return;
+
+  let q = null;
+
+  for (let i = 0; i < 10; i++) {
+    q = await api.fetchLatestQuestion();
+    if (!q) break;
+
+    const id = String(q.id);
+    if (!seenQuestionIds.has(id)) {
+      seenQuestionIds.add(id);
+      break;
+    }
+  }
+
+  if (!q) throw new Error("question not found");
+
+  currentQ = q;
+  renderQuestion(q);
 }
 
 // ===== GAME =====
 async function startGame() {
-  if (playing) return;
+  try {
+    if (playing) return;
 
-  playing = true;
+    ensureResultUi();
+    stopResultBgm();
 
-  score = 0;
-  combo = 0;
-  maxCombo = 0;
+    playing = true;
+    answering = true;
 
-  setText(els.scoreNow, 0);
-  setText(els.comboNow, 0);
-  setText(els.timeLeft, GAME_SECONDS);
+    score = 0;
+    combo = 0;
+    maxCombo = 0;
+    seenQuestionIds.clear();
 
-  showPane("battle");
+    qShownAt = 0;
+    totalAnswerMs = 0;
+    answeredCount = 0;
+    fastestAnswerMs = null;
 
-  msLeft = GAME_SECONDS * 1000;
-  startTimer();
+    setText(els.scoreNow, 0);
+    setText(els.comboNow, 0);
+    setText(els.timeLeft, GAME_SECONDS);
 
-  // 🔥 ここが最重要
-  initBgmSilentStart();
+    showPane("battle");
 
-  // ===== COUNTDOWN =====
-  playSe("seCount3");
-  await showOverlay("count", "3", COUNT_MS);
+    msLeft = GAME_SECONDS * 1000;
+    startTimer();
 
-  playSe("seCount2");
-  await showOverlay("count", "2", COUNT_MS);
+    initBgmSilentStart();
 
-  playSe("seCount1");
-  await showOverlay("count", "1", COUNT_MS);
+    playSe("seCount3");
+    await showOverlay("count", "3", COUNT_MS);
 
-  playSe("seCountGo");
-  await showOverlay("go", "GO", GO_MS);
+    playSe("seCount2");
+    await showOverlay("count", "2", COUNT_MS);
 
-  // 🔥 GOの瞬間にBGMオン
-  enableBgm();
+    playSe("seCount1");
+    await showOverlay("count", "1", COUNT_MS);
 
-  await loadQuestion();
-}
+    playSe("seCountGo");
+    await showOverlay("go", "GO", GO_MS);
 
-// ===== QUESTION =====
-async function loadQuestion() {
-  currentQ = await api.fetchLatestQuestion();
+    enableBgm();
 
-  els.q.innerHTML = `<h3>${currentQ.word}</h3>`;
-
-  els.choices.innerHTML = ["A","B","C","D"].map((c)=>`
-    <button onclick="answer('${c}')">${currentQ["choice_"+c.toLowerCase()]}</button>
-  `).join("");
+    answering = false;
+    await loadQuestion();
+  } catch (e) {
+    console.warn("[quiz] startGame failed:", e);
+    playing = false;
+    answering = false;
+    stopTimer();
+    stopBgm();
+    stopResultBgm();
+    showPane("start");
+  }
 }
 
 // ===== ANSWER =====
-async function answer(choice) {
+async function answer(choiceLabel) {
   if (!playing || answering) return;
   answering = true;
 
-  const res = await api.submitAttempt(currentQ.id, choice);
-  const ok = res[0]?.is_correct;
+  const chosen = clampLabel(choiceLabel);
+  const answerMs = Math.min(5000, Math.max(0, performance.now() - qShownAt));
 
-  if (ok) {
-    playSe("seCorrect");
-    combo++;
-    score += 10;
-  } else {
-    playSe("seWrong");
-    combo = 0;
-    msLeft -= WRONG_PENALTY_MS;
+  try {
+    const qid = currentQ ? currentQ.id : null;
+    if (!qid) throw new Error("question missing");
+
+    const res = await api.submitAttempt(qid, chosen);
+    const row = Array.isArray(res) ? res[0] : res;
+
+    const isCorrect = !!(row && row.is_correct);
+    const correctLabel = getCorrectLabel();
+
+    answeredCount += 1;
+    totalAnswerMs += answerMs;
+    fastestAnswerMs =
+      fastestAnswerMs === null ? answerMs : Math.min(fastestAnswerMs, answerMs);
+
+    if (correctLabel) {
+      markButtons(correctLabel, chosen);
+    }
+
+    if (isCorrect) {
+      playSe("seCorrect");
+
+      combo += 1;
+      maxCombo = Math.max(maxCombo, combo);
+
+      const speedBonus = getSpeedBonus(answerMs);
+      const comboBonus = getComboBonus(combo);
+      const gained = 10 + speedBonus + comboBonus;
+
+      score += gained;
+
+      setText(els.scoreNow, score);
+      setText(els.comboNow, combo);
+
+      const fastLabel = getFastLabel(answerMs);
+      const overlayText = fastLabel ? `${fastLabel} +${gained}` : `〇 +${gained}`;
+
+      await showOverlay("ok", overlayText, 520);
+    } else {
+      playSe("seWrong");
+
+      combo = 0;
+
+      msLeft = Math.max(0, msLeft - WRONG_PENALTY_MS);
+      syncTimeLeftUi();
+
+      setText(els.scoreNow, score);
+      setText(els.comboNow, combo);
+
+      await showOverlay("ng", "× -2秒", 520);
+
+      if (msLeft <= 0) {
+        endGame(true);
+        return;
+      }
+    }
+
+    await loadQuestion();
+  } catch (e) {
+    console.warn("[quiz] answer failed:", e);
+    await showOverlay("warn", "送信エラー", 700);
+
+    try {
+      await loadQuestion();
+    } catch {}
+  } finally {
+    answering = false;
   }
-
-  setText(els.scoreNow, score);
-  setText(els.comboNow, combo);
-
-  await loadQuestion();
-  answering = false;
 }
 
 // ===== END =====
-async function endGame() {
+async function endGame(isFinished = false) {
   if (!playing) return;
 
   playing = false;
+  answering = false;
 
   stopTimer();
   stopBgm();
   playResultBgm();
 
+  const avgSec = answeredCount > 0 ? totalAnswerMs / answeredCount / 1000 : 0;
+  const fastestSec = fastestAnswerMs !== null ? fastestAnswerMs / 1000 : 0;
+
   setText(els.finalScore, score);
-  setText(els.finalCombo, combo);
+  setText(els.finalCombo, maxCombo);
+
+  const finalScoreCard = document.getElementById("finalScoreCard");
+  if (finalScoreCard) finalScoreCard.textContent = String(score);
+
+  const finalAvgTime = document.getElementById("finalAvgTime");
+  if (finalAvgTime) finalAvgTime.textContent = `${avgSec.toFixed(2)}秒`;
+
+  const finalFastestTime = document.getElementById("finalFastestTime");
+  if (finalFastestTime) finalFastestTime.textContent = `${fastestSec.toFixed(2)}秒`;
 
   showPane("result");
 
-  await api.submitRun(score, combo, true);
+  if (typeof window.onResultShown === "function") {
+    try {
+      await window.onResultShown();
+    } catch {}
+  }
+
+  try {
+    if (api && typeof api.submitRun === "function") {
+      await api.submitRun(score, maxCombo, isFinished);
+    }
+  } catch (e) {
+    console.warn("[quiz] submitRun failed:", e);
+  }
 }
 
 window.startGame = startGame;
