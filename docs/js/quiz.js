@@ -1,7 +1,7 @@
 /* global api */
 "use strict";
 
-console.log("[quiz] loaded! (BEST BGM timing + overlay score)");
+console.log("[quiz] loaded! (BGM + old overlay colors + choice highlight)");
 
 const $ = (id) => document.getElementById(id);
 
@@ -90,6 +90,7 @@ const GAME_SECONDS = 60;
 const COUNT_MS = 600;
 const GO_MS = 700;
 const WRONG_PENALTY_MS = 2000;
+const ANSWER_WAIT_MS = 420;
 
 // ===== UI =====
 function showPane(name) {
@@ -109,6 +110,7 @@ async function showOverlay(type, text, ms) {
   els.overlayPanel.textContent = text;
 
   await new Promise((r) => setTimeout(r, ms));
+
   els.overlay.classList.add("hidden");
 }
 
@@ -117,9 +119,11 @@ function startTimer() {
   stopTimer();
 
   timerId = setInterval(() => {
-    msLeft -= 100;
+    if (!playing) return;
 
+    msLeft -= 100;
     if (msLeft < 0) msLeft = 0;
+
     setText(els.timeLeft, Math.ceil(msLeft / 1000));
 
     if (msLeft <= 0) {
@@ -186,12 +190,41 @@ async function loadQuestion() {
   els.choices.innerHTML = ["A", "B", "C", "D"]
     .map(
       (c) => `
-        <button onclick="answer('${c}')">
+        <button data-choice="${c}" onclick="answer('${c}')">
           ${currentQ["choice_" + c.toLowerCase()]}
         </button>
       `
     )
     .join("");
+}
+
+// ===== CHOICE COLOR =====
+function paintChoices(chosen, ok) {
+  const correct =
+    window.__LAST_PUBLIC_CORRECT ||
+    window.__LAST_CORRECT ||
+    "";
+
+  const buttons = els.choices.querySelectorAll("button");
+
+  buttons.forEach((btn) => {
+    const label = btn.dataset.choice;
+    btn.disabled = true;
+
+    if (label === correct) {
+      btn.style.background = "#00d38a";
+      btn.style.color = "#001b12";
+      btn.style.borderColor = "#00f0a0";
+      btn.style.boxShadow = "0 0 26px rgba(0,211,138,.55)";
+    }
+
+    if (!ok && label === chosen) {
+      btn.style.background = "#ff4d7d";
+      btn.style.color = "#22000a";
+      btn.style.borderColor = "#ff7aa0";
+      btn.style.boxShadow = "0 0 26px rgba(255,77,125,.55)";
+    }
+  });
 }
 
 // ===== ANSWER =====
@@ -200,7 +233,10 @@ async function answer(choice) {
   answering = true;
 
   const res = await api.submitAttempt(currentQ.id, choice);
-  const ok = res[0]?.is_correct;
+  const row = Array.isArray(res) ? res[0] : res;
+  const ok = !!row?.is_correct;
+
+  paintChoices(choice, ok);
 
   if (ok) {
     playSe("seCorrect");
@@ -212,9 +248,7 @@ async function answer(choice) {
     setText(els.scoreNow, score);
     setText(els.comboNow, combo);
 
-    // 👇 昔の○に戻す
-    await showOverlay("correct", "○", 280);
-
+    await showOverlay("ok", "○", ANSWER_WAIT_MS);
   } else {
     playSe("seWrong");
 
@@ -226,8 +260,7 @@ async function answer(choice) {
     setText(els.comboNow, combo);
     setText(els.timeLeft, Math.ceil(msLeft / 1000));
 
-    // 👇 昔の×に戻す
-    await showOverlay("wrong", "×", 280);
+    await showOverlay("ng", "×", ANSWER_WAIT_MS);
   }
 
   if (playing && msLeft > 0) {
@@ -238,6 +271,7 @@ async function answer(choice) {
     endGame();
   }
 }
+
 // ===== END =====
 async function endGame() {
   if (!playing) return;
