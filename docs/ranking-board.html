@@ -550,7 +550,22 @@
         return rowHtml({ rank, name, meta:cls ? `所属 ${cls}` : "", value:`${count}回`, colorClass:"green" });
       }).join("");
     }
+　async function fetchTermClassTop3(termRange) {
+  if (window.clientReady && typeof window.clientReady.then === "function") {
+    await window.clientReady;
+  }
 
+  if (!window.client) return [];
+
+  const { data, error } = await window.client.rpc("get_public_term_class_ranking", {
+    p_start: termRange.start_at,
+    p_end: termRange.end_at,
+    p_limit: 3
+  });
+
+  if (error) throw error;
+  return data || [];
+}
 　async function fetchTermTop3(termRange) {
   if (window.clientReady && typeof window.clientReady.then === "function") {
     await window.clientReady;
