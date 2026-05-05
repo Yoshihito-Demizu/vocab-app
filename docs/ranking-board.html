@@ -324,7 +324,7 @@
 
       <section class="panel">
         <div class="panelTitle">
-          <h2>クラス対抗 Top3</h2>
+          <h2>クラス対抗 学期累計 Top3</h2>
           <div class="badgeMini">CLASS BATTLE</div>
         </div>
         <div id="classBoard" class="list">（まだデータなし）</div>
@@ -498,30 +498,30 @@
     }
 
     function renderClass(rows) {
-      const el = document.getElementById("classBoard");
-      const list = Array.isArray(rows) ? rows.slice(0, 3) : [];
-      if (!list.length) { el.innerHTML = "（まだデータなし）"; return; }
+  const el = document.getElementById("classBoard");
+  const list = Array.isArray(rows) ? rows.slice(0, 3) : [];
+  if (!list.length) { el.innerHTML = "（まだデータなし）"; return; }
 
-      el.innerHTML = list.map((row, i) => {
-        const rank = i + 1;
-        const className = formatClassDisplay(row.class_code || "-");
-        const score = Number(row.score ?? 0);
-        const avg = Number(row.avg_score ?? 0);
-        const participants = Number(row.participants ?? row.players ?? 0);
-        const classSize = Number(row.class_size ?? 0);
-        const rate = classSize > 0 ? Math.round((participants / classSize) * 100) : 0;
-        const img = getFirstImage(CLASS_GRADE_IMAGES, classGrade(row));
+  el.innerHTML = list.map((row, i) => {
+    const rank = i + 1;
+    const className = formatClassDisplay(row.class_code || "-");
 
-        return rowHtml({
-          rank,
-          name:className,
-          meta:`平均${avg.toFixed(1)}点 / 参加${participants}人 / 参加率${rate}%`,
-          value:`${score.toFixed(1)}点`,
-          colorClass:"blue",
-          img
-        });
-      }).join("");
-    }
+    const total = Number(row.term_total ?? 0);
+    const avg = Number(row.avg_score ?? 0);
+    const participants = Number(row.participants ?? 0);
+
+    const img = getFirstImage(CLASS_GRADE_IMAGES, classGrade(row));
+
+    return rowHtml({
+      rank,
+      name: className,
+      meta: `平均${avg.toFixed(1)}点 / 参加${participants}人`,
+      value: `${total}点`,
+      colorClass: "blue",
+      img
+    });
+  }).join("");
+}
 
     function renderTerm(rows) {
       const el = document.getElementById("termBoard");
