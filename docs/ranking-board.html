@@ -592,14 +592,12 @@
 
         document.getElementById("boardWeek").textContent = `📅 ${formatWeekJapanese(week)}`;
 
-        const [weeklyRows, classRows, termRows, effortRows] = await Promise.all([
-          window.api.fetchWeeklyTop(week),
-          typeof window.api.fetchClassWeeklyRanking === "function"
-            ? window.api.fetchClassWeeklyRanking(week, 10)
-            : Promise.resolve([]),
-          fetchTermTop3(termRange),
-          fetchEffortTop3(termRange)
-        ]);
+       const [weeklyRows, classRows, termRows, effortRows] = await Promise.all([
+ 　　 window.api.fetchWeeklyTop(week),
+ 　　 fetchTermClassTop3(termRange),
+ 　　 fetchTermTop3(termRange),
+ 　　 fetchEffortTop3(termRange)
+　　]);
 
         renderWeekly(weeklyRows || []);
         renderClass(classRows || []);
