@@ -140,17 +140,12 @@ function fmtTopRowHtml(i, row){
   `;
 }
 
-/* ===== クラス対抗 ===== */
+/* ===== クラス対抗：学期平均 ===== */
 function fmtClassRowHtml(i, row){
-  const score = Number(row?.score ?? 0);
   const avg = Number(row?.avg_score ?? 0);
-  const participants = Number(row?.participants ?? row?.players ?? 0);
-  const classSize = Number(row?.class_size ?? 0);
-  const participationRate = classSize > 0
-    ? Math.round((participants / classSize) * 100)
-    : 0;
+  const total = Number(row?.term_total ?? 0);
+  const participants = Number(row?.participants ?? 0);
   const classCode = formatClassDisplay(row?.class_code || "-");
-  const eligible = row?.eligible !== false;
 
   return `
     <div style="
@@ -172,7 +167,7 @@ function fmtClassRowHtml(i, row){
           word-break:break-word;
           line-height:1.1;
         ">
-          ${rankIcon(i)} ${escapeHtml(classCode)}${!eligible ? "（参考）" : ""}
+          ${rankIcon(i)} ${escapeHtml(classCode)}
         </div>
 
         <div style="
@@ -183,7 +178,7 @@ function fmtClassRowHtml(i, row){
           color:transparent;
           white-space:nowrap;
         ">
-          ${score.toFixed(1)}点
+          ${avg.toFixed(1)}点
         </div>
       </div>
 
@@ -193,7 +188,7 @@ function fmtClassRowHtml(i, row){
         opacity:.82;
         line-height:1.35;
       ">
-        平均${avg.toFixed(1)}点 / 参加${participants}人 / ${classSize}人中 / 参加率${participationRate}%
+        平均${avg.toFixed(1)}点 / 参加${participants}人 / 合計${total}点
       </div>
     </div>
   `;
@@ -203,8 +198,6 @@ function fmtClassRowHtml(i, row){
 function renderMyCard(termStatus, termRange, weeklyMine, weeklyTop){
   const el = byId2("myRank");
   if(!el) return;
-
-  const label = termRange?.label || "現在期間";
 
   if(termStatus){
     const termPoints = Number(termStatus.term_best_total ?? termStatus.total_points ?? 0);
@@ -223,35 +216,17 @@ function renderMyCard(termStatus, termRange, weeklyMine, weeklyTop){
         grid-template-columns:1fr 1fr 1fr;
         gap:12px;
       ">
-        <div style="
-          border-radius:14px;
-          padding:12px;
-          background:rgba(255,255,255,.10);
-          border:1px solid rgba(255,255,255,.10);
-          text-align:center;
-        ">
+        <div style="border-radius:14px;padding:12px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.10);text-align:center;">
           <div style="font-size:12px; opacity:.82; margin-bottom:6px;">学期ポイント</div>
           <div style="font-size:28px; font-weight:1000; line-height:1.1;">${termPoints}点</div>
         </div>
 
-        <div style="
-          border-radius:14px;
-          padding:12px;
-          background:rgba(255,255,255,.08);
-          border:1px solid rgba(255,255,255,.10);
-          text-align:center;
-        ">
+        <div style="border-radius:14px;padding:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);text-align:center;">
           <div style="font-size:12px; opacity:.82; margin-bottom:6px;">現在</div>
           <div style="font-size:28px; font-weight:1000; line-height:1.1;">${myPosition}位</div>
         </div>
 
-        <div style="
-          border-radius:14px;
-          padding:12px;
-          background:rgba(255,255,255,.08);
-          border:1px solid rgba(255,255,255,.10);
-          text-align:center;
-        ">
+        <div style="border-radius:14px;padding:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);text-align:center;">
           <div style="font-size:12px; opacity:.82; margin-bottom:6px;">1位まであと</div>
           <div style="font-size:28px; font-weight:1000; line-height:1.1;">${diffToFirst}点</div>
         </div>
@@ -278,35 +253,17 @@ function renderMyCard(termStatus, termRange, weeklyMine, weeklyTop){
         grid-template-columns:1fr 1fr 1fr;
         gap:12px;
       ">
-        <div style="
-          border-radius:14px;
-          padding:12px;
-          background:rgba(255,255,255,.10);
-          border:1px solid rgba(255,255,255,.10);
-          text-align:center;
-        ">
+        <div style="border-radius:14px;padding:12px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.10);text-align:center;">
           <div style="font-size:12px; opacity:.82; margin-bottom:6px;">学期ポイント</div>
           <div style="font-size:28px; font-weight:1000; line-height:1.1;">${points}点</div>
         </div>
 
-        <div style="
-          border-radius:14px;
-          padding:12px;
-          background:rgba(255,255,255,.08);
-          border:1px solid rgba(255,255,255,.10);
-          text-align:center;
-        ">
+        <div style="border-radius:14px;padding:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);text-align:center;">
           <div style="font-size:12px; opacity:.82; margin-bottom:6px;">現在</div>
           <div style="font-size:28px; font-weight:1000; line-height:1.1;">${rank}位</div>
         </div>
 
-        <div style="
-          border-radius:14px;
-          padding:12px;
-          background:rgba(255,255,255,.08);
-          border:1px solid rgba(255,255,255,.10);
-          text-align:center;
-        ">
+        <div style="border-radius:14px;padding:12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.10);text-align:center;">
           <div style="font-size:12px; opacity:.82; margin-bottom:6px;">1位まであと</div>
           <div style="font-size:28px; font-weight:1000; line-height:1.1;">${diff}点</div>
         </div>
@@ -329,9 +286,9 @@ function renderClassGoal(klass){
   }
 
   const top = klass[0];
-  const score = Number(top.score ?? 0);
+  const avg = Number(top.avg_score ?? 0);
 
-  el.textContent = `現在1位：${formatClassDisplay(top.class_code)}（${score.toFixed(1)}点）`;
+  el.textContent = `現在1位：${formatClassDisplay(top.class_code)}（平均${avg.toFixed(1)}点）`;
 }
 
 /* ===== Top3共通 ===== */
@@ -421,10 +378,21 @@ async function loadRankings(){
 
     const weeklyTopPromise = window.api.fetchWeeklyTop?.(week) ?? [];
     const myWeeklyPromise = window.api.fetchMyWeeklyRank?.(week) ?? null;
-    const classRankPromise = window.api.fetchClassWeeklyRanking?.(week, 10) ?? [];
+
+    const classRankPromise = client && termRange
+      ? client.rpc("get_public_term_class_ranking", {
+          p_start: termRange.start_at,
+          p_end: termRange.end_at,
+          p_limit: 10
+        }).then(({data, error}) => {
+          if(error) throw error;
+          return data || [];
+        })
+      : Promise.resolve([]);
+
     const myTermPromise = window.api.fetchMyTermBestStatus?.(termRange) ?? null;
 
-    const termTopPromise = client
+    const termTopPromise = client && termRange
       ? client.rpc("get_public_term_best_ranking", {
           p_start: termRange.start_at,
           p_end: termRange.end_at,
@@ -435,7 +403,7 @@ async function loadRankings(){
         })
       : Promise.resolve([]);
 
-    const effortTopPromise = client
+    const effortTopPromise = client && termRange
       ? client.rpc("get_public_term_effort_ranking", {
           p_start: termRange.start_at,
           p_end: termRange.end_at,
@@ -483,7 +451,7 @@ async function loadRankings(){
     renderTop3List("termTop3", termTop, "term_best_total", (v) => `${v}点`);
     renderTop3List("effortTop3", effortTop, "finished_count", (v) => `${v}回`);
 
-    setRankMsg(`${week} のランキング`);
+    setRankMsg(`${termRange?.label || week} のランキング`);
   }catch(e){
     console.warn("[ranking] loadRankings failed:", e);
     setRankMsg("取得失敗");
