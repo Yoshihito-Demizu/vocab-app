@@ -506,7 +506,9 @@
     return rowHtml({
       rank,
       name: className,
-      meta: `平均${avg.toFixed(1)}点 / 参加${participants}人 / 参加率${rate}% / 合計${total}点`,
+      meta:
+  `平均${avg.toFixed(1)}点 / 参加${participants}人<br>` +
+  `参加率${rate}% / 合計${total}点`,
       value: `${score.toFixed(1)}点`,
       colorClass: "blue",
       img
@@ -730,14 +732,18 @@
 }
 
 #classBoard .meta{
-  font-size:clamp(11px, 0.85vw, 14px) !important;
-  line-height:1.1 !important;
-  white-space:nowrap !important;
+  font-size:clamp(12px, 0.9vw, 15px) !important;
+  line-height:1.18 !important;
+  white-space:normal !important;
 }
 
 #classBoard .score{
-  font-size:clamp(26px, 1.5vw, 32px) !important;
-  transform:translateX(-6px) !important;
+  font-size:clamp(24px, 1.35vw, 30px) !important;
+  transform:translateX(-28px) !important;
+}
+
+#classBoard .scoreVisual{
+  right:34px !important;
 }
 
     #classBoard .meta{
