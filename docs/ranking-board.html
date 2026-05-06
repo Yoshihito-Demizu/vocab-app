@@ -706,9 +706,30 @@
       font-size:36px !important;
     }
 
-    #classBoard .rowCard{
-      grid-template-columns:70px minmax(0, 1fr) 90px !important;
-    }
+   #classBoard .rowCard{
+  grid-template-columns:46px minmax(0, 1fr) 74px !important;
+  gap:4px !important;
+  padding:12px 10px !important;
+}
+
+#classBoard .rankIcon{
+  font-size:36px !important;
+}
+
+#classBoard .name{
+  font-size:32px !important;
+}
+
+#classBoard .meta{
+  font-size:clamp(11px, 0.85vw, 14px) !important;
+  line-height:1.1 !important;
+  white-space:nowrap !important;
+}
+
+#classBoard .score{
+  font-size:clamp(26px, 1.5vw, 32px) !important;
+  transform:translateX(-6px) !important;
+}
 
     #classBoard .meta{
       font-size:clamp(15px, 1.05vw, 18px) !important;
