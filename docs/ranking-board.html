@@ -278,24 +278,6 @@
       font-weight:1000;
       letter-spacing:.06em;
     }
-
-    .trial-watermark{
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      writing-mode: vertical-rl;
-      text-orientation: upright;
-      font-size: 220px;
-      font-weight: 1000;
-      letter-spacing: 0.35em;
-      color: rgba(255,255,255,0.22);
-      text-shadow:0 0 14px rgba(255,255,255,0.18),0 0 30px rgba(255,255,255,0.10);
-      pointer-events: none;
-      z-index: 9999;
-      user-select: none;
-      white-space: nowrap;
-    }
   </style>
 </head>
 
@@ -352,8 +334,8 @@
     </div>
   </div>
 
- <script src="./js/config.js?v=20260430-term1"></script>
-<script src="./js/api.js?v=20260430-term1"></script>
+  <script src="./js/config.js?v=20260430-term1"></script>
+  <script src="./js/api.js?v=20260430-term1"></script>
 
   <script>
     const PERSONAL_GRADE_IMAGES = {
@@ -498,30 +480,30 @@
     }
 
     function renderClass(rows) {
-  const el = document.getElementById("classBoard");
-  const list = Array.isArray(rows) ? rows.slice(0, 3) : [];
-  if (!list.length) { el.innerHTML = "（まだデータなし）"; return; }
+      const el = document.getElementById("classBoard");
+      const list = Array.isArray(rows) ? rows.slice(0, 3) : [];
+      if (!list.length) { el.innerHTML = "（まだデータなし）"; return; }
 
-  el.innerHTML = list.map((row, i) => {
-    const rank = i + 1;
-    const className = formatClassDisplay(row.class_code || "-");
+      el.innerHTML = list.map((row, i) => {
+        const rank = i + 1;
+        const className = formatClassDisplay(row.class_code || "-");
 
-    const total = Number(row.term_total ?? 0);
-    const avg = Number(row.avg_score ?? 0);
-    const participants = Number(row.participants ?? 0);
+        const total = Number(row.term_total ?? 0);
+        const avg = Number(row.avg_score ?? 0);
+        const participants = Number(row.participants ?? 0);
 
-    const img = getFirstImage(CLASS_GRADE_IMAGES, classGrade(row));
+        const img = getFirstImage(CLASS_GRADE_IMAGES, classGrade(row));
 
-    return rowHtml({
-      rank,
-      name: className,
-      meta: `平均${avg.toFixed(1)}点 / 参加${participants}人`,
-      value: `${total}点`,
-      colorClass: "blue",
-      img
-    });
-  }).join("");
-}
+        return rowHtml({
+          rank,
+          name: className,
+          meta: `平均${avg.toFixed(1)}点 / 参加${participants}人 / 合計${total}点`,
+          value: `${avg.toFixed(1)}点`,
+          colorClass: "blue",
+          img
+        });
+      }).join("");
+    }
 
     function renderTerm(rows) {
       const el = document.getElementById("termBoard");
@@ -550,55 +532,57 @@
         return rowHtml({ rank, name, meta:cls ? `所属 ${cls}` : "", value:`${count}回`, colorClass:"green" });
       }).join("");
     }
-　async function fetchTermClassTop3(termRange) {
-  if (window.clientReady && typeof window.clientReady.then === "function") {
-    await window.clientReady;
-  }
 
-  if (!window.client) return [];
+    async function fetchTermClassTop3(termRange) {
+      if (window.clientReady && typeof window.clientReady.then === "function") {
+        await window.clientReady;
+      }
 
-  const { data, error } = await window.client.rpc("get_public_term_class_ranking", {
-    p_start: termRange.start_at,
-    p_end: termRange.end_at,
-    p_limit: 3
-  });
+      if (!window.client) return [];
 
-  if (error) throw error;
-  return data || [];
-}
-　async function fetchTermTop3(termRange) {
-  if (window.clientReady && typeof window.clientReady.then === "function") {
-    await window.clientReady;
-  }
+      const { data, error } = await window.client.rpc("get_public_term_class_ranking", {
+        p_start: termRange.start_at,
+        p_end: termRange.end_at,
+        p_limit: 3
+      });
 
-  if (!window.client) return [];
+      if (error) throw error;
+      return data || [];
+    }
 
-  const { data, error } = await window.client.rpc("get_public_term_best_ranking", {
-    p_start: termRange.start_at,
-    p_end: termRange.end_at,
-    p_limit: 3
-  });
+    async function fetchTermTop3(termRange) {
+      if (window.clientReady && typeof window.clientReady.then === "function") {
+        await window.clientReady;
+      }
 
-  if (error) throw error;
-  return data || [];
-}
+      if (!window.client) return [];
 
-　async function fetchEffortTop3(termRange) {
-  if (window.clientReady && typeof window.clientReady.then === "function") {
-    await window.clientReady;
-  }
+      const { data, error } = await window.client.rpc("get_public_term_best_ranking", {
+        p_start: termRange.start_at,
+        p_end: termRange.end_at,
+        p_limit: 3
+      });
 
-  if (!window.client) return [];
+      if (error) throw error;
+      return data || [];
+    }
 
-  const { data, error } = await window.client.rpc("get_public_term_effort_ranking", {
-    p_start: termRange.start_at,
-    p_end: termRange.end_at,
-    p_limit: 3
-  });
+    async function fetchEffortTop3(termRange) {
+      if (window.clientReady && typeof window.clientReady.then === "function") {
+        await window.clientReady;
+      }
 
-  if (error) throw error;
-  return data || [];
-}
+      if (!window.client) return [];
+
+      const { data, error } = await window.client.rpc("get_public_term_effort_ranking", {
+        p_start: termRange.start_at,
+        p_end: termRange.end_at,
+        p_limit: 3
+      });
+
+      if (error) throw error;
+      return data || [];
+    }
 
     async function updateBoard() {
       try {
@@ -607,12 +591,12 @@
 
         document.getElementById("boardWeek").textContent = `📅 ${formatWeekJapanese(week)}`;
 
-       const [weeklyRows, classRows, termRows, effortRows] = await Promise.all([
- 　　 window.api.fetchWeeklyTop(week),
- 　　 fetchTermClassTop3(termRange),
- 　　 fetchTermTop3(termRange),
- 　　 fetchEffortTop3(termRange)
-　　]);
+        const [weeklyRows, classRows, termRows, effortRows] = await Promise.all([
+          window.api.fetchWeeklyTop(week),
+          fetchTermClassTop3(termRange),
+          fetchTermTop3(termRange),
+          fetchEffortTop3(termRange)
+        ]);
 
         renderWeekly(weeklyRows || []);
         renderClass(classRows || []);
@@ -653,9 +637,9 @@
     }
 
     .panelTitle h2{
-  white-space: nowrap;
-  font-size: clamp(28px, 2.2vw, 34px) !important;
-}
+      white-space: nowrap;
+      font-size: clamp(28px, 2.2vw, 34px) !important;
+    }
 
     .badgeMini{
       font-size:20px !important;
@@ -686,8 +670,9 @@
     }
 
     .score{
- 　　 font-size:44px !important;   /* 少し下げる */
-　　  margin-right:14px !important; /* ← 左に寄せる */
+      font-size:44px !important;
+      font-weight:1000 !important;
+      margin-right:14px !important;
     }
 
     .scoreVisual img{
@@ -719,39 +704,38 @@
     .compact .rankIcon{
       font-size:36px !important;
     }
-    /* クラス対抗だけ調整 */
-#classBoard .rowCard{
-  grid-template-columns:70px minmax(0, 1fr) 96px !important;
-}
 
-#classBoard .meta{
-  font-size:clamp(16px, 1.15vw, 20px) !important;
-  line-height:1.15 !important;
-  white-space:nowrap !important;
-}
+    #classBoard .rowCard{
+      grid-template-columns:70px minmax(0, 1fr) 96px !important;
+    }
 
-#classBoard .score{
-  font-size:clamp(36px, 2.3vw, 46px) !important;
-}
+    #classBoard .meta{
+      font-size:clamp(15px, 1.05vw, 18px) !important;
+      line-height:1.15 !important;
+      white-space:nowrap !important;
+    }
 
-/* 画像を後ろに回す */
-.scoreVisual{
-  z-index:0 !important;
-  opacity:.55 !important;
-}
+    #classBoard .score{
+      font-size:clamp(34px, 2.1vw, 42px) !important;
+    }
 
-.rowCard > div:not(.scoreVisual){
-  position:relative;
-  z-index:2;
-}
+    .scoreVisual{
+      z-index:0 !important;
+      opacity:.55 !important;
+    }
 
-.rowCard .score{
-  position:relative;
-  z-index:3;
-}
+    .rowCard > div:not(.scoreVisual){
+      position:relative;
+      z-index:2;
+    }
+
+    .rowCard .score{
+      position:relative;
+      z-index:3;
+    }
   `;
   document.head.appendChild(style);
 })();
-</script>
+  </script>
 </body>
 </html>
