@@ -140,11 +140,14 @@ function fmtTopRowHtml(i, row){
   `;
 }
 
-/* ===== クラス対抗：学期平均 ===== */
+/* ===== クラス対抗：学期・参加率込み ===== */
 function fmtClassRowHtml(i, row){
+  const score = Number(row?.final_score ?? row?.avg_score ?? 0);
   const avg = Number(row?.avg_score ?? 0);
   const total = Number(row?.term_total ?? 0);
   const participants = Number(row?.participants ?? 0);
+  const classSize = Number(row?.class_size ?? 0);
+  const rate = classSize > 0 ? Math.round((participants / classSize) * 100) : 0;
   const classCode = formatClassDisplay(row?.class_code || "-");
 
   return `
@@ -178,7 +181,7 @@ function fmtClassRowHtml(i, row){
           color:transparent;
           white-space:nowrap;
         ">
-          ${avg.toFixed(1)}点
+          ${score.toFixed(1)}点
         </div>
       </div>
 
@@ -188,7 +191,7 @@ function fmtClassRowHtml(i, row){
         opacity:.82;
         line-height:1.35;
       ">
-        平均${avg.toFixed(1)}点 / 参加${participants}人 / 合計${total}点
+        平均${avg.toFixed(1)}点 / 参加${participants}人 / 参加率${rate}% / 合計${total}点
       </div>
     </div>
   `;
@@ -286,9 +289,9 @@ function renderClassGoal(klass){
   }
 
   const top = klass[0];
-  const avg = Number(top.avg_score ?? 0);
+  const score = Number(top.final_score ?? top.avg_score ?? 0);
 
-  el.textContent = `現在1位：${formatClassDisplay(top.class_code)}（平均${avg.toFixed(1)}点）`;
+  el.textContent = `現在1位：${formatClassDisplay(top.class_code)}（${score.toFixed(1)}点）`;
 }
 
 /* ===== Top3共通 ===== */
