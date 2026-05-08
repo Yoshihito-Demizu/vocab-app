@@ -103,6 +103,7 @@ let qShownAt = 0;
 let totalAnswerMs = 0;
 let answeredCount = 0;
 let fastestAnswerMs = null;
+let quizSessionId = null;
 
 // ===== SETTINGS =====
 const GAME_SECONDS = 60;
@@ -328,6 +329,7 @@ async function startGame() {
     combo = 0;
     maxCombo = 0;
     seenQuestionIds.clear();
+    quizSessionId = crypto.randomUUID();
 
     qShownAt = 0;
     totalAnswerMs = 0;
@@ -384,7 +386,12 @@ async function answer(choiceLabel) {
     const qid = currentQ ? currentQ.id : null;
     if (!qid) throw new Error("question missing");
 
-    const res = await api.submitAttempt(qid, chosen);
+    const res = await api.submitAttempt(
+ 　　 qid,
+　　  chosen,
+　　  answerMs,
+　　  quizSessionId
+　　);
     const row = Array.isArray(res) ? res[0] : res;
 
     const isCorrect = !!(row && row.is_correct);
