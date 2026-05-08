@@ -288,7 +288,7 @@ const api = {
     };
   },
 
-  async submitAttempt(_questionId, chosenLabel) {
+  async submitAttempt(_questionId, chosenLabel, answerMs, quizSessionId) {
     const weekId = this.getWeekIdNow();
     const correct = state.lastCorrectLabel;
     const ok = String(chosenLabel).toUpperCase() === String(correct).toUpperCase();
