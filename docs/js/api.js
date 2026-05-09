@@ -160,7 +160,19 @@ window.vocabReady = (async () => {
 function normalizePlayerId(s) {
   return String(s || "").trim().toLowerCase();
 }
+function getDeviceId() {
+  let id = localStorage.getItem("device_id");
 
+  if (!id) {
+    id =
+      "dev-" +
+      crypto.randomUUID().replaceAll("-", "");
+
+    localStorage.setItem("device_id", id);
+  }
+
+  return id;
+}
 /**
  * 対応するID例
  * - 2-3-01-k9f2
