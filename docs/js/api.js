@@ -288,22 +288,49 @@ const api = {
     };
   },
 
-  async submitAttempt(_questionId, chosenLabel, answerMs, quizSessionId) {
-    const weekId = this.getWeekIdNow();
-    const correct = state.lastCorrectLabel;
-    const ok = String(chosenLabel).toUpperCase() === String(correct).toUpperCase();
+  async submitAttempt(questionId, chosenLabel, answerMs, quizSessionId) {
+  const client = await ensureClientReady();
 
-    window.__LAST_PUBLIC_CORRECT = correct || "";
-    window.__LAST_CORRECT = correct || "";
+  const weekId = this.getWeekIdNow();
 
-    return [
-      {
-        is_correct: ok,
-        points: ok ? 10 : 0,
-        out_week_id: weekId,
-      },
-    ];
-  },
+  const playerId = normalizePlayerId(
+    localStorage.getItem("player_id")
+  );
+
+  const classCode =
+    parseClassCodeFromPlayerId(playerId);
+
+  const nickname =
+    makeNicknameFromPlayerId(playerId);
+
+  const correct =
+    state.lastCorrectLabel || "";
+
+  window.__LAST_PUBLIC_CORRECT = correct;
+  window.__LAST_CORRECT = correct;
+
+  const { data, error } = await client.rpc(
+    "submit_public_attempt",
+    {
+      p_quiz_session_id: quizSessionId,
+      p_player_id: playerId,
+      p_class_code: classCode,
+      p_nickname: nickname,
+      p_question_key: String(questionId || ""),
+      p_correct_choice: correct,
+      p_chosen_choice: String(chosenLabel || ""),
+      p_client_ms: Math.floor(answerMs || 0),
+      p_week_id: weekId,
+    }
+  );
+
+  if (error) {
+    console.error("[submitAttempt]", error);
+    throw error;
+  }
+
+  return data;
+},
 
   async submitRun(score, maxCombo, isFinished) {
     const client = await ensureClientReady();
