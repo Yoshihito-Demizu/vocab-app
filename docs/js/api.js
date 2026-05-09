@@ -314,6 +314,7 @@ const api = {
 
   const nickname =
     makeNicknameFromPlayerId(playerId);
+  const deviceId = getDeviceId();
 
   const correct =
     state.lastCorrectLabel || "";
@@ -333,6 +334,7 @@ const api = {
       p_chosen_choice: String(chosenLabel || ""),
       p_client_ms: Math.floor(answerMs || 0),
       p_week_id: weekId,
+      p_device_id: deviceId,
     }
   );
 
