@@ -406,44 +406,41 @@ async function answer(choiceLabel) {
       markButtons(correctLabel, chosen);
     }
 
-    if (isCorrect) {
-      playSe("seCorrect");
+   if (isCorrect) {
+  playSe("seCorrect");
 
-      combo += 1;
-      maxCombo = Math.max(maxCombo, combo);
+  const gained = Number(row.points || 0);
 
-      const speedBonus = getSpeedBonus(answerMs);
-      const comboBonus = getComboBonus(combo);
-      const gained = 10 + speedBonus + comboBonus;
+  score = Number(row.total_score || score || 0);
+  combo = Number(row.combo_after || 0);
+  maxCombo = Math.max(maxCombo, combo);
 
-      score += gained;
+  setText(els.scoreNow, score);
+  setText(els.comboNow, combo);
 
-      setText(els.scoreNow, score);
-      setText(els.comboNow, combo);
+  const fastLabel = getFastLabel(answerMs);
+  const overlayText = fastLabel ? `${fastLabel} +${gained}` : `〇 +${gained}`;
 
-      const fastLabel = getFastLabel(answerMs);
-      const overlayText = fastLabel ? `${fastLabel} +${gained}` : `〇 +${gained}`;
+  await showOverlay("ok", overlayText, 520);
+} else {
+  playSe("seWrong");
 
-      await showOverlay("ok", overlayText, 520);
-    } else {
-      playSe("seWrong");
+  score = Number(row.total_score || score || 0);
+  combo = Number(row.combo_after || 0);
 
-      combo = 0;
+  msLeft = Math.max(0, msLeft - WRONG_PENALTY_MS);
+  syncTimeLeftUi();
 
-      msLeft = Math.max(0, msLeft - WRONG_PENALTY_MS);
-      syncTimeLeftUi();
+  setText(els.scoreNow, score);
+  setText(els.comboNow, combo);
 
-      setText(els.scoreNow, score);
-      setText(els.comboNow, combo);
+  await showOverlay("ng", "× -2秒", 520);
 
-      await showOverlay("ng", "× -2秒", 520);
-
-      if (msLeft <= 0) {
-        endGame(true);
-        return;
-      }
-    }
-
+  if (msLeft <= 0) {
+    endGame(true);
+    return;
+  }
+}
     await loadQuestion();
   } catch (e) {
     console.warn("[quiz] answer failed:", e);
