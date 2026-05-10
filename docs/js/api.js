@@ -329,7 +329,12 @@ const api = {
       p_player_id: playerId,
       p_class_code: classCode,
       p_nickname: nickname,
-      p_question_key: String(questionId || ""),
+      p_question_key:
+  String(
+    questionId ||
+    state.current?.word ||
+    crypto.randomUUID()
+  ),
       p_correct_choice: correct,
       p_chosen_choice: String(chosenLabel || ""),
       p_client_ms: Math.floor(answerMs || 0),
