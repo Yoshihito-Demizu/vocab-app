@@ -299,7 +299,7 @@
       <section class="panel">
         <div class="panelTitle">
           <h2>学期ベストスコア Top3</h2>
-          <div class="badgeMini">WEEKLY BEST</div>
+          <div class="badgeMini">TERM BEST</div>
         </div>
         <div id="weeklyBoard" class="list">（まだデータなし）</div>
       </section>
@@ -472,7 +472,7 @@
       el.innerHTML = list.map((row, i) => {
         const rank = i + 1;
         const name = formatStudentDisplay(row.nickname || row.player_id || "-");
-        const points = Number(row.points ?? row.score ?? 0);
+        const points = Number(row.best_score ?? row.points ?? row.score ?? 0);
         const combo = Number(row.max_combo ?? 0);
         const img = getFirstImage(PERSONAL_GRADE_IMAGES, personalGrade(row));
         return rowHtml({ rank, name, meta:`COMBO ${combo}`, value:`${points}点`, colorClass:"", img });
@@ -560,7 +560,22 @@
       if (error) throw error;
       return data || [];
     }
+　　async function fetchTermBestScoreTop3(termRange) {
+  if (window.clientReady && typeof window.clientReady.then === "function") {
+    await window.clientReady;
+  }
 
+  if (!window.client) return [];
+
+  const { data, error } = await window.client.rpc("get_public_term_single_best_ranking", {
+    p_start: termRange.start_at,
+    p_end: termRange.end_at,
+    p_limit: 3
+  });
+
+  if (error) throw error;
+  return data || [];
+}
     async function fetchTermTop3(termRange) {
       if (window.clientReady && typeof window.clientReady.then === "function") {
         await window.clientReady;
@@ -602,14 +617,14 @@
 
         document.getElementById("boardWeek").textContent = `📅 ${formatWeekJapanese(week)}`;
 
-        const [weeklyRows, classRows, termRows, effortRows] = await Promise.all([
-          window.api.fetchWeeklyTop(week),
-          fetchTermClassTop3(termRange),
-          fetchTermTop3(termRange),
-          fetchEffortTop3(termRange)
-        ]);
+        const [termBestScoreRows, classRows, termRows, effortRows] = await Promise.all([
+  fetchTermBestScoreTop3(termRange),
+  fetchTermClassTop3(termRange),
+  fetchTermTop3(termRange),
+  fetchEffortTop3(termRange)
+]);
 
-        renderWeekly(weeklyRows || []);
+        renderWeekly(termBestScoreRows || []);
         renderClass(classRows || []);
         renderTerm(termRows || []);
         renderEffort(effortRows || []);
