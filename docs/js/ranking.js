@@ -394,7 +394,16 @@ async function loadRankings(){
       : Promise.resolve([]);
 
     const myTermPromise = window.api.fetchMyTermBestStatus?.(termRange) ?? null;
-
+　　const termBestScorePromise = client && termRange
+  ? client.rpc("get_public_term_single_best_ranking", {
+      p_start: termRange.start_at,
+      p_end: termRange.end_at,
+      p_limit: 3
+    }).then(({data, error}) => {
+      if(error) throw error;
+      return data || [];
+    })
+  : Promise.resolve([]);
     const termTopPromise = client && termRange
       ? client.rpc("get_public_term_best_ranking", {
           p_start: termRange.start_at,
@@ -418,20 +427,22 @@ async function loadRankings(){
       : Promise.resolve([]);
 
     const [
-      weeklyTop,
-      myWeekly,
-      classRank,
-      myTerm,
-      termTop,
-      effortTop
-    ] = await Promise.all([
-      weeklyTopPromise,
-      myWeeklyPromise,
-      classRankPromise,
-      myTermPromise,
-      termTopPromise,
-      effortTopPromise
-    ]);
+  weeklyTop,
+  myWeekly,
+  classRank,
+  myTerm,
+  termBestScore,
+  termTop,
+  effortTop
+] = await Promise.all([
+  weeklyTopPromise,
+  myWeeklyPromise,
+  classRankPromise,
+  myTermPromise,
+  termBestScorePromise,
+  termTopPromise,
+  effortTopPromise
+]);
 
     const topRows = Array.isArray(weeklyTop) ? weeklyTop.slice(0, 10) : [];
     const classRows = Array.isArray(classRank) ? classRank.slice(0, 10) : [];
@@ -450,7 +461,7 @@ async function loadRankings(){
 
     renderClassGoal(classRows);
 
-    renderTop3List("weeklyTop3", topRows, "points", (v) => `${v}点`);
+  　renderTop3List("weeklyTop3", termBestScore, "best_score", (v) => `${v}点`);
     renderTop3List("termTop3", termTop, "term_best_total", (v) => `${v}点`);
     renderTop3List("effortTop3", effortTop, "finished_count", (v) => `${v}回`);
 
