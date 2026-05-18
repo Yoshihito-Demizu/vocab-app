@@ -264,9 +264,18 @@ function renderQuestion(q) {
   if (!els.q || !els.choices) return;
 
   els.q.innerHTML = `
-    <h3>${escapeHtml(q.word || "")}</h3>
-    <div class="prompt">${escapeHtml(q.prompt || "意味として正しいものは？")}</div>
-  `;
+  <h3>
+    ${
+      q.ruby
+        ? `<ruby>${escapeHtml(q.word || "")}<rt>${escapeHtml(q.ruby)}</rt></ruby>`
+        : escapeHtml(q.word || "")
+    }
+  </h3>
+
+  <div class="prompt">
+    ${escapeHtml(q.prompt || "意味として正しいものは？")}
+  </div>
+`;
 
   const items = [
     ["A", q.choice_a],
