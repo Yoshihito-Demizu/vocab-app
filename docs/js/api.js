@@ -116,6 +116,7 @@ function parseCSV(text) {
   const header = lines[0].split(",").map((s) => s.trim());
   const idxWord = header.indexOf("word");
   const idxMeaning = header.indexOf("meaning");
+  const idxRuby = header.indexOf("ruby");
   const idxLevel = header.indexOf("level");
 
   if (idxWord < 0 || idxMeaning < 0) {
@@ -126,11 +127,12 @@ function parseCSV(text) {
   for (let i = 1; i < lines.length; i++) {
     const cols = lines[i].split(",").map((s) => s.trim());
     const word = cols[idxWord] || "";
-    const meaning = cols[idxMeaning] || "";
+　　const ruby = idxRuby >= 0 ? (cols[idxRuby] || "") : "";
+　　const meaning = cols[idxMeaning] || "";
     const levelRaw = idxLevel >= 0 ? (cols[idxLevel] || "1") : "1";
     const level = Number(levelRaw) || 1;
     if (!word || !meaning) continue;
-    out.push({ word, meaning, level });
+    out.push({ word, ruby,meaning, level });
   }
 
   return out;
@@ -292,6 +294,7 @@ const api = {
     return {
       id: "csv-" + Date.now(),
       word: v.word,
+      ruby: v.ruby || "",
       prompt: "意味として正しいものは？",
       choice_a: r.choice_a,
       choice_b: r.choice_b,
