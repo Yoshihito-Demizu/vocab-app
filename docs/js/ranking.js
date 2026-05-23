@@ -147,7 +147,11 @@ function fmtClassRowHtml(i, row){
   const total = Number(row?.term_total ?? 0);
   const participants = Number(row?.participants ?? 0);
   const classSize = Number(row?.class_size ?? 0);
-  const rate = classSize > 0 ? Math.round((participants / classSize) * 100) : 0;
+  const rawRate = classSize > 0
+  ? Math.round((participants / classSize) * 100)
+  : 0;
+
+　const rate = Math.min(rawRate, 100);
   const classCode = formatClassDisplay(row?.class_code || "-");
 
   return `
