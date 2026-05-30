@@ -288,8 +288,7 @@ const api = {
     const r = makeChoices(pool, v);
 
     state.lastCorrectLabel = r.correctLabel;
-    window.__LAST_PUBLIC_CORRECT = r.correctLabel;
-    window.__LAST_CORRECT = r.correctLabel;
+   
 
     return {
       id: "csv-" + Date.now(),
@@ -322,8 +321,6 @@ const api = {
   const correct =
     state.lastCorrectLabel || "";
 
-  window.__LAST_PUBLIC_CORRECT = correct;
-  window.__LAST_CORRECT = correct;
 
   const { data, error } = await client.rpc(
     "submit_public_attempt",
