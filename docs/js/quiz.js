@@ -198,6 +198,15 @@ function ensureResultUi() {
     `;
     resultStats.appendChild(card);
   }
+    if (!document.getElementById("finalTermTotal")) {
+    const card = document.createElement("div");
+    card.className = "resultStatCard";
+    card.innerHTML = `
+      <div class="resultStatLabel">学期累計</div>
+      <div class="resultStatValue" id="finalTermTotal">読込中...</div>
+    `;
+    resultStats.appendChild(card);
+  }
 }
 
 // ===== SCORING =====
@@ -490,7 +499,22 @@ async function endGame(isFinished = false) {
   if (finalFastestTime) finalFastestTime.textContent = `${fastestSec.toFixed(2)}秒`;
 
   showPane("result");
+  try {
+    if (api && typeof api.fetchMyTermTotal === "function") {
+      const termRange = api.getCurrentTermRange();
+      const myTotal = await api.fetchMyTermTotal(termRange);
 
+      const finalTermTotal = document.getElementById("finalTermTotal");
+      if (finalTermTotal) {
+        finalTermTotal.textContent = myTotal
+          ? `${Number(myTotal.term_total || 0)}点 / ${Number(myTotal.finished_count || 0)}回`
+          : "まだデータなし";
+      }
+    }
+  } catch (e) {
+    const finalTermTotal = document.getElementById("finalTermTotal");
+    if (finalTermTotal) finalTermTotal.textContent = "読込失敗";
+  }
   if (typeof window.onResultShown === "function") {
     try {
       await window.onResultShown();
