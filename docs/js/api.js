@@ -422,6 +422,22 @@ const api = {
     return Array.isArray(data) ? (data[0] || null) : data;
   },
 
+    async fetchMyTermTotal(termRange) {
+    const client = await ensureClientReady();
+    const playerId = normalizePlayerId(localStorage.getItem("player_id"));
+    if (!playerId) return null;
+
+    const range = termRange || this.getCurrentTermRange();
+
+    const { data, error } = await client.rpc("get_public_my_term_total", {
+      p_start: range.start_at,
+      p_end: range.end_at,
+      p_player_id: playerId,
+    });
+
+    if (error) throw error;
+    return Array.isArray(data) ? (data[0] || null) : data;
+  },
   async fetchClassWeeklyRanking(weekId, limit = 20) {
     const client = await ensureClientReady();
     const now = new Date();
