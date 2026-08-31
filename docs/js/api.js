@@ -113,7 +113,7 @@ function parseCSV(text) {
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
   if (lines.length <= 1) return [];
 
-  const header = lines[0].replace(/^\uFEFF/, "").split(",").map((s) => s.trim());
+  const header = lines[0].replace(/^\uFEFF/, "").split(/\t|,/).map((s) => s.trim());
   const idxWord = header.indexOf("word");
   const idxMeaning = header.indexOf("meaning");
   const idxRuby = header.indexOf("ruby");
@@ -125,7 +125,7 @@ function parseCSV(text) {
 
   const out = [];
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(",").map((s) => s.trim());
+    const cols = lines[i].split(/\t|,/).map((s) => s.trim());
     const word = cols[idxWord] || "";
 　　const ruby = idxRuby >= 0 ? (cols[idxRuby] || "") : "";
 　　const meaning = cols[idxMeaning] || "";
