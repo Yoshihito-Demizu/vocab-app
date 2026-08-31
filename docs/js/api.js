@@ -113,7 +113,7 @@ function parseCSV(text) {
   const lines = text.replace(/\r/g, "").split("\n").filter(Boolean);
   if (lines.length <= 1) return [];
 
-  const header = lines[0].split(",").map((s) => s.trim());
+  const header = lines[0].replace(/^\uFEFF/, "").split(",").map((s) => s.trim());
   const idxWord = header.indexOf("word");
   const idxMeaning = header.indexOf("meaning");
   const idxRuby = header.indexOf("ruby");
