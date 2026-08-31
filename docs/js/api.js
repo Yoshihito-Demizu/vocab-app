@@ -144,6 +144,7 @@ async function loadVocabCSV() {
     if (!res.ok) throw new Error("vocab.csv fetch failed: " + res.status);
 
     const text = await res.text();
+    console.log("【CSV先頭】", JSON.stringify(text.slice(0, 100)));
     const list = parseCSV(text);
 
     if (list.length >= 4) {
